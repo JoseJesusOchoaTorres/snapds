@@ -1,0 +1,87 @@
+{
+  "name": "snapds",
+  "displayName": "Snapds",
+  "description": "Browse, configure, and drop Snapds components into your React code.",
+  "version": "0.1.0",
+  "publisher": "your-publisher-id",
+  "private": true,
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other", "Snippets"],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:snapds.gallery",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescriptreact"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "snapdsSidebar",
+          "title": "Snapds",
+          "icon": "media/icons/ds.svg"
+        }
+      ]
+    },
+    "views": {
+      "snapdsSidebar": [
+        {
+          "id": "snapds.gallery",
+          "name": "Components",
+          "type": "webview",
+          "contextualTitle": "Snapds"
+        }
+      ]
+    },
+    "commands": [
+      { "command": "snapds.openSettings",       "title": "Snapds: Open Settings" },
+      { "command": "snapds.openPropsPanel",     "title": "Snapds: Open Props Panel" }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "snapds.openSettings",
+          "when": "view == snapds.gallery",
+          "group": "navigation@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Snapds",
+      "properties": {
+        "snapds.packages": {
+          "type": "array",
+          "default": [],
+          "description": "Registered Snapds packages.",
+          "items": {
+            "type": "object",
+            "required": ["name", "version", "importPath"],
+            "properties": {
+              "name":         { "type": "string", "description": "npm package name, e.g. @acme/ui" },
+              "version":      { "type": "string", "description": "Semver pin used as cache key" },
+              "importPath":   { "type": "string", "description": "Import specifier used in codegen (often equals name)" },
+              "tsconfigPath": { "type": "string", "description": "Optional path to a tsconfig used by react-docgen-typescript" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs --production",
+    "watch": "node esbuild.config.mjs --watch",
+    "package": "vsce package --no-dependencies",
+    "vscode:prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.24.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "react-docgen-typescript": "^2.2.2"
+  }
+}

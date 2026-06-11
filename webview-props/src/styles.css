@@ -1,0 +1,44 @@
+:root {
+  color-scheme: light dark;
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background, transparent);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0; }
+
+form { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+
+h1 { font-size: 1.1em; margin: 0 0 8px 0; }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.95em;
+}
+
+label > .name { font-weight: 600; }
+
+label > .desc { opacity: 0.7; font-size: 0.85em; }
+
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+  padding: 4px 6px;
+  outline: none;
+  font: inherit;
+}
+
+textarea { min-height: 60px; resize: vertical; }
+
+.empty { padding: 16px; opacity: 0.7; }
+
+.row-checkbox { flex-direction: row; align-items: center; gap: 6px; }

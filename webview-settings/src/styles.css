@@ -1,0 +1,74 @@
+:root {
+  color-scheme: light dark;
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background, transparent);
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; padding: 0; }
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+header {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.search input {
+  width: 100%;
+  padding: 4px 6px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+  outline: none;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.2)));
+  border-radius: 4px;
+  cursor: grab;
+  background: var(--vscode-sideBarSectionHeader-background, transparent);
+  user-select: none;
+}
+
+.card:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.card:active {
+  cursor: grabbing;
+}
+
+.card .name {
+  font-weight: 600;
+}
+
+.card .desc {
+  font-size: 0.9em;
+  opacity: 0.75;
+}
+
+.empty {
+  opacity: 0.7;
+  text-align: center;
+  padding: 16px 8px;
+}
