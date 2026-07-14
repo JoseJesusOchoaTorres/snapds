@@ -1,6 +1,6 @@
-import { cp, rm, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { cp, mkdir, rm } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -8,8 +8,8 @@ const __dirname = dirname(__filename);
 const root = resolve(__dirname, '..');
 
 const pairs = [
-  ['webview-gallery/dist',  'extension/media/gallery'],
-  ['webview-props/dist',    'extension/media/props'],
+  ['webview-gallery/dist', 'extension/media/gallery'],
+  ['webview-props/dist', 'extension/media/props'],
   ['webview-settings/dist', 'extension/media/settings'],
 ];
 

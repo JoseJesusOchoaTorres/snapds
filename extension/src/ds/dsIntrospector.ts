@@ -1,9 +1,11 @@
-import * as vscode from 'vscode';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as docgen from 'react-docgen-typescript';
+import * as vscode from 'vscode';
+import type { UserOverridesStore } from '../state/userOverrides';
+import type { ComponentMeta, PropMeta, UserOverride } from '../util/messaging';
 import type { DsPackage } from './dsRegistry';
-import type { ComponentMeta, PropMeta } from '../util/messaging';
+import { enumerateComponentExports } from './exportsScan';
 
 interface SnapdsConfig {
   packages?: {
@@ -17,16 +19,61 @@ interface SnapdsConfig {
               defaultValue?: unknown;
               description?: string;
               hidden?: boolean;
-            }
-          }
-        }
-      }
-    }
-  }
+            };
+          };
+        };
+      };
+    };
+  };
 }
 
 export class DsIntrospector {
-  constructor(private ctx: vscode.ExtensionContext) {}
+  constructor(
+    private ctx: vscode.ExtensionContext,
+    private userOverrides: UserOverridesStore,
+  ) {}
+
+  /**
+   * Applies USER overrides (auto < company < user) as a post-cache transform so
+   * editing them never requires invalidating the parsed introspection cache.
+   */
+  private applyUserOverrides(p: DsPackage, comps: ComponentMeta[]): ComponentMeta[] {
+    return comps.map((c) => {
+      const ov = this.userOverrides.get(p.name, c.name);
+      if (!ov) return c;
+      const props = c.props
+        .filter((pr) => !ov.props?.[pr.name]?.hidden)
+        .map((pr) => {
+          const po = ov.props?.[pr.name];
+          if (!po) return pr;
+          return {
+            ...pr,
+            defaultValue: po.defaultValue !== undefined ? po.defaultValue : pr.defaultValue,
+            description: po.description !== undefined ? po.description : pr.description,
+          };
+        });
+      for (const ap of ov.addedProps ?? []) {
+        if (props.some((pr) => pr.name === ap.name)) continue;
+        props.push({
+          name: ap.name,
+          type: ap.type,
+          raw: ap.type,
+          required: false,
+          description: ap.description,
+        });
+      }
+      return { ...c, props, snippet: ov.snippet !== undefined ? ov.snippet : c.snippet };
+    });
+  }
+
+  /**
+   * Returns the raw company override for a component from `snapds.config.json`, so
+   * the settings UI can render the inherited (auto < company) baseline read-only.
+   */
+  getCompanyOverride(pkg: string, comp: string): UserOverride | undefined {
+    const config = this.readSnapdsConfig();
+    return config?.packages?.[pkg]?.overrides?.[comp];
+  }
 
   private getCacheKey(p: DsPackage): string {
     let key = `ds.cache.${p.name}@${p.version}`;
@@ -46,11 +93,20 @@ export class DsIntrospector {
     return key;
   }
 
+  /**
+   * Returns the previously introspected components for `p` if they are still in
+   * cache, without parsing anything. Lets callers show counts instantly on load.
+   */
+  getCached(p: DsPackage): ComponentMeta[] | undefined {
+    const c = this.ctx.globalState.get<ComponentMeta[]>(this.getCacheKey(p));
+    return c && this.applyUserOverrides(p, c);
+  }
+
   async introspect(p: DsPackage, opts: { force?: boolean } = {}): Promise<ComponentMeta[]> {
     const cacheKey = this.getCacheKey(p);
     if (!opts.force) {
       const cached = this.ctx.globalState.get<ComponentMeta[]>(cacheKey);
-      if (cached) return cached;
+      if (cached) return this.applyUserOverrides(p, cached);
     }
 
     const pkgDir = await this.resolvePackageDir(p);
@@ -69,15 +125,11 @@ export class DsIntrospector {
     const components: ComponentMeta[] = parsed
       .filter((c) => c.displayName && c.displayName !== '__type' && /^[A-Z]/.test(c.displayName))
       .filter((c) => {
-        // Level 3: Local Override (Blacklist in Workspace Settings)
-        if (p.blacklist && p.blacklist.includes(c.displayName)) {
-          return false;
-        }
-        // Level 2: Repository Config (Ignore list)
+        // Repository Config (Ignore list)
         if (pkgConfig?.ignore && pkgConfig.ignore.includes(c.displayName)) {
           return false;
         }
-        // Level 1: Automatic Filtering (@internal)
+        // Automatic Filtering (@internal)
         if (c.tags && c.tags.internal !== undefined) {
           return false;
         }
@@ -102,8 +154,14 @@ export class DsIntrospector {
               if (!propOverride) return prop;
               return {
                 ...prop,
-                defaultValue: propOverride.defaultValue !== undefined ? propOverride.defaultValue : prop.defaultValue,
-                description: propOverride.description !== undefined ? propOverride.description : prop.description,
+                defaultValue:
+                  propOverride.defaultValue !== undefined
+                    ? propOverride.defaultValue
+                    : prop.defaultValue,
+                description:
+                  propOverride.description !== undefined
+                    ? propOverride.description
+                    : prop.description,
               };
             });
         }
@@ -117,8 +175,32 @@ export class DsIntrospector {
         };
       });
 
-    await this.ctx.globalState.update(cacheKey, components);
-    return components;
+    // A1: react-docgen-typescript misses components declared as generic call
+    // signatures (polymorphic `as`-style components). Enumerate every capitalized
+    // value export via the TS Compiler API and merge in whatever docgen skipped,
+    // with best-effort (empty) props so they still surface in the gallery/skills.
+    const detectedNames = new Set(components.map((c) => c.name));
+    for (const exp of enumerateComponentExports(entry, p.tsconfigPath)) {
+      if (detectedNames.has(exp.name)) continue;
+      if (pkgConfig?.ignore && pkgConfig.ignore.includes(exp.name)) continue;
+      if (exp.description && exp.description.includes('@internal')) continue;
+      const compOverride = pkgConfig?.overrides?.[exp.name];
+      components.push({
+        id: `${p.name}#${exp.name}`,
+        name: exp.name,
+        description: exp.description || undefined,
+        props: [],
+        snippet: compOverride?.snippet,
+      });
+      detectedNames.add(exp.name);
+    }
+
+    // Only cache non-empty results so a transient empty scan can never "stick"
+    // and leave the settings UI perpetually showing "Loading components…".
+    if (components.length > 0) {
+      await this.ctx.globalState.update(cacheKey, components);
+    }
+    return this.applyUserOverrides(p, components);
   }
 
   async invalidate(p: DsPackage): Promise<void> {
@@ -172,7 +254,11 @@ export class DsIntrospector {
 
     // Monorepo deep search
     try {
-      const uris = await vscode.workspace.findFiles(`**/node_modules/${p.name}/package.json`, null, 1);
+      const uris = await vscode.workspace.findFiles(
+        `**/node_modules/${p.name}/package.json`,
+        null,
+        1,
+      );
       if (uris.length > 0) return path.dirname(uris[0].fsPath);
     } catch {
       // Ignored
@@ -198,9 +284,11 @@ export class DsIntrospector {
   }
 
   private resolveTypingsEntry(pkgDir: string): string | undefined {
-    const pkgJson = JSON.parse(
-      fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8'),
-    ) as { types?: string; typings?: string; main?: string };
+    const pkgJson = JSON.parse(fs.readFileSync(path.join(pkgDir, 'package.json'), 'utf8')) as {
+      types?: string;
+      typings?: string;
+      main?: string;
+    };
     const typesField = pkgJson.types ?? pkgJson.typings;
     if (typesField) {
       const abs = path.join(pkgDir, typesField);
@@ -239,9 +327,7 @@ function normalizeProp(prop: docgen.PropItem): PropMeta {
 
   if (prop.type.name === 'enum' && Array.isArray((prop.type as { value?: unknown }).value)) {
     const values = (prop.type as { value: Array<{ value: string }> }).value;
-    enumValues = values
-      .map((v) => String(v.value).replace(/^"|"$/g, ''))
-      .filter(Boolean);
+    enumValues = values.map((v) => String(v.value).replace(/^"|"$/g, '')).filter(Boolean);
     type = 'enum';
   } else if (raw === 'boolean') type = 'boolean';
   else if (raw === 'number') type = 'number';

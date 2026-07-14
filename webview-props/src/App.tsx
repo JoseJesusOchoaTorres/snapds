@@ -1,11 +1,7 @@
+import { Control } from '@snapds/webview-shared';
 import { useEffect, useState } from 'react';
+import type { ComponentMeta, ToProps } from './types';
 import { vscode } from './vscodeApi';
-import type { ComponentMeta, PropMeta, ToProps } from './types';
-import { BooleanControl } from './controls/BooleanControl';
-import { StringControl } from './controls/StringControl';
-import { NumberControl } from './controls/NumberControl';
-import { EnumControl } from './controls/EnumControl';
-import { ChildrenControl } from './controls/ChildrenControl';
 
 export default function App() {
   const [comp, setComp] = useState<ComponentMeta | null>(null);
@@ -46,33 +42,14 @@ export default function App() {
         <div className="empty">This component has no documented props.</div>
       ) : (
         comp.props.map((p) => (
-          <Control key={p.name} prop={p} value={values[p.name]} onChange={(v) => update(p.name, v)} />
+          <Control
+            key={p.name}
+            prop={p}
+            value={values[p.name]}
+            onChange={(v) => update(p.name, v)}
+          />
         ))
       )}
     </form>
   );
-}
-
-function Control({ prop, value, onChange }: { prop: PropMeta; value: unknown; onChange: (v: unknown) => void }) {
-  if (prop.name === 'children') return <ChildrenControl prop={prop} value={value} onChange={onChange} />;
-  switch (prop.type) {
-    case 'boolean':
-      return <BooleanControl prop={prop} value={value} onChange={onChange} />;
-    case 'number':
-      return <NumberControl prop={prop} value={value} onChange={onChange} />;
-    case 'enum':
-      return <EnumControl prop={prop} value={value} onChange={onChange} />;
-    case 'ReactNode':
-      return <ChildrenControl prop={prop} value={value} onChange={onChange} />;
-    case 'function':
-      return (
-        <label>
-          <span className="name">{prop.name}</span>
-          <code>{'() => {}'}</code>
-        </label>
-      );
-    case 'string':
-    default:
-      return <StringControl prop={prop} value={value} onChange={onChange} />;
-  }
 }

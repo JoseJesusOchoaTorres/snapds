@@ -1,20 +1,6 @@
-export interface PropMeta {
-  name: string;
-  type: 'string' | 'boolean' | 'number' | 'enum' | 'function' | 'ReactNode' | string;
-  raw: string;
-  required: boolean;
-  defaultValue?: unknown;
-  description?: string;
-  enumValues?: string[];
-}
+import type { ComponentMeta, PropMeta } from '@snapds/webview-shared';
 
-export interface ComponentMeta {
-  id: string;
-  name: string;
-  description?: string;
-  props: PropMeta[];
-  snippet?: string;
-}
+export type { ComponentMeta, PropMeta };
 
 export type FromProps =
   | { type: 'ready' }

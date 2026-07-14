@@ -1,0 +1,20 @@
+# Source & build tooling — the extension ships pre-bundled to dist/extension.js
+src/**
+esbuild.config.mjs
+esbuild.test.mjs
+tsconfig.json
+.gitignore
+
+# Tests & their build output
+dist-test/**
+**/*.test.ts
+**/*.test.cjs
+**/__fixtures__/**
+
+# Icon source (only the rasterized icon.png is needed)
+media/icon.svg
+
+# Editor / VCS noise
+.vscode/**
+**/.DS_Store
+**/*.map

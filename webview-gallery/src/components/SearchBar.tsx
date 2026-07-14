@@ -8,6 +8,7 @@ export function SearchBar({ value, onChange }: Props) {
     <div className="search">
       <input
         type="text"
+        aria-label="Search components"
         placeholder="Search components…"
         value={value}
         onChange={(e) => onChange(e.target.value)}

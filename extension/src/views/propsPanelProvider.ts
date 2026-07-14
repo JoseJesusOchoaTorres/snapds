@@ -1,10 +1,6 @@
 import * as vscode from 'vscode';
+import type { ComponentMeta, FromProps, ToProps } from '../util/messaging';
 import { getWebviewHtml, webviewResourceRoots } from '../util/webviewHtml';
-import type {
-  ComponentMeta,
-  FromProps,
-  ToProps,
-} from '../util/messaging';
 
 export interface PropsPanelHandlers {
   onReady: () => void | Promise<void>;
@@ -36,6 +32,10 @@ export class PropsPanelProvider {
         localResourceRoots: webviewResourceRoots(this.ctx, 'props'),
       },
     );
+    panel.iconPath = {
+      light: vscode.Uri.joinPath(this.ctx.extensionUri, 'media', 'icons', 'props-light.svg'),
+      dark: vscode.Uri.joinPath(this.ctx.extensionUri, 'media', 'icons', 'props-dark.svg'),
+    };
     panel.webview.html = getWebviewHtml(panel.webview, this.ctx, 'props');
 
     panel.webview.onDidReceiveMessage((msg: FromProps) => {

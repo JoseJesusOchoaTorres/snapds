@@ -1,7 +1,7 @@
-import * as vscode from 'vscode';
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { randomBytes } from 'node:crypto';
+import * as vscode from 'vscode';
 
 export type WebviewApp = 'gallery' | 'props' | 'settings';
 
@@ -33,14 +33,14 @@ export function getWebviewHtml(
     `script-src 'nonce-${nonce}'`,
   ].join('; ');
 
-  html = html.replace('<head>', `<head>\n<meta http-equiv="Content-Security-Policy" content="${csp}">`);
+  html = html.replace(
+    '<head>',
+    `<head>\n<meta http-equiv="Content-Security-Policy" content="${csp}">`,
+  );
   html = html.replace(/<script /g, `<script nonce="${nonce}" `);
   return html;
 }
 
-export function webviewResourceRoots(
-  ctx: vscode.ExtensionContext,
-  app: WebviewApp,
-): vscode.Uri[] {
+export function webviewResourceRoots(ctx: vscode.ExtensionContext, app: WebviewApp): vscode.Uri[] {
   return [vscode.Uri.joinPath(ctx.extensionUri, 'media', app)];
 }

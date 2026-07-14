@@ -4,9 +4,30 @@
   "description": "Browse, configure, and drop Snapds components into your React code.",
   "version": "0.1.0",
   "publisher": "your-publisher-id",
-  "private": true,
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Other", "Snippets"],
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Snippets"
+  ],
+  "keywords": [
+    "react",
+    "design system",
+    "components",
+    "monorepo",
+    "ai skills"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JoseJesusOchoaTorres/snapds.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JoseJesusOchoaTorres/snapds/issues"
+  },
+  "homepage": "https://github.com/JoseJesusOchoaTorres/snapds#readme",
   "main": "./dist/extension.js",
   "activationEvents": [
     "onStartupFinished",
@@ -35,8 +56,25 @@
       ]
     },
     "commands": [
-      { "command": "snapds.openSettings",       "title": "Snapds: Open Settings" },
-      { "command": "snapds.openPropsPanel",     "title": "Snapds: Open Props Panel" }
+      {
+        "command": "snapds.openSettings",
+        "title": "Snapds: Open Settings",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "snapds.openPropsPanel",
+        "title": "Snapds: Open Props Panel"
+      },
+      {
+        "command": "snapds.generateSkills",
+        "title": "Snapds: Generate Skills",
+        "category": "Snapds"
+      },
+      {
+        "command": "snapds.regenerateSkills",
+        "title": "Snapds: Regenerate All Skills",
+        "category": "Snapds"
+      }
     ],
     "menus": {
       "view/title": [
@@ -56,12 +94,87 @@
           "description": "Registered Snapds packages.",
           "items": {
             "type": "object",
-            "required": ["name", "version", "importPath"],
+            "required": [
+              "name",
+              "version",
+              "importPath"
+            ],
             "properties": {
-              "name":         { "type": "string", "description": "npm package name, e.g. @acme/ui" },
-              "version":      { "type": "string", "description": "Semver pin used as cache key" },
-              "importPath":   { "type": "string", "description": "Import specifier used in codegen (often equals name)" },
-              "tsconfigPath": { "type": "string", "description": "Optional path to a tsconfig used by react-docgen-typescript" }
+              "name": {
+                "type": "string",
+                "description": "npm package name, e.g. @acme/ui"
+              },
+              "version": {
+                "type": "string",
+                "description": "Semver pin used as cache key"
+              },
+              "importPath": {
+                "type": "string",
+                "description": "Import specifier used in codegen (often equals name)"
+              },
+              "tsconfigPath": {
+                "type": "string",
+                "description": "Optional path to a tsconfig used by react-docgen-typescript"
+              },
+              "excluded": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Component names the user de-selected"
+              },
+              "manual": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Component names added manually"
+              }
+            }
+          }
+        },
+        "snapds.skills": {
+          "type": "object",
+          "default": {},
+          "description": "Agent skills generation configuration.",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable the AI / skills section"
+            },
+            "formats": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "augment",
+                  "generic"
+                ]
+              },
+              "description": "Skill formats to generate"
+            },
+            "destination": {
+              "type": "string",
+              "enum": [
+                "workspace",
+                "custom"
+              ],
+              "description": "Where to write skills"
+            },
+            "customPath": {
+              "type": "string",
+              "description": "Destination folder when destination is 'custom'"
+            },
+            "autoGenerate": {
+              "type": "boolean",
+              "description": "Auto-generate skills when components are added"
+            },
+            "instructions": {
+              "type": "object",
+              "description": "Free-text guidance per component id (pkg#Name)",
+              "additionalProperties": {
+                "type": "string"
+              }
             }
           }
         }
@@ -71,6 +184,7 @@
   "scripts": {
     "build": "node esbuild.config.mjs --production",
     "watch": "node esbuild.config.mjs --watch",
+    "test": "node esbuild.test.mjs && node --test \"dist-test/**/*.test.cjs\"",
     "package": "vsce package --no-dependencies",
     "vscode:prepublish": "npm run build"
   },

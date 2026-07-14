@@ -1,8 +1,8 @@
-import * as vscode from 'vscode';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { URL } from 'node:url';
-import { createCodeVerifier, createCodeChallenge, createRandomState } from './pkce';
+import * as vscode from 'vscode';
+import { createCodeChallenge, createCodeVerifier, createRandomState } from './pkce';
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';

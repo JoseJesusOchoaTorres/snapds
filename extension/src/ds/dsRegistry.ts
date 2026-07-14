@@ -1,20 +1,33 @@
-import * as vscode from 'vscode';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as vscode from 'vscode';
+
+export { applyWhitelist } from './whitelist';
 
 export interface DsPackage {
   name: string;
   version: string;
   importPath: string;
   tsconfigPath?: string;
-  blacklist?: string[];
+  /** Component names the user explicitly de-selected. Anything not listed is auto-included. */
+  excluded?: string[];
+  /** Component names the user added manually that introspection did not detect. */
+  manual?: string[];
 }
 
 export class DsRegistry {
   constructor(private ctx: vscode.ExtensionContext) {}
 
   list(): DsPackage[] {
-    return vscode.workspace.getConfiguration('snapds').get<DsPackage[]>('packages') ?? [];
+    const raw = vscode.workspace.getConfiguration('snapds').get<DsPackage[]>('packages') ?? [];
+    // Backward-compat: migrate the old `blacklist` field to `excluded` in memory.
+    return raw.map((p) => {
+      const legacy = (p as DsPackage & { blacklist?: string[] }).blacklist;
+      if (legacy && !p.excluded) {
+        return { ...p, excluded: legacy };
+      }
+      return p;
+    });
   }
 
   getActive(): DsPackage | undefined {
@@ -31,7 +44,7 @@ export class DsRegistry {
 
   async importInstalledPackage(name: string): Promise<DsPackage> {
     const root = this.firstWorkspaceFolder();
-    const pkgJsonPath = this.findInNodeModules(root, name, 'package.json');
+    const pkgJsonPath = await this.findInNodeModules(root, name, 'package.json');
     if (!pkgJsonPath) {
       throw new Error(`Package "${name}" not found in node_modules of the active workspace.`);
     }
@@ -57,7 +70,7 @@ export class DsRegistry {
   async discoverAllPackagesInWorkspace(): Promise<string[]> {
     const packageJsonUris = await vscode.workspace.findFiles(
       '**/package.json',
-      '**/node_modules/**'
+      '**/node_modules/**',
     );
 
     const foundPackages = new Set<string>();
@@ -68,26 +81,31 @@ export class DsRegistry {
         const json = JSON.parse(content);
 
         if (json.dependencies) {
-          Object.keys(json.dependencies).forEach(pkg => foundPackages.add(pkg));
+          for (const pkg of Object.keys(json.dependencies)) foundPackages.add(pkg);
         }
         if (json.devDependencies) {
-          Object.keys(json.devDependencies).forEach(pkg => foundPackages.add(pkg));
+          for (const pkg of Object.keys(json.devDependencies)) foundPackages.add(pkg);
         }
-      } catch (e) {
-        // Ignored
+      } catch {
+        // Ignored: skip unreadable/invalid package.json files.
       }
     }
 
     return Array.from(foundPackages).sort();
   }
 
-  async updatePackage(name: string, enabled: boolean, blacklist?: string[]): Promise<void> {
+  async updatePackage(
+    name: string,
+    enabled: boolean,
+    excluded?: string[],
+    manual?: string[],
+  ): Promise<void> {
     const cfg = vscode.workspace.getConfiguration('snapds');
     let list = this.list();
 
     if (enabled) {
-      // Add it if it's not there, or update blacklist if it is
-      const existing = list.find(p => p.name === name);
+      // Add it if it's not there, or update its selection if it is.
+      const existing = list.find((p) => p.name === name);
       if (!existing) {
         const root = this.firstWorkspaceFolder();
         const pkgJsonPath = await this.findInNodeModules(root, name, 'package.json');
@@ -107,17 +125,39 @@ export class DsRegistry {
           version,
           importPath: name,
           tsconfigPath,
-          blacklist: blacklist || []
+          excluded: excluded || [],
+          manual: manual || [],
         });
       } else {
-        existing.blacklist = blacklist || [];
+        existing.excluded = excluded || [];
+        existing.manual = manual || [];
+        delete (existing as DsPackage & { blacklist?: string[] }).blacklist;
       }
     } else {
       // Remove it
-      list = list.filter(p => p.name !== name);
+      list = list.filter((p) => p.name !== name);
     }
 
     await cfg.update('packages', list, vscode.ConfigurationTarget.Workspace);
+  }
+
+  /**
+   * Resolves a package descriptor (version + tsconfig) WITHOUT persisting it to
+   * settings. Used to introspect a package for the settings UI before the user
+   * commits their selection. Returns undefined if the package cannot be located.
+   */
+  async resolveDescriptor(name: string): Promise<DsPackage | undefined> {
+    const root = this.firstWorkspaceFolder();
+    const pkgJsonPath = await this.findInNodeModules(root, name, 'package.json');
+    if (!pkgJsonPath) return undefined;
+    let version = 'unknown';
+    try {
+      version = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8')).version || 'unknown';
+    } catch {
+      // keep 'unknown'
+    }
+    const tsconfigPath = this.walkUpFor('tsconfig.json', path.dirname(pkgJsonPath), root);
+    return { name, version, importPath: name, tsconfigPath };
   }
 
   private firstWorkspaceFolder(): string {
@@ -126,7 +166,11 @@ export class DsRegistry {
     return folder.uri.fsPath;
   }
 
-  private async findInNodeModules(root: string, pkg: string, file: string): Promise<string | undefined> {
+  private async findInNodeModules(
+    root: string,
+    pkg: string,
+    file: string,
+  ): Promise<string | undefined> {
     // Standard upward resolution like Node does
     let dir = root;
     while (true) {

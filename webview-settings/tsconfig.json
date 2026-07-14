@@ -5,7 +5,11 @@
     "jsx": "react-jsx",
     "moduleResolution": "Bundler",
     "module": "ESNext",
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@snapds/webview-shared": ["../shared/src/index.ts"]
+    }
   },
   "include": ["src/**/*"]
 }

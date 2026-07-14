@@ -1,123 +1,153 @@
-import { useEffect, useMemo, useState } from 'react';
+import { AiTab } from './AiTab';
+import { ComponentDetailModal } from './ComponentDetailModal';
+import { ComponentsTab } from './ComponentsTab';
+import { OverrideEditorModal } from './OverrideEditorModal';
+import { PackageDetailModal } from './PackageDetailModal';
+import { Tabs } from './Tabs';
+import { useSettingsController } from './useSettingsController';
 import { vscode } from './vscodeApi';
-import type { PackageMeta, ToSettings } from './types';
 
 export default function App() {
-  const [packages, setPackages] = useState<PackageMeta[]>([]);
-  const [blacklistInputs, setBlacklistInputs] = useState<Record<string, string>>({});
-  const [query, setQuery] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+  const {
+    packages,
+    componentsByPkg,
+    selectedByPkg,
+    manualInputs,
+    skills,
+    skillFiles,
+    showSkillsDir,
+    query,
+    scopeFilters,
+    isSaving,
+    activeTab,
+    openPkg,
+    detail,
+    activeDetail,
+    setShowSkillsDir,
+    setQuery,
+    setActiveTab,
+    setOpenPkg,
+    setDetail,
+    setManualInput,
+    toggleComponent,
+    addManual,
+    handleSave,
+    updateSkills,
+    toggleFormat,
+    toggleScope,
+    openPackage,
+    openComponentModal,
+    saveOverride,
+    resetOverride,
+  } = useSettingsController();
 
-  useEffect(() => {
-    const onMessage = (e: MessageEvent<ToSettings>) => {
-      const msg = e.data;
-      if (msg.type === 'packageList') {
-        setPackages(msg.packages);
-        const inputs: Record<string, string> = {};
-        msg.packages.forEach(p => {
-          inputs[p.name] = p.blacklist?.join(', ') || '';
-        });
-        setBlacklistInputs(inputs);
-        setIsSaving(false);
-      } else if (msg.type === 'saving') {
-        setIsSaving(true);
-      } else if (msg.type === 'saved') {
-        setIsSaving(false);
-      }
-    };
-    window.addEventListener('message', onMessage);
-    vscode.postMessage({ type: 'ready' });
-    return () => window.removeEventListener('message', onMessage);
-  }, []);
+  const renderPackageModal = () => {
+    const name = openPkg;
+    if (!name) return null;
+    return (
+      <PackageDetailModal
+        pkg={name}
+        detected={componentsByPkg[name] ?? []}
+        selected={selectedByPkg[name] ?? []}
+        loaded={componentsByPkg[name] !== undefined}
+        manualValue={manualInputs[name] ?? ''}
+        onManualChange={(v) => setManualInput(name, v)}
+        onToggle={(comp) => toggleComponent(name, comp)}
+        onAddManual={() => addManual(name)}
+        onOpenEye={(comp) => openComponentModal('eye', comp)}
+        onOpenGear={(comp) => openComponentModal('gear', comp)}
+        onClose={() => setOpenPkg(null)}
+      />
+    );
+  };
 
-  const filtered = useMemo(
-    () => packages.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())),
-    [packages, query]
+  // Save persists preferences across every tab, so it is shared; Regenerate is
+  // AI-only. Each tab declares its own `actions` (see Tabs) to stay scalable.
+  const saveAction = (
+    <>
+      {isSaving && <progress className="action-progress" />}
+      <button type="button" className="btn-primary" onClick={handleSave} disabled={isSaving}>
+        {isSaving ? 'Saving…' : 'Save Preferences'}
+      </button>
+    </>
   );
 
-  const handleToggle = (name: string, enabled: boolean) => {
-    setPackages(packages.map(p => p.name === name ? { ...p, enabled } : p));
-  };
-
-  const handleBlacklistChange = (name: string, value: string) => {
-    setBlacklistInputs(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSave = () => {
-    setIsSaving(true);
-    vscode.postMessage({
-      type: 'savePackages',
-      packages: packages.filter(p => p.enabled).map(p => ({
-        name: p.name,
-        blacklist: (blacklistInputs[p.name] || '').split(',').map(s => s.trim()).filter(Boolean)
-      }))
-    });
-  };
+  const regenerateAction = skills.enabled ? (
+    <button
+      type="button"
+      className="btn-secondary"
+      onClick={() => vscode.postMessage({ type: 'regenerateAllSkills' })}
+      title="Writes every selected component using the formats and destination chosen above."
+    >
+      Regenerate skills
+    </button>
+  ) : null;
 
   return (
-    <div className="root" style={{ padding: '16px' }}>
+    <div className="root">
       <h2>Snapds Settings</h2>
-      <p style={{ marginBottom: '16px', opacity: 0.8 }}>
-        Select which Snapds packages to enable for the current workspace.
-      </p>
 
-      <input
-        type="text"
-        placeholder="Filter packages..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        style={{ width: '100%', marginBottom: '16px', padding: '8px' }}
-        disabled={isSaving}
+      <Tabs
+        active={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          {
+            id: 'components',
+            label: 'Components',
+            panel: (
+              <ComponentsTab
+                packages={packages}
+                componentsByPkg={componentsByPkg}
+                selectedByPkg={selectedByPkg}
+                query={query}
+                onQueryChange={setQuery}
+                scopeFilters={scopeFilters}
+                onToggleScope={toggleScope}
+                onOpenPackage={openPackage}
+              />
+            ),
+            actions: saveAction,
+          },
+          {
+            id: 'ai',
+            label: 'AI',
+            panel: (
+              <AiTab
+                skills={skills}
+                skillFiles={skillFiles}
+                showSkillsDir={showSkillsDir}
+                onToggleShowDir={() => setShowSkillsDir((v) => !v)}
+                updateSkills={updateSkills}
+                toggleFormat={toggleFormat}
+              />
+            ),
+            actions: (
+              <>
+                {regenerateAction}
+                {saveAction}
+              </>
+            ),
+          },
+        ]}
       />
 
-      <button
-        onClick={handleSave}
-        disabled={isSaving}
-        style={{
-          padding: '8px 16px',
-          marginBottom: '16px',
-          background: 'var(--vscode-button-background)',
-          color: 'var(--vscode-button-foreground)',
-          border: 'none',
-          cursor: isSaving ? 'wait' : 'pointer'
-        }}
-      >
-        {isSaving ? 'Saving & Loading Components...' : 'Save Preferences'}
-      </button>
+      {renderPackageModal()}
 
-      {isSaving && (
-        <progress style={{ width: '100%', marginBottom: '16px' }} />
+      {detail?.mode === 'eye' && activeDetail && (
+        <ComponentDetailModal
+          detail={activeDetail}
+          onClose={() => setDetail(null)}
+          onOpenSkill={(path) => vscode.postMessage({ type: 'openSkill', path })}
+        />
       )}
 
-      {filtered.length === 0 ? (
-        <div className="empty">No packages found.</div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: isSaving ? 0.5 : 1, pointerEvents: isSaving ? 'none' : 'auto' }}>
-          {filtered.map((p) => (
-            <div key={p.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px', background: 'var(--vscode-editor-inactiveSelectionBackground)', borderRadius: '4px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={p.enabled}
-                  onChange={(e) => handleToggle(p.name, e.target.checked)}
-                />
-                <span style={{ fontFamily: 'monospace' }}>{p.name}</span>
-              </label>
-              {p.enabled && (
-                <div style={{ paddingLeft: '24px' }}>
-                  <input
-                    type="text"
-                    placeholder="Ignored components (comma separated) e.g. Button, Icon"
-                    value={blacklistInputs[p.name] !== undefined ? blacklistInputs[p.name] : (p.blacklist?.join(', ') || '')}
-                    onChange={(e) => handleBlacklistChange(p.name, e.target.value)}
-                    style={{ width: '100%', padding: '4px', background: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)', border: '1px solid var(--vscode-input-border)' }}
-                    disabled={isSaving}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+      {detail?.mode === 'gear' && activeDetail && (
+        <OverrideEditorModal
+          detail={activeDetail}
+          onClose={() => setDetail(null)}
+          onSave={saveOverride}
+          onResetAll={resetOverride}
+        />
       )}
     </div>
   );

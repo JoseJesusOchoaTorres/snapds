@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
+import type { ComponentMeta, FromGallery, ToGallery } from '../util/messaging';
 import { getWebviewHtml, webviewResourceRoots } from '../util/webviewHtml';
-import type { FromGallery, ToGallery, ComponentMeta } from '../util/messaging';
 
 export interface GalleryHandlers {
   onReady: () => void | Promise<void>;

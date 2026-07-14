@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { generateJSX, generateImport, splitComponentId } from '../ds/codegen';
+import { computeImportEdit, generateJSX, splitComponentId } from '../ds/codegen';
 import type { Store } from '../state/store';
 import type { ComponentMeta } from '../util/messaging';
 import { DRAG_MIME } from '../util/messaging';
@@ -45,45 +45,12 @@ function applyImportEdit(
   meta: ComponentMeta,
 ): void {
   const { pkg, name } = splitComponentId(meta.id);
-  if (!pkg) return;
+  const result = computeImportEdit(doc.getText(), pkg, name);
 
-  const text = doc.getText();
-  const importRegex = new RegExp(
-    `(import\\s+(?:[\\w\\s,]*?)?\\{)([^}]*)(\\}\\s+from\\s+['"]${escapeRegex(pkg)}['\"];?)`
-  );
-
-  const m = text.match(importRegex);
-  if (m) {
-    const prefix = m[1];
-    const inner = m[2];
-    const suffix = m[3];
-
-    const names = inner.split(',').map((s) => s.trim()).filter(Boolean);
-    if (names.includes(name)) return;
-    names.push(name);
-
-    let newInner = ' ' + names.join(', ') + ' ';
-    if (inner.includes('\n')) {
-      newInner = '\n  ' + names.join(',\n  ') + '\n';
-    }
-
-    const newText = `${prefix}${newInner}${suffix}`;
-    const startPos = doc.positionAt(m.index!);
-    const endPos = doc.positionAt(m.index! + m[0].length);
-    edit.replace(doc.uri, new vscode.Range(startPos, endPos), newText);
-    return;
+  if (result.kind === 'replace') {
+    const range = new vscode.Range(doc.positionAt(result.start), doc.positionAt(result.end));
+    edit.replace(doc.uri, range, result.text);
+  } else if (result.kind === 'insert') {
+    edit.insert(doc.uri, doc.positionAt(result.offset), result.text);
   }
-
-  let lastImportLine = -1;
-  for (let i = 0; i < doc.lineCount; i++) {
-    if (/^\s*import\b/.test(doc.lineAt(i).text)) lastImportLine = i;
-  }
-
-  const insertLine = lastImportLine + 1;
-  const insertPos = new vscode.Position(insertLine, 0);
-  edit.insert(doc.uri, insertPos, generateImport(meta) + '\n');
-}
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -13,5 +13,5 @@
     "jsx": "preserve"
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "media"]
+  "exclude": ["dist", "dist-test", "node_modules", "media"]
 }
