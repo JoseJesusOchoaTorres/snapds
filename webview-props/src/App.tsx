@@ -39,7 +39,11 @@ export default function App() {
     <form onSubmit={(e) => e.preventDefault()}>
       <h1>{comp.name}</h1>
       {comp.props.length === 0 ? (
-        <div className="empty">This component has no documented props.</div>
+        <div className="empty">
+          {comp.standardPropsOnly
+            ? 'This component only accepts standard DOM/SVG props.'
+            : 'This component has no documented props.'}
+        </div>
       ) : (
         comp.props.map((p) => (
           <Control

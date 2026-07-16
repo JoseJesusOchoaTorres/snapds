@@ -1,0 +1,101 @@
+---
+title: Configuration
+description: Snapds has sensible defaults and three optional configuration layers.
+---
+
+# Configuration
+
+Snapds works with zero configuration and adds structure only when your team
+needs it. There are three optional layers.
+
+## Level 1 — Auto introspection
+
+By default Snapds parses your TypeScript components to determine props, types,
+and default values. No file is required.
+
+## Level 2 — Team / workspace
+
+Add a `snapds.config.json` (or `.snapds.json`) at the repo root for shared,
+committable overrides: ignore lists, custom snippets, and per-prop tweaks. See
+[Workspace config file](#workspace-config-file-snapdsconfigjson) below for the
+full schema.
+
+## Level 3 — User settings
+
+Personal package registrations and selections live in your workspace
+`.vscode/settings.json` under `snapds.packages` and `snapds.skills`.
+
+<Callout type="info">
+**Precedence:** auto introspection &lt; team config (`snapds.config.json`) &lt;
+user settings (`.vscode/settings.json`). Each layer is optional and only refines
+the one before it.
+</Callout>
+
+## Settings reference
+
+### `snapds.packages`
+
+An array of registered packages. Each item:
+
+| Field          | Type       | Required | Purpose                                            |
+| -------------- | ---------- | :------: | -------------------------------------------------- |
+| `name`         | `string`   |    ✓     | The package name, e.g. `@acme/ui`.                 |
+| `version`      | `string`   |    ✓     | Cache key for introspection (imports are never pinned). |
+| `importPath`   | `string`   |    ✓     | The specifier used in generated imports.           |
+| `excluded`     | `string[]` |          | Components you've de-selected from the gallery.    |
+| `manual`       | `string[]` |          | Components added manually (e.g. polymorphic ones). |
+| `tsconfigPath` | `string`   |          | Optional tsconfig path for react-docgen parsing.   |
+
+Selections are stored **per package** as `excluded` / `manual` lists — Snapds
+never persists a full allow-list, so new upstream components always surface
+automatically instead of being silently hidden.
+
+### `snapds.skills`
+
+An object controlling agent-skill export (see [Skills for agents](/docs/skills)):
+
+| Field         | Type                       | Default        | Purpose                                        |
+| ------------- | -------------------------- | -------------- | ---------------------------------------------- |
+| `enabled`     | `boolean`                  | `false`        | Show the skills section in Settings.           |
+| `formats`     | `('augment' \| 'generic')[]` | `['augment']`  | Which skill formats to write.                  |
+| `destination` | `'workspace' \| 'custom'`  | `'workspace'`  | Where skills are written.                      |
+| `customPath`  | `string`                   | —              | Folder used when `destination` is `'custom'`.  |
+| `autoGenerate`| `boolean`                  | `true`         | Regenerate incrementally as your selection changes. |
+| `instructions`| `Record<string, string>`   | —              | Free-text guidance per component id (`pkg#Name`). |
+
+## Workspace config file (`snapds.config.json`)
+
+A committable file at the workspace root for team-wide overrides. Snapds looks
+for `snapds.config.json` first, then `.snapds.json`. Editing it invalidates the
+introspection cache automatically.
+
+```jsonc
+// snapds.config.json
+{
+  "packages": {
+    "@acme/ui": {
+      "ignore": ["InternalOnly"],
+      "overrides": {
+        "Button": {
+          "snippet": "<Button variant=\"primary\">$1</Button>",
+          "props": {
+            "variant": { "defaultValue": "primary" },
+            "internalId": { "hidden": true }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+| Path                                   | Type      | Purpose                                             |
+| -------------------------------------- | --------- | --------------------------------------------------- |
+| `packages`                             | `object`  | Maps package name → per-package config.             |
+| `packages[pkg].ignore`                 | `string[]`| Component names to filter out entirely.             |
+| `packages[pkg].overrides`              | `object`  | Maps component name → override block.               |
+| `…overrides[Name].snippet`             | `string`  | Custom JSX used for drag & drop and in skills.      |
+| `…overrides[Name].props`               | `object`  | Maps prop name → prop override.                     |
+| `…props[prop].defaultValue`            | `unknown` | Default shown in the props panel and skill tables.  |
+| `…props[prop].description`             | `string`  | Overrides the prop's description.                   |
+| `…props[prop].hidden`                  | `boolean` | Hide the prop from the UI and skills.               |

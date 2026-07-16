@@ -1,0 +1,79 @@
+---
+title: How it works
+description: The Snapds introspection, caching, and code-generation pipeline explained.
+---
+
+# How it works
+
+Snapds is built around a small, fast pipeline that runs entirely inside the
+extension host — no runtime dependencies are added to your project.
+
+## Resolution
+
+To read a package's types, Snapds first has to find it on disk. It uses a
+multi-strategy resolver so it works in flat installs, nested `node_modules`, and
+monorepos alike:
+
+<Steps>
+### Upward `node_modules` walk
+Starting at the workspace root, it checks `{dir}/node_modules/{pkg}` and walks up
+parent directories to the filesystem root.
+
+### `require.resolve`
+Falls back to Node's resolver (`require.resolve('{pkg}', { paths: [root] })`).
+
+### Monorepo deep search
+Searches `**/node_modules/{pkg}` across the workspace for hoisted or nested deps.
+
+### Local workspace package
+Finally scans every `package.json` (excluding `node_modules`) and matches by
+`name`, so locally-built workspace packages resolve too.
+</Steps>
+
+## Introspection
+
+Once resolved, Snapds parses the package's typings entry with
+[`react-docgen-typescript`](https://github.com/styleguidist/react-docgen-typescript)
+plus the TypeScript compiler API. For each component it extracts:
+
+- **Props** — name, type (enum, string, boolean, number, function, ReactNode),
+  the raw TS type, whether it's required, the default value, and the JSDoc
+  description.
+- **Enum values** — so the props panel can render selects instead of free text.
+- **Polymorphic components** — a compiler pass enumerates exported value
+  components that docgen alone misses (e.g. `as`-style components).
+
+Components are filtered to those whose display name starts with an uppercase
+letter and are not tagged `@internal` or listed in your config's `ignore`.
+
+## Caching
+
+Introspection is cached in the extension's global state under a key of the form:
+
+```
+ds.cache.{name}@{version}[@{configMtimeMs}]
+```
+
+The cache is invalidated when the **`version`** field changes or when your
+workspace `snapds.config.json` / `.snapds.json` is edited (its **mtime** is part
+of the key). Re-opening the gallery is instant; the cache only rebuilds when one
+of those actually changes. Per-component **user overrides** are stored separately
+and applied _after_ the cache, so tweaking them never forces a re-parse.
+
+## Code generation
+
+Dropping a component produces a bare-specifier import and JSX:
+
+```tsx
+import { Button } from '@acme/ui';
+```
+
+New imports are **merged** into an existing statement for the same package when
+one exists — including multi-line, Prettier-formatted imports — and otherwise
+inserted after the last import in the file, on its own line.
+
+## Webviews
+
+The gallery, props panel, and settings are native VS Code **webviews**, so the
+UI matches your editor theme and stays fast even on large monorepos thanks to
+differential updates.

@@ -4,7 +4,15 @@ packages:
   - 'webview-gallery'
   - 'webview-props'
   - 'webview-settings'
-onlyBuiltDependencies:
-  - '@vscode/vsce-sign'
-  - esbuild
-  - keytar
+  - 'landing'
+allowBuilds:
+  '@vscode/vsce-sign': true
+  esbuild: true
+  keytar: true
+  # Next.js pulls sharp as an optional dep for image optimization, but the site
+  # uses `images.unoptimized`, so its native build is intentionally skipped.
+  sharp: false
+overrides:
+  # Nextra 4.6.1 is incompatible with zod 4.4.x (throws "expected nonoptional,
+  # received undefined → at children"). Pin to the last working release.
+  zod: 4.3.6

@@ -1,0 +1,91 @@
+---
+title: Skills for agents
+description: Export your component contract as agent-ready skill docs so coding assistants use your design system correctly.
+---
+
+# Skills for agents
+
+Snapds can export your component contract as **skill docs** so coding agents use
+your design system correctly — without re-reading source or burning context
+tokens.
+
+## Dictionary + on-demand detail
+
+A tiny, always-loaded index lists your components and links to per-component
+detail that is loaded only when needed. Context windows stay small while the
+agent still has the full contract a click away.
+
+## Two formats
+
+Pick one or both via `snapds.skills.formats`:
+
+### `augment` — Augment skills
+
+An index skill plus one skill folder per component, each with YAML frontmatter
+so the Augment agent can route to them:
+
+<FileTree>
+  <FileTree.Folder name=".augment/skills" defaultOpen>
+    <FileTree.Folder name="snapds" defaultOpen>
+      <FileTree.File name="SKILL.md" />
+    </FileTree.Folder>
+    <FileTree.Folder name="snapds-button">
+      <FileTree.File name="SKILL.md" />
+    </FileTree.Folder>
+    <FileTree.Folder name="snapds-card">
+      <FileTree.File name="SKILL.md" />
+    </FileTree.Folder>
+  </FileTree.Folder>
+</FileTree>
+
+### `generic` — AGENTS.md
+
+An assistant-agnostic dictionary in a single `AGENTS.md`, with per-component
+detail in a flat folder (no frontmatter):
+
+<FileTree>
+  <FileTree.File name="AGENTS.md" />
+  <FileTree.Folder name="snapds-skills" defaultOpen>
+    <FileTree.File name="button.md" />
+    <FileTree.File name="card.md" />
+  </FileTree.Folder>
+</FileTree>
+
+Each detail file contains the component's description, **Import**, **Usage**, a
+**Props** table, and any per-component guidance.
+
+## Destinations
+
+Set `snapds.skills.destination`:
+
+- **`workspace`** — write committable, team-shared skills to the repo root.
+- **`custom`** — write to any folder via `customPath` (paths are validated
+  against traversal).
+
+## Generating
+
+- **Snapds: Generate Skills** — interactive; prompts for format and destination,
+  then writes the full set for every selected component.
+- **Snapds: Regenerate All Skills** — non-interactive; reuses your saved
+  `snapds.skills` config and rewrites the index and all detail files.
+
+## Per-component guidance
+
+Add free-text guidance under `snapds.skills.instructions`, keyed by component id
+(`pkg#Name`). It's appended verbatim as an **Additional guidance** section:
+
+```jsonc
+{
+  "snapds.skills": {
+    "instructions": {
+      "@acme/ui#Button": "Prefer `variant=\"primary\"` for the main page action."
+    }
+  }
+}
+```
+
+## Incremental auto-generation
+
+Enable **Auto-generate** (`autoGenerate: true`, the default) and Snapds
+regenerates the index and only the **new** detail files as your selection
+changes — existing files are left untouched, never the whole tree.

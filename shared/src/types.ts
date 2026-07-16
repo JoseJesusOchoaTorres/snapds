@@ -19,4 +19,10 @@ export interface ComponentMeta {
   description?: string;
   props: PropMeta[];
   snippet?: string;
+  /**
+   * True when the component exposes no custom props and only accepts standard
+   * DOM/SVG attributes (e.g. an icon typed `React.SVGProps<SVGSVGElement>`).
+   * Lets the UI show an explanatory label instead of "no documented props".
+   */
+  standardPropsOnly?: boolean;
 }

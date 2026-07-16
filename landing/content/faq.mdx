@@ -1,0 +1,62 @@
+---
+title: FAQ
+description: Frequently asked questions about Snapds.
+---
+
+# FAQ
+
+## Which projects does Snapds work with?
+
+React + TypeScript projects, including monorepos. Snapds reads component
+metadata via `react-docgen-typescript` plus the TypeScript compiler API, and
+requires VS Code 1.85 or newer.
+
+## Does it add runtime dependencies to my project?
+
+No. Snapds only reads metadata and writes the code and skill files you
+explicitly ask for — nothing is added to your bundle.
+
+## What about polymorphic or `as`-style components?
+
+A TypeScript compiler pass enumerates exported value components that docgen
+alone misses. They appear as chips; add overrides to give them props.
+
+## Where are my package selections stored?
+
+Per package under `snapds.packages` as `excluded` and `manual` lists. Snapds
+never persists a full allow-list, so new upstream components always surface.
+
+## Can I pin a component to a specific version?
+
+Imports are bare specifiers (e.g. `import { Button } from '@acme/ui'`), so the
+version is resolved by your project's `package.json` and lockfile — not the
+import. The `version` field in config is only used as a cache key.
+
+## Does Snapds work in a monorepo?
+
+Yes. The resolver walks up `node_modules`, falls back to `require.resolve`, does
+a workspace deep-search for hoisted/nested installs, and finally matches local
+workspace packages by name — so both installed and locally-built packages
+resolve. See [How it works → Resolution](/docs/how-it-works#resolution).
+
+## Is it fast on large libraries?
+
+Yes. Introspection is cached in global state and only rebuilds when the
+`version` changes or your config file's mtime changes. Re-opening the gallery is
+instant, and the webviews use differential updates.
+
+## Does Snapds change my code or run a server?
+
+No. It only writes the JSX/import when you drop a component and the skill files
+you explicitly generate. Everything runs inside the extension host — there's no
+background server and no telemetry added to your project.
+
+## Are the generated skill files safe to commit?
+
+Yes — that's the point of the `workspace` destination. Custom destination paths
+are validated against directory traversal. Skills contain only your component
+names, props, and any guidance you write.
+
+## Which VS Code version do I need?
+
+VS Code **1.85** or newer.

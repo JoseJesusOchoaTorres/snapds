@@ -1,0 +1,70 @@
+---
+title: Introduction
+description: Snapds turns any React component package into a visual gallery inside VS Code — browse components, drop ready-to-use JSX, and export agent-ready skills.
+---
+
+# Snapds
+
+**Your design system, inside VS Code.** Snapds turns any React + TypeScript
+component package into a visual gallery in your editor. Browse components, drop
+them into a file as ready-to-use JSX with imports handled for you, and export
+agent-ready skills — without leaving VS Code.
+
+## The problem
+
+Design systems live in code, but discovering and using them is friction-heavy:
+
+- **Discovery is fragmented.** To find a component you jump between Storybook, a
+  docs site, and the package source — none of which sit next to the file you're
+  editing.
+- **Usage is manual.** Once you find a component you still hand-write the JSX,
+  remember the prop names, and add the import yourself.
+- **Docs drift.** Storybook and hand-written docs go stale the moment the
+  component's props change, because they're maintained separately from the code.
+- **Agents guess.** Coding assistants don't know your private design system, so
+  they invent prop names or re-read source files and burn context tokens.
+
+## Why Snapds
+
+Snapds brings the design-system surface _into the editor_, derived directly from
+your TypeScript types so it can never drift:
+
+- **Visual gallery** — every component from your registered packages in a
+  dedicated sidebar, searchable and grouped by package.
+- **Drag & drop JSX** — drop a component into a React file and Snapds writes
+  correct JSX with sensible tab-stops.
+- **Smart imports** — new imports are merged into the right statement without
+  duplicates, including multi-line, Prettier-formatted imports.
+- **Agent-ready skills** — export your component contract as skill docs so
+  coding agents use your design system correctly, on demand.
+
+## Who it's for
+
+- **App developers** who consume an internal or third-party React component
+  library and want to move faster without memorizing every prop.
+- **Design-system teams** who want a always-accurate, zero-maintenance surface
+  for their components and a way to ship shared conventions (`snapds.config.json`).
+- **AI-assisted workflows** where coding agents should use your real components
+  and props instead of guessing.
+
+## How it works, in one line
+
+Snapds introspects your packages with
+[`react-docgen-typescript`](https://github.com/styleguidist/react-docgen-typescript)
+plus the TypeScript compiler API, caches the result by file mtime, and renders
+it in native VS Code webviews.
+
+## Requirements
+
+- **VS Code 1.85** or newer
+- A **React + TypeScript** project (monorepos fully supported)
+
+## Next steps
+
+- [Getting started](/docs/getting-started) — install and register your first package.
+- [How it works](/docs/how-it-works) — the introspection and codegen pipeline.
+- [Examples & use cases](/docs/examples) — real configs and workflows.
+- [Configuration](/docs/configuration) — every setting and override, in one place.
+- [Commands & shortcuts](/docs/commands) — the command reference.
+- [Skills for agents](/docs/skills) — export SKILL.md / AGENTS.md.
+- [Architecture](/docs/architecture) — how Snapds is built and why.

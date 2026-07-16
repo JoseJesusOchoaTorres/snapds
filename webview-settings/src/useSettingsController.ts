@@ -144,6 +144,12 @@ export function useSettingsController() {
     });
   };
 
+  // Deactivate a package entirely: clearing its selection moves the card to
+  // Available. Persisting on the next save disables it (all components excluded).
+  const removePackage = (pkg: string) => {
+    setSelectedByPkg((prev) => ({ ...prev, [pkg]: [] }));
+  };
+
   const addManual = (pkg: string) => {
     const value = (manualInputs[pkg] || '').trim();
     if (!value) return;
@@ -250,6 +256,7 @@ export function useSettingsController() {
     setManualInput,
     toggleComponent,
     addManual,
+    removePackage,
     handleSave,
     updateSkills,
     toggleFormat,

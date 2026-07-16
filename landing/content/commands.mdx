@@ -1,0 +1,56 @@
+---
+title: Commands & shortcuts
+description: Every Snapds command, where to trigger it, and how the extension activates.
+---
+
+# Commands & shortcuts
+
+All Snapds commands are available from the **Command Palette**
+(`Cmd/Ctrl+Shift+P`). Type "Snapds" to filter.
+
+## Commands
+
+| Command                          | Command ID               | Where |
+| -------------------------------- | ------------------------ | ----- |
+| Snapds: Open Settings            | `snapds.openSettings`    | Command Palette · ⚙️ gear in the **Components** view title |
+| Snapds: Open Props Panel         | `snapds.openPropsPanel`  | Command Palette · opens automatically when you select a component |
+| Snapds: Generate Skills          | `snapds.generateSkills`  | Command Palette · prompts for format + destination |
+| Snapds: Regenerate All Skills    | `snapds.regenerateSkills`| Command Palette · uses your saved skills config |
+
+<Callout type="info">
+Snapds does not ship default key bindings, so it never clashes with your
+existing shortcuts. You can assign your own in **Preferences: Open Keyboard
+Shortcuts** by searching for any command ID above.
+</Callout>
+
+## Assigning a keybinding
+
+To bind a command — for example, opening Settings with `Cmd/Ctrl+Alt+S`:
+
+```jsonc
+// keybindings.json
+[
+  {
+    "key": "cmd+alt+s",
+    "command": "snapds.openSettings"
+  }
+]
+```
+
+## Views
+
+Snapds contributes a dedicated Activity Bar container:
+
+- **Snapds** container (Activity Bar) → **Components** view (`snapds.gallery`),
+  a native webview that hosts the searchable gallery. The ⚙️ gear in its title
+  bar runs `snapds.openSettings`.
+
+## Activation
+
+The extension activates lazily, so it costs nothing until you need it. It wakes
+up on any of:
+
+- `onStartupFinished` — after VS Code finishes starting.
+- `onView:snapds.gallery` — when you open the Components view.
+- `onLanguage:javascriptreact` / `onLanguage:typescriptreact` — when you open a
+  React file (so drag & drop is ready).

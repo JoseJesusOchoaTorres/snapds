@@ -7,21 +7,23 @@ import type { ComponentMeta, PropMeta, UserOverride } from '../util/messaging';
 import type { DsPackage } from './dsRegistry';
 import { enumerateComponentExports } from './exportsScan';
 
+interface CompOverride {
+  snippet?: string;
+  props?: {
+    [propName: string]: {
+      defaultValue?: unknown;
+      description?: string;
+      hidden?: boolean;
+    };
+  };
+}
+
 interface SnapdsConfig {
   packages?: {
     [pkgName: string]: {
       ignore?: string[];
       overrides?: {
-        [compName: string]: {
-          snippet?: string;
-          props?: {
-            [propName: string]: {
-              defaultValue?: unknown;
-              description?: string;
-              hidden?: boolean;
-            };
-          };
-        };
+        [compName: string]: CompOverride;
       };
     };
   };
@@ -112,18 +114,61 @@ export class DsIntrospector {
     const pkgDir = await this.resolvePackageDir(p);
     const entry = this.resolveTypingsEntry(pkgDir);
 
+    // Component names whose only props were standard DOM/SVG attributes from
+    // `@types/react` (all stripped by the prop filter). Populated as a side
+    // effect of parsing so we can label them instead of showing "no props".
+    const domOnly = new Set<string>();
     const parser = p.tsconfigPath
-      ? docgen.withCustomConfig(p.tsconfigPath, this.parserOptions())
-      : docgen.withDefaultConfig(this.parserOptions());
+      ? docgen.withCustomConfig(p.tsconfigPath, this.parserOptions(domOnly))
+      : docgen.withDefaultConfig(this.parserOptions(domOnly));
 
-    const files = entry ? [entry] : this.collectComponentFiles(pkgDir);
-    const parsed = parser.parse(files);
+    const entryFiles = entry ? [entry] : this.collectComponentFiles(pkgDir);
+    const parsed = parser.parse(entryFiles);
 
     const config = this.readSnapdsConfig();
     const pkgConfig = config?.packages?.[p.name];
 
+    // Public component surface. When the entry is a barrel that re-exports from
+    // sub-files, this resolves the real (re-)exported value names via the TS
+    // Compiler API — used below to merge in components docgen skips entirely.
+    const exportedComponents = enumerateComponentExports(entry, p.tsconfigPath);
+    const exportedNames = new Set(exportedComponents.map((e) => e.name));
+
+    // react-docgen-typescript only follows a barrel's re-exports shallowly and
+    // returns empty props for many re-exported components. When the entry left
+    // any exported component without props, parse the concrete sibling source
+    // files and index their props by component name to backfill them.
+    const parsedNames = new Set(parsed.map((c) => c.displayName).filter(Boolean));
+    const someEmpty = parsed.some(
+      (c) => c.displayName && /^[A-Z]/.test(c.displayName) && Object.keys(c.props).length === 0,
+    );
+    const missingExports = [...exportedNames].some((n) => !parsedNames.has(n));
+    const siblingProps = new Map<string, PropMeta[]>();
+    if (entry && (someEmpty || missingExports)) {
+      const siblings = this.collectComponentFiles(path.dirname(entry)).filter((f) => f !== entry);
+      if (siblings.length > 0) {
+        for (const c of parser.parse(siblings)) {
+          if (!c.displayName || !/^[A-Z]/.test(c.displayName)) continue;
+          const ps = Object.values(c.props).map((prop) => normalizeProp(prop));
+          const prev = siblingProps.get(c.displayName);
+          if (!prev || ps.length > prev.length) siblingProps.set(c.displayName, ps);
+        }
+      }
+    }
+
     const components: ComponentMeta[] = parsed
       .filter((c) => c.displayName && c.displayName !== '__type' && /^[A-Z]/.test(c.displayName))
+      .filter((c) => {
+        // react-docgen-typescript surfaces re-exported *type* declarations
+        // (e.g. `DatePickerProps`, `Theme`) as empty "components". Gate the
+        // parsed surface by the real value exports so those type-only names
+        // never reach the gallery. Keep static sub-components (`Foo.Bar`) and
+        // skip gating entirely if the export scan yielded nothing.
+        if (exportedNames.size > 0 && !exportedNames.has(c.displayName) && !c.displayName.includes('.')) {
+          return false;
+        }
+        return true;
+      })
       .filter((c) => {
         // Repository Config (Ignore list)
         if (pkgConfig?.ignore && pkgConfig.ignore.includes(c.displayName)) {
@@ -141,30 +186,12 @@ export class DsIntrospector {
       .map((c) => {
         const compOverride = pkgConfig?.overrides?.[c.displayName];
         let props = Object.values(c.props).map((prop) => normalizeProp(prop));
-
-        if (compOverride?.props) {
-          props = props
-            .filter((prop) => {
-              const propOverride = compOverride.props?.[prop.name];
-              if (propOverride?.hidden) return false;
-              return true;
-            })
-            .map((prop) => {
-              const propOverride = compOverride.props?.[prop.name];
-              if (!propOverride) return prop;
-              return {
-                ...prop,
-                defaultValue:
-                  propOverride.defaultValue !== undefined
-                    ? propOverride.defaultValue
-                    : prop.defaultValue,
-                description:
-                  propOverride.description !== undefined
-                    ? propOverride.description
-                    : prop.description,
-              };
-            });
+        // Backfill props docgen dropped for barrel-re-exported components.
+        if (props.length === 0) {
+          const enriched = siblingProps.get(c.displayName);
+          if (enriched && enriched.length > 0) props = enriched;
         }
+        props = this.applyCompanyPropOverrides(props, compOverride);
 
         return {
           id: `${p.name}#${c.displayName}`,
@@ -172,24 +199,28 @@ export class DsIntrospector {
           description: c.description || undefined,
           props,
           snippet: compOverride?.snippet,
+          // Icon/wrapper components typed only with `React.SVGProps`/DOM attrs
+          // end up with zero props after filtering; flag them so the UI shows a
+          // clear label instead of the generic "no documented props" message.
+          standardPropsOnly: props.length === 0 && domOnly.has(c.displayName),
         };
       });
 
     // A1: react-docgen-typescript misses components declared as generic call
-    // signatures (polymorphic `as`-style components). Enumerate every capitalized
-    // value export via the TS Compiler API and merge in whatever docgen skipped,
-    // with best-effort (empty) props so they still surface in the gallery/skills.
+    // signatures (polymorphic `as`-style components). Merge in whatever docgen
+    // skipped entirely, backfilling props from the sibling scan when available.
     const detectedNames = new Set(components.map((c) => c.name));
-    for (const exp of enumerateComponentExports(entry, p.tsconfigPath)) {
+    for (const exp of exportedComponents) {
       if (detectedNames.has(exp.name)) continue;
       if (pkgConfig?.ignore && pkgConfig.ignore.includes(exp.name)) continue;
       if (exp.description && exp.description.includes('@internal')) continue;
       const compOverride = pkgConfig?.overrides?.[exp.name];
+      const props = this.applyCompanyPropOverrides(siblingProps.get(exp.name) ?? [], compOverride);
       components.push({
         id: `${p.name}#${exp.name}`,
         name: exp.name,
         description: exp.description || undefined,
-        props: [],
+        props,
         snippet: compOverride?.snippet,
       });
       detectedNames.add(exp.name);
@@ -205,6 +236,24 @@ export class DsIntrospector {
 
   async invalidate(p: DsPackage): Promise<void> {
     await this.ctx.globalState.update(this.getCacheKey(p), undefined);
+  }
+
+  /** Applies company (`snapds.config.json`) prop overrides: hide + default/description. */
+  private applyCompanyPropOverrides(props: PropMeta[], compOverride?: CompOverride): PropMeta[] {
+    if (!compOverride?.props) return props;
+    return props
+      .filter((prop) => !compOverride.props?.[prop.name]?.hidden)
+      .map((prop) => {
+        const propOverride = compOverride.props?.[prop.name];
+        if (!propOverride) return prop;
+        return {
+          ...prop,
+          defaultValue:
+            propOverride.defaultValue !== undefined ? propOverride.defaultValue : prop.defaultValue,
+          description:
+            propOverride.description !== undefined ? propOverride.description : prop.description,
+        };
+      });
   }
 
   private readSnapdsConfig(): SnapdsConfig | undefined {
@@ -223,13 +272,22 @@ export class DsIntrospector {
     return undefined;
   }
 
-  private parserOptions(): docgen.ParserOptions {
+  private parserOptions(domOnly?: Set<string>): docgen.ParserOptions {
     return {
       savePropValueAsString: false,
       shouldExtractLiteralValuesFromEnum: true,
       shouldRemoveUndefinedFromOptional: true,
-      propFilter: (prop) =>
-        !prop.parent || !/node_modules\/@types\/react/.test(prop.parent.fileName),
+      propFilter: (prop, component) => {
+        const fromReact =
+          !!prop.parent && /node_modules\/@types\/react/.test(prop.parent.fileName);
+        if (fromReact) {
+          // Remember which components had a prop stripped purely because it is
+          // a standard React DOM/SVG attribute — used to label DOM-only comps.
+          if (domOnly && component?.name) domOnly.add(component.name);
+          return false;
+        }
+        return true;
+      },
     };
   }
 
@@ -311,8 +369,10 @@ export class DsIntrospector {
         return;
       }
       for (const e of entries) {
-        if (e.isDirectory()) walk(path.join(d, e.name));
-        else if (/\.(d\.ts|tsx)$/.test(e.name)) out.push(path.join(d, e.name));
+        if (e.isDirectory()) {
+          if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+          walk(path.join(d, e.name));
+        } else if (/\.(d\.ts|tsx)$/.test(e.name)) out.push(path.join(d, e.name));
       }
     };
     walk(pkgDir);

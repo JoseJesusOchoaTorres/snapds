@@ -1,0 +1,79 @@
+---
+title: Architecture
+description: How Snapds is built — the monorepo layout, the extension-host pipeline, the webviews, and the technical decisions behind them.
+---
+
+# Architecture
+
+Snapds is a VS Code extension plus a set of native webviews, developed as a
+pnpm monorepo. This page explains how the pieces fit together and _why_ they
+were built this way.
+
+## Monorepo layout
+
+| Package             | Role                                                       |
+| ------------------- | ---------------------------------------------------------- |
+| `extension`         | The extension host: resolution, introspection, codegen, skills, and the webview providers. |
+| `shared`            | Types shared between the host and webviews (e.g. the typed message protocol, `ComponentMeta`). |
+| `webview-gallery`   | The **Components** gallery UI.                             |
+| `webview-props`     | The props panel UI.                                        |
+| `webview-settings`  | The settings UI (packages + skills).                      |
+| `landing`           | This site — the landing page and these docs (Next.js / Nextra). |
+
+**Why a monorepo:** the extension and the three webviews share a single source
+of truth for types (`shared`), so the message protocol between them is checked
+at compile time. Breaking a message shape breaks the build, not production.
+
+## The pipeline
+
+Everything runs inside the extension host — **no runtime dependencies are added
+to your project**.
+
+<Steps>
+### Resolve
+A multi-strategy resolver locates the package on disk (upward `node_modules`
+walk → `require.resolve` → monorepo deep-search → local workspace packages).
+
+### Introspect
+`react-docgen-typescript` plus the TypeScript compiler API extract props, types,
+enums, defaults, and JSDoc. A compiler pass catches polymorphic components that
+docgen misses.
+
+### Cache
+Results are cached in global state, keyed by `name@version` and the workspace
+config file's mtime. User overrides live separately and apply after the cache.
+
+### Render & generate
+The gallery, props panel, and settings render as native webviews; dropping a
+component writes JSX and merges the import; skills export SKILL.md / AGENTS.md.
+</Steps>
+
+See [How it works](/docs/how-it-works) for the details of each stage.
+
+## Webviews
+
+The three UIs are native VS Code **webviews** styled with the editor's theme
+variables, so they match light/dark themes automatically. They communicate with
+the host through a **typed, discriminated-union message protocol** defined in
+`shared` — one message set per webview (Gallery, Props, Settings) in each
+direction.
+
+## Design decisions
+
+- **Types are the source of truth.** Reading TypeScript types (not a separate
+  Storybook or hand-written docs) means the gallery and skills can never drift
+  from the real component API.
+- **Zero project footprint.** Snapds only reads metadata and writes the files
+  you explicitly ask for; it adds nothing to your bundle or dependency tree.
+- **Cache aggressively, invalidate precisely.** mtime-based keys make re-opening
+  the gallery instant while still rebuilding the moment config changes.
+- **Never hide new components.** Selections are stored as `excluded` / `manual`
+  lists rather than an allow-list, so upstream additions always surface.
+- **Agents as a first-class consumer.** Skills export exists so coding
+  assistants use your real components instead of guessing.
+
+## The docs site
+
+This site is a single Next.js app: a custom landing page at `/` and these docs
+under `/docs` powered by Nextra 4, with static search via Pagefind. It's
+exported as static HTML — see the repository for the build configuration.

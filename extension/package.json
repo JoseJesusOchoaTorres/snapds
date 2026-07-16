@@ -3,7 +3,7 @@
   "displayName": "Snapds",
   "description": "Browse, configure, and drop Snapds components into your React code.",
   "version": "0.1.0",
-  "publisher": "your-publisher-id",
+  "publisher": "Octojose",
   "license": "MIT",
   "icon": "media/icon.png",
   "engines": {
@@ -184,11 +184,13 @@
   "scripts": {
     "build": "node esbuild.config.mjs --production",
     "watch": "node esbuild.config.mjs --watch",
+    "icon:png": "node scripts/render-icon.cjs",
     "test": "node esbuild.test.mjs && node --test \"dist-test/**/*.test.cjs\"",
     "package": "vsce package --no-dependencies",
     "vscode:prepublish": "npm run build"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^2.24.0",

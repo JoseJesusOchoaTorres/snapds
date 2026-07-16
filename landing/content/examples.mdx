@@ -1,0 +1,111 @@
+---
+title: Examples & use cases
+description: Real Snapds configurations and workflows — from a single package to team monorepos and agent-assisted development.
+---
+
+# Examples & use cases
+
+Concrete, copy-pasteable setups for common scenarios.
+
+## Register a single package
+
+The minimum to browse a library:
+
+```jsonc
+// .vscode/settings.json
+{
+  "snapds.packages": [
+    { "name": "@acme/ui", "version": "1.4.0", "importPath": "@acme/ui" }
+  ]
+}
+```
+
+## Multiple packages in a monorepo
+
+Register several packages at once — locally-built workspace packages resolve
+automatically (see [Resolution](/docs/how-it-works#resolution)):
+
+```jsonc
+{
+  "snapds.packages": [
+    { "name": "@acme/ui", "version": "2.0.0", "importPath": "@acme/ui" },
+    { "name": "@acme/icons", "version": "2.0.0", "importPath": "@acme/icons" },
+    {
+      "name": "@acme/charts",
+      "version": "0.9.0",
+      "importPath": "@acme/charts",
+      "tsconfigPath": "packages/charts/tsconfig.json"
+    }
+  ]
+}
+```
+
+<Callout type="info">
+Point `tsconfigPath` at a package's own `tsconfig.json` when its types rely on
+path aliases or custom compiler options, so react-docgen parses it correctly.
+</Callout>
+
+## Tidy the gallery for a team
+
+Hide internal components and surface a polymorphic one that docgen misses. This
+belongs in a committed `snapds.config.json` so the whole team shares it:
+
+```jsonc
+// snapds.config.json
+{
+  "packages": {
+    "@acme/ui": {
+      "ignore": ["InternalOnly", "DebugGrid"],
+      "overrides": {
+        "Box": { "snippet": "<Box as=\"section\">$1</Box>" },
+        "Button": {
+          "props": {
+            "variant": { "defaultValue": "primary", "description": "Visual style." },
+            "internalTelemetryId": { "hidden": true }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## Ship agent-ready skills
+
+Turn your components into skills a coding agent can load on demand:
+
+```jsonc
+// .vscode/settings.json
+{
+  "snapds.skills": {
+    "enabled": true,
+    "formats": ["augment", "generic"],
+    "destination": "workspace",
+    "autoGenerate": true
+  }
+}
+```
+
+Then run **Snapds: Generate Skills**. See [Skills for agents](/docs/skills) for
+the output layout.
+
+## Use cases
+
+<Cards>
+  <Cards.Card title="App developer" href="/docs/getting-started" arrow>
+    Consume an internal library without memorizing props — drag a component in
+    and get correct JSX plus the import.
+  </Cards.Card>
+  <Cards.Card title="Design-system team" href="/docs/configuration" arrow>
+    Ship shared conventions via `snapds.config.json`: hide internals, set
+    defaults, and standardize snippets across every consumer.
+  </Cards.Card>
+  <Cards.Card title="Monorepo" href="/docs/how-it-works" arrow>
+    Register workspace packages that live in nested `node_modules` or are built
+    locally — the resolver finds them all.
+  </Cards.Card>
+  <Cards.Card title="AI-assisted dev" href="/docs/skills" arrow>
+    Export SKILL.md / AGENTS.md so agents use your real components instead of
+    guessing prop names.
+  </Cards.Card>
+</Cards>

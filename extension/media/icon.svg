@@ -1,8 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="48" fill="#1e1e2e"/>
-  <g fill="none" stroke="#89b4fa" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="56" y="56" width="144" height="144" rx="16"/>
-    <line x1="56" y1="104" x2="200" y2="104"/>
-    <line x1="104" y1="200" x2="104" y2="104"/>
-  </g>
+  <defs>
+    <linearGradient id="snapds-logo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4c8dff"/>
+      <stop offset="1" stop-color="#2cd4b6"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#snapds-logo)"/>
+  <path d="M148 48L72 144h48l-12 64L184 112h-48z" fill="#08090d"/>
 </svg>

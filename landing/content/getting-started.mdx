@@ -1,0 +1,88 @@
+---
+title: Getting started
+description: Install Snapds, register a component package, and drop your first component into a React file.
+---
+
+# Getting started
+
+## 1. Install the extension
+
+Install **Snapds** from the VS Code Marketplace (or the Extensions view). It
+requires VS Code 1.85 or newer.
+
+## 2. Register a package
+
+Open the **Components** view from the Activity Bar (the Snapds icon), then click
+the ⚙️ gear in its title bar — or run **Snapds: Open Settings** from the Command
+Palette (`Cmd/Ctrl+Shift+P`). Add a package you want to browse — for example
+`@acme/ui`. Snapds introspects its props, types, enums and default values
+automatically; there is nothing to configure up front.
+
+You can also register packages directly in settings:
+
+```jsonc
+// .vscode/settings.json
+{
+  "snapds.packages": [
+    {
+      "name": "@acme/ui",
+      "version": "*",
+      "importPath": "@acme/ui"
+    }
+  ]
+}
+```
+
+<Callout type="info">
+The package must be installed in your workspace's `node_modules` (Snapds reads
+its TypeScript types, not a registry). In a monorepo, a package installed in a
+nested `node_modules` or built locally is resolved automatically — see
+[How it works → Resolution](/docs/how-it-works).
+</Callout>
+
+## 3. Explore the gallery
+
+Open the **Components** view in the Activity Bar. Search, filter, and browse
+everything your package exposes, grouped by package. Selecting a component opens
+the **Props panel** (also available via **Snapds: Open Props Panel**), where each
+prop is rendered from its type — enums become selects, booleans become toggles.
+
+## 4. Drop into your code
+
+Drag a component from the gallery into any React file. Snapds writes the JSX and
+merges its import into the right statement — no manual wiring.
+
+```tsx
+import { Card, Button } from '@acme/ui';
+
+export function Toolbar() {
+  return (
+    <Card>
+      <Button variant="primary">Save changes</Button>
+    </Card>
+  );
+}
+```
+
+## 5. (Optional) Generate skills
+
+Export [agent-ready skills](/docs/skills) so your coding assistant knows your
+design system on demand. Run **Snapds: Generate Skills** from the Command
+Palette, or enable auto-generation in Settings.
+
+## Troubleshooting
+
+<Callout type="warning">
+**My package shows no components.** Make sure it ships TypeScript types
+(`.d.ts` / `.tsx`) and that its `package.json` points to them via `types`,
+`typings`, or `main`. Snapds reads types — not compiled JS.
+</Callout>
+
+- **Nothing appears after registering** — confirm the package is installed
+  (`node_modules`). For locally-built monorepo packages, build them first so the
+  type entry exists.
+- **A polymorphic / `as`-style component is missing** — a compiler pass catches
+  most, but you can add it under `manual` (see [Configuration](/docs/configuration)).
+- **Stale props after an upgrade** — introspection is cached by
+  `name@version` plus your config file's mtime. Bump the `version` field or edit
+  `snapds.config.json` to force a re-parse.
