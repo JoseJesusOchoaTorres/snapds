@@ -5,6 +5,8 @@ import { getWebviewHtml, webviewResourceRoots } from '../util/webviewHtml';
 export interface PropsPanelHandlers {
   onReady: () => void | Promise<void>;
   onPropsUpdated: (componentId: string, props: Record<string, unknown>) => void;
+  onSwitchVersion?: (pkg: string, version: string) => void | Promise<void>;
+  onAddToPackageJson?: (pkg: string, version: string) => void | Promise<void>;
 }
 
 export class PropsPanelProvider {
@@ -47,6 +49,12 @@ export class PropsPanelProvider {
         case 'propsUpdated':
           this.handlers.onPropsUpdated(msg.componentId, msg.props);
           break;
+        case 'switchVersion':
+          void this.handlers.onSwitchVersion?.(msg.pkg, msg.version);
+          break;
+        case 'addToPackageJson':
+          void this.handlers.onAddToPackageJson?.(msg.pkg, msg.version);
+          break;
       }
     });
 
@@ -79,6 +87,27 @@ export class PropsPanelProvider {
       this.pendingSchema = undefined;
       this.pendingValues = undefined;
     }
+  }
+
+  postVersionsAvailable(
+    pkg: string,
+    versions: string[],
+    activeVersion: string,
+    isAutoResolved: boolean,
+    inPackageJson: boolean,
+    hasFileContext: boolean,
+    resolvedFrom?: string,
+  ): void {
+    this.post({
+      type: 'versionsAvailable',
+      pkg,
+      versions,
+      activeVersion,
+      isAutoResolved,
+      inPackageJson,
+      hasFileContext,
+      resolvedFrom,
+    });
   }
 
   private post(msg: ToProps): void {

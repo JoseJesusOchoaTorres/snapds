@@ -81,3 +81,78 @@ textarea {
 .field > .name {
   font-weight: 600;
 }
+
+.version-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-widget-border, transparent));
+  margin-bottom: 4px;
+}
+
+.version-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-auto {
+  font-size: 0.72em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #fff);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: default;
+  user-select: none;
+}
+
+.badge-auto-from {
+  font-weight: 400;
+  opacity: 0.8;
+  letter-spacing: 0;
+}
+
+.version-select {
+  font-size: 0.85em;
+  padding: 2px 4px;
+  max-width: 120px;
+}
+
+.version-badge {
+  font-size: 0.82em;
+  opacity: 0.65;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+.add-pkg-btn {
+  font-size: 0.8em;
+  font-family: inherit;
+  padding: 2px 8px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-input-border, transparent));
+  background: var(--vscode-button-secondaryBackground, transparent);
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.add-pkg-btn:hover {
+  background: var(
+    --vscode-button-secondaryHoverBackground,
+    var(--vscode-list-hoverBackground, transparent)
+  );
+}
+
+.version-bar--no-file {
+  opacity: 0.5;
+}
+
+.version-bar-hint {
+  font-size: 0.82em;
+  opacity: 0.75;
+}

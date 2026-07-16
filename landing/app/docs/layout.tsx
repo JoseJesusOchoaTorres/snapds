@@ -9,7 +9,13 @@ const MARKETPLACE = 'https://marketplace.visualstudio.com/search?term=snapds&tar
 
 const logo = (
   <span
-    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, letterSpacing: '-0.01em' }}
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
+    }}
   >
     <Logo size={22} />
     Snapds

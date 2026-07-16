@@ -39,9 +39,16 @@ walk → `require.resolve` → monorepo deep-search → local workspace packages
 enums, defaults, and JSDoc. A compiler pass catches polymorphic components that
 docgen misses.
 
+### Version resolve (monorepo)
+When the active editor changes, Snapds walks up from the focused file to find the
+nearest `node_modules/{pkg}` installation. That version's cached schema is shown
+in the props panel. Fallback: highest semver found in the workspace.
+
 ### Cache
-Results are cached in global state, keyed by `name@version` and the workspace
-config file's mtime. User overrides live separately and apply after the cache.
+Results are cached in global state, keyed by `name@version` (live version from
+`node_modules`, not the saved setting) and the workspace config file's mtime.
+Each installed version has its own entry, so multi-version monorepos work without
+conflict. User overrides live separately and apply after the cache.
 
 ### Render & generate
 The gallery, props panel, and settings render as native webviews; dropping a
@@ -65,8 +72,7 @@ direction.
   from the real component API.
 - **Zero project footprint.** Snapds only reads metadata and writes the files
   you explicitly ask for; it adds nothing to your bundle or dependency tree.
-- **Cache aggressively, invalidate precisely.** mtime-based keys make re-opening
-  the gallery instant while still rebuilding the moment config changes.
+- **Cache aggressively, invalidate precisely.** Version + mtime-based keys make re-opening the gallery instant while still rebuilding the moment a package is updated or config changes. Each installed version caches independently so switching between monorepo app contexts doesn't cause re-parses.
 - **Never hide new components.** Selections are stored as `excluded` / `manual`
   lists rather than an allow-list, so upstream additions always surface.
 - **Agents as a first-class consumer.** Skills export exists so coding

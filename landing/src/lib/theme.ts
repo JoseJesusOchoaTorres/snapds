@@ -12,10 +12,7 @@ export type ThemeChoice = 'light' | 'dark' | 'system';
 export const THEME_KEY = 'theme';
 
 export function systemPrefersDark(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
 export function resolveDark(choice: ThemeChoice): boolean {
@@ -34,9 +31,7 @@ export function applyTheme(choice: ThemeChoice): void {
 export function getStoredTheme(): ThemeChoice {
   if (typeof window === 'undefined') return 'system';
   const value = window.localStorage.getItem(THEME_KEY);
-  return value === 'light' || value === 'dark' || value === 'system'
-    ? value
-    : 'system';
+  return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
 }
 
 export function setStoredTheme(choice: ThemeChoice): void {

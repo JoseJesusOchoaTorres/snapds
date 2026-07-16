@@ -103,7 +103,10 @@ export class DsIntrospector {
       const pkgJsonPath = path.join(dir, 'node_modules', p.name, 'package.json');
       if (fs.existsSync(pkgJsonPath)) {
         try {
-          return (JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8')) as { version?: string }).version ?? p.version;
+          return (
+            (JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8')) as { version?: string }).version ??
+            p.version
+          );
         } catch {
           return p.version;
         }
@@ -115,12 +118,8 @@ export class DsIntrospector {
     return p.version;
   }
 
-  private getCacheKey(p: DsPackage): string {
-    // Use the live installed version so the cache auto-invalidates when the
-    // package is updated (e.g. after `pnpm update`), not just when the user
-    // re-saves settings. Falls back to the registry-stored version for pnpm
-    // virtual store packages that aren't reachable via the sync upward walk.
-    const installedVersion = this.resolveInstalledVersion(p);
+  private getCacheKey(p: DsPackage, versionOverride?: string): string {
+    const installedVersion = versionOverride ?? this.resolveInstalledVersion(p);
     let key = `ds.cache.v${CACHE_SCHEMA_VERSION}.${p.name}@${installedVersion}`;
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (folder) {
@@ -147,8 +146,16 @@ export class DsIntrospector {
     return c && this.applyUserOverrides(p, c);
   }
 
-  async introspect(p: DsPackage, opts: { force?: boolean } = {}): Promise<ComponentMeta[]> {
-    const cacheKey = this.getCacheKey(p);
+  /**
+   * Introspects a package and returns its components. When `opts.dir` and
+   * `opts.version` are provided the introspector uses that specific installation
+   * directory instead of auto-resolving, enabling per-app version switching.
+   */
+  async introspect(
+    p: DsPackage,
+    opts: { force?: boolean; dir?: string; version?: string } = {},
+  ): Promise<ComponentMeta[]> {
+    const cacheKey = this.getCacheKey(p, opts.version);
     if (!opts.force) {
       const cached = this.ctx.globalState.get<ComponentMeta[]>(cacheKey);
       if (cached) return this.applyUserOverrides(p, cached);
@@ -160,17 +167,20 @@ export class DsIntrospector {
       if (inflight) return inflight.then((raw) => this.applyUserOverrides(p, raw));
     }
 
-    const promise = this.doIntrospect(p);
+    const promise = this.doIntrospect(p, opts);
     this.inFlight.set(cacheKey, promise);
     promise.finally(() => this.inFlight.delete(cacheKey));
     const raw = await promise;
     return this.applyUserOverrides(p, raw);
   }
 
-  private async doIntrospect(p: DsPackage): Promise<ComponentMeta[]> {
-    const cacheKey = this.getCacheKey(p);
+  private async doIntrospect(
+    p: DsPackage,
+    opts: { dir?: string; version?: string } = {},
+  ): Promise<ComponentMeta[]> {
+    const cacheKey = this.getCacheKey(p, opts.version);
 
-    const pkgDir = await this.resolvePackageDir(p);
+    const pkgDir = opts.dir ?? (await this.resolvePackageDir(p));
     const entry = this.resolveTypingsEntry(pkgDir);
 
     // Component names whose only props were standard DOM/SVG attributes from
@@ -229,7 +239,11 @@ export class DsIntrospector {
         // parsed surface by the real value exports so those type-only names
         // never reach the gallery. Keep static sub-components (`Foo.Bar`) and
         // skip gating entirely if the export scan yielded nothing.
-        if (exportedNames.size > 0 && !exportedNames.has(c.displayName) && !c.displayName.includes('.')) {
+        if (
+          exportedNames.size > 0 &&
+          !exportedNames.has(c.displayName) &&
+          !c.displayName.includes('.')
+        ) {
           return false;
         }
         return true;
@@ -253,7 +267,8 @@ export class DsIntrospector {
         let props = Object.values(c.props).map((prop) => normalizeProp(prop));
         // Backfill props docgen dropped for barrel-re-exported components.
         if (props.length === 0) {
-          const fromSibling = siblingProps.get(c.displayName) ?? siblingProps.get(`${c.displayName}Props`);
+          const fromSibling =
+            siblingProps.get(c.displayName) ?? siblingProps.get(`${c.displayName}Props`);
           if (fromSibling && fromSibling.length > 0) {
             props = fromSibling;
           } else if (tsProgram && entry) {
@@ -367,8 +382,7 @@ export class DsIntrospector {
       shouldExtractLiteralValuesFromEnum: true,
       shouldRemoveUndefinedFromOptional: true,
       propFilter: (prop, component) => {
-        const fromReact =
-          !!prop.parent && /node_modules\/@types\/react/.test(prop.parent.fileName);
+        const fromReact = !!prop.parent && /node_modules\/@types\/react/.test(prop.parent.fileName);
         if (fromReact) {
           // Remember which components had a prop stripped purely because it is
           // a standard React DOM/SVG attribute — used to label DOM-only comps.
@@ -552,7 +566,14 @@ function extractInterfaceProps(
         type = 'ReactNode';
       }
 
-      result.push({ name: prop.getName(), type, raw, required, description: doc || undefined, enumValues });
+      result.push({
+        name: prop.getName(),
+        type,
+        raw,
+        required,
+        description: doc || undefined,
+        enumValues,
+      });
     }
 
     return result;

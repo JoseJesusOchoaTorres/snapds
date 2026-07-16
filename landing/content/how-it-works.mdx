@@ -23,12 +23,36 @@ parent directories to the filesystem root.
 Falls back to Node's resolver (`require.resolve('{pkg}', { paths: [root] })`).
 
 ### Monorepo deep search
-Searches `**/node_modules/{pkg}` across the workspace for hoisted or nested deps.
+Searches across the workspace for hoisted or nested deps.
 
 ### Local workspace package
 Finally scans every `package.json` (excluding `node_modules`) and matches by
 `name`, so locally-built workspace packages resolve too.
 </Steps>
+
+## Monorepo version resolution
+
+In monorepos where the same package is installed at different versions across
+different apps, Snapds resolves the _right_ version for the file you're editing
+rather than always using the hoisted root copy.
+
+On startup Snapds discovers every installation of each registered package across
+the workspace (via `findFiles`) and indexes them by version, sorted
+highest-semver-first.
+
+When the active editor changes, Snapds walks up from the focused file's directory
+to find the nearest `node_modules/{pkg}` directory. That installation — and its
+cached component schema — is shown in the **Component Properties** panel.
+
+If no installation is found along the file's path (e.g. a shared config file at
+the repo root), Snapds falls back to the highest semver found in the workspace.
+The props panel header shows an **auto** badge when the version was inferred
+this way, and a **version dropdown** when more than one installation exists so
+you can pin a specific version manually.
+
+When the package is not listed in the focused file's nearest `package.json`, an
+**Add to this app** button appears. Clicking it writes the dependency into that
+`package.json` (under `dependencies`) and shows a reminder to run `pnpm install`.
 
 ## Introspection
 
@@ -51,14 +75,17 @@ letter and are not tagged `@internal` or listed in your config's `ignore`.
 Introspection is cached in the extension's global state under a key of the form:
 
 ```
-ds.cache.{name}@{version}[@{configMtimeMs}]
+ds.cache.v{schemaVersion}.{name}@{version}[@{configMtimeMs}]
 ```
 
-The cache is invalidated when the **`version`** field changes or when your
-workspace `snapds.config.json` / `.snapds.json` is edited (its **mtime** is part
-of the key). Re-opening the gallery is instant; the cache only rebuilds when one
-of those actually changes. Per-component **user overrides** are stored separately
-and applied _after_ the cache, so tweaking them never forces a re-parse.
+Key points:
+
+- **`version`** is read live from `node_modules/{pkg}/package.json` at cache time, not from your saved settings. This means running `pnpm update` invalidates the cache automatically — no manual cache clear needed.
+- **Each installed version has its own cache entry.** In a monorepo with `v1.2.0` in one app and `v2.1.0` in another, both entries coexist. Switching the version selector in the props panel hits a warm cache immediately after startup.
+- **`configMtimeMs`** is appended when a `snapds.config.json` or `.snapds.json` exists. Editing it invalidates all entries for that workspace.
+- **User overrides** are stored separately and applied _after_ the cache, so tweaking them never forces a re-parse.
+
+Re-opening the gallery is instant; the cache only rebuilds when one of those inputs actually changes.
 
 ## Code generation
 

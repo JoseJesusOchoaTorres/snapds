@@ -47,7 +47,9 @@ export type FromGallery =
 
 export type FromProps =
   | { type: 'ready' }
-  | { type: 'propsUpdated'; componentId: string; props: Record<string, unknown> };
+  | { type: 'propsUpdated'; componentId: string; props: Record<string, unknown> }
+  | { type: 'switchVersion'; pkg: string; version: string }
+  | { type: 'addToPackageJson'; pkg: string; version: string };
 
 export type SkillFormat = 'augment' | 'generic';
 
@@ -110,7 +112,23 @@ export type ToGallery = { type: 'componentList'; components: ComponentMeta[] };
 
 export type ToProps =
   | { type: 'componentSchema'; component: ComponentMeta }
-  | { type: 'restoreProps'; props: Record<string, unknown> };
+  | { type: 'restoreProps'; props: Record<string, unknown> }
+  | {
+      type: 'versionsAvailable';
+      pkg: string;
+      versions: string[];
+      activeVersion: string;
+      isAutoResolved: boolean;
+      inPackageJson: boolean;
+      /** False when no source file is open — selector should render as disabled. */
+      hasFileContext: boolean;
+      /**
+       * Workspace-relative path of the app whose node_modules contains the
+       * auto-detected version (e.g. "apps/web"). Undefined when manually
+       * selected or when no file context is available.
+       */
+      resolvedFrom?: string;
+    };
 
 export interface PackageMeta {
   name: string;

@@ -33,12 +33,24 @@ Snapds is a powerful VS Code extension designed for React monorepos. It introspe
 - 🧩 **Visual Component Gallery**: Browse all available components from your registered packages in a dedicated sidebar webview.
 - 🚀 **Drag and Drop JSX**: Drag a component from the gallery and drop it into your React code. Snapds automatically generates the correct JSX and handles the necessary import statements.
 - 📦 **Smart Import Management**: Automatically injects new imports without duplicating existing ones. It correctly handles multi-line Prettier-formatted imports and updates them seamlessly.
-- ⚡ **Performance Optimized**: Uses advanced caching based on file modification times (`mtime`) and differential updates to ensure the introspection and gallery remain blazingly fast.
+- ⚡ **Performance Optimized**: Uses advanced caching based on package version and config file mtime so re-opening the gallery is instant. Each package version is cached independently, so switching between versions in the props panel requires no re-parse after startup.
+- 🗂️ **Monorepo multi-version support**: In a monorepo with apps using different versions of the same package, Snapds auto-detects the right version from the file currently open in your editor and shows the matching props. A version selector in the props panel lets you override this manually, and an "Add to this app" button injects the dependency into the nearest `package.json` when the package isn't listed there yet.
 - 🤖 **Generate Skills**: Turn your component metadata into agent-consumable skill docs so coding agents can use your design system without re-reading source or `.d.ts` files (saving tokens).
 
 ## Managing Packages & Components
 
 Open **Snapds Settings** (the gear on the Components view, or run **`Snapds: Open Settings`**) to register packages and choose which components are exposed.
+
+### Multi-version monorepo support
+
+When the same package is installed at different versions across apps in a monorepo, Snapds handles each app independently:
+
+- **Auto-resolution.** When you switch the active editor, Snapds walks up from the focused file to find the nearest `node_modules/{pkg}` and uses that version's props in the panel. The version badge in the props header shows `auto` when the version was inferred this way.
+- **Manual override.** A version dropdown in the props panel header lets you pin any detected version regardless of which file is active.
+- **Fallback.** If no local installation is found along the file's path (e.g. a shared root-level file), Snapds falls back to the highest semver found in the workspace.
+- **Add to this app.** When the selected version isn't listed in the focused app's `package.json`, an **Add to this app** button appears. Clicking it adds the dependency to the nearest `package.json` and shows a reminder to run `pnpm install`.
+
+
 
 - **Packages** are listed as collapsible sections. Enable a package to introspect it on demand.
 - **Components use an auto-include model.** Every component Snapds detects is included by default and shown as a chip. Un-toggle a chip to *exclude* a component; components added upstream are picked up automatically on the next refresh, so nothing is silently hidden.
@@ -125,7 +137,8 @@ Snapds provides the following commands via the Command Palette (`Cmd+Shift+P` or
 - **`Snapds: Open Props Panel`**: Opens a dedicated panel for editing component properties.
 - **`Snapds: Generate Skills`**: Generates agent-consumable skill docs from your components with an interactive format/destination prompt (see [Generate Skills](#generate-skills)).
 - **`Snapds: Regenerate All Skills`**: Rewrites every skill doc from your current component selection using the saved *Agent Skills* settings.
-- **`Snapds: Clear Introspection Cache`**: Clears all cached component introspection results and re-parses configured packages. Use this if the gallery or props panel is showing stale/outdated props.
+- **`Snapds: Clear Introspection Cache`** (`snapds.clearCache`): Clears all cached component introspection results and re-parses configured packages. Use this if the gallery or props panel is showing stale/outdated props.
+- **`Snapds: Reindex Packages`** (`snapds.reindex`): Re-triggers background parsing for all registered packages without clearing the cache first — already-cached packages are served instantly while only uncached ones are re-parsed. Useful after updating a package without reloading VS Code.
 
 ## Development
 

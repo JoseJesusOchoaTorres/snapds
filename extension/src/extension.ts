@@ -1,6 +1,15 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { DsIntrospector } from './ds/dsIntrospector';
 import { applyWhitelist, type DsPackage, DsRegistry } from './ds/dsRegistry';
+import {
+  discoverInstallations,
+  findNearestPackageJson,
+  latestInstallation,
+  type PackageInstallation,
+  resolveForFile,
+} from './ds/versionResolver';
 import {
   generateSkillsToConfig,
   getSkillsConfig,
@@ -25,15 +34,225 @@ export function activate(ctx: vscode.ExtensionContext): void {
   const introspector = new DsIntrospector(ctx, userOverrides);
   const store = new Store(ctx);
 
+  // Populated after startup indexing; keyed by package name, sorted highest-semver-first.
+  const installationsMap = new Map<string, PackageInstallation[]>();
+
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+  // Tracks the last text editor the user had focused — stays valid when focus
+  // moves to a webview panel (where activeTextEditor is undefined).
+  let lastKnownFilePath: string | undefined;
+
+  /** Looks up the right installation for the focused file and notifies the props panel. */
+  function notifyVersions(filePath?: string): void {
+    if (!propsPanel.isOpen()) return;
+    const selected = store.getSelected();
+    if (!selected) return;
+    const pkgName = selected.id.split('#')[0];
+    const installations = installationsMap.get(pkgName) ?? [];
+
+    // When no explicit file is given (e.g. focus is on a webview), fall back to
+    // the last file the user had open in the editor.
+    const resolvedFilePath = filePath || lastKnownFilePath;
+    const hasFileContext = !!resolvedFilePath;
+
+    if (installations.length === 0) {
+      propsPanel.postVersionsAvailable(pkgName, [], '', false, false, hasFileContext);
+      return;
+    }
+
+    const resolved = resolvedFilePath
+      ? resolveForFile(resolvedFilePath, pkgName, installations)
+      : undefined;
+    const active = resolved ?? latestInstallation(installations)!;
+    const isAutoResolved = !resolved;
+
+    // Workspace-relative label for where the version was auto-detected from.
+    const resolvedFrom =
+      resolved && workspaceRoot ? path.relative(workspaceRoot, resolved.appRoot) || '.' : undefined;
+
+    let inPackageJson = false;
+    if (resolvedFilePath) {
+      const nearestPkg = findNearestPackageJson(resolvedFilePath, workspaceRoot);
+      if (nearestPkg) {
+        try {
+          const json = JSON.parse(fs.readFileSync(nearestPkg, 'utf8')) as {
+            dependencies?: Record<string, string>;
+            devDependencies?: Record<string, string>;
+            peerDependencies?: Record<string, string>;
+          };
+          inPackageJson = !!(
+            json.dependencies?.[pkgName] ??
+            json.devDependencies?.[pkgName] ??
+            json.peerDependencies?.[pkgName]
+          );
+        } catch {}
+      }
+    }
+
+    propsPanel.postVersionsAvailable(
+      pkgName,
+      installations.map((i) => i.version),
+      active.version,
+      isAutoResolved,
+      inPackageJson,
+      hasFileContext,
+      resolvedFrom,
+    );
+  }
+
+  async function discoverAllInstallations(): Promise<void> {
+    await Promise.all(
+      registry.list().map(async (pkg) => {
+        const found = await discoverInstallations(pkg.name);
+        if (found.length > 0) installationsMap.set(pkg.name, found);
+      }),
+    );
+  }
+
+  /**
+   * Pre-introspects every discovered installation of every registered package
+   * so that switching versions in the props panel hits a warm cache.
+   * Runs concurrently; individual failures are silently ignored (non-critical).
+   */
+  async function preIndexAllVersions(): Promise<void> {
+    const tasks: Promise<void>[] = [];
+    for (const [pkgName, installations] of installationsMap) {
+      const descriptor = registry.list().find((p) => p.name === pkgName);
+      if (!descriptor) continue;
+      for (const installation of installations) {
+        tasks.push(
+          introspector
+            .introspect(descriptor, { dir: installation.dir, version: installation.version })
+            .catch(() => {}),
+        );
+      }
+    }
+    await Promise.all(tasks);
+  }
+
+  /**
+   * Runs after startup indexing: discovers all installations, notifies the
+   * props panel immediately so the version selector can appear, then
+   * pre-indexes alternate versions in the background (fire-and-forget) so
+   * switching them later hits a warm cache.
+   */
+  async function afterDiscovery(): Promise<void> {
+    await discoverAllInstallations();
+    // Notify the panel now — don't wait for pre-indexing to finish.
+    notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath);
+    // Pre-index every alternate version in the background.
+    void preIndexAllVersions();
+  }
+
   const propsPanel = new PropsPanelProvider(ctx, {
     onReady: () => {
       const sel = store.getSelected();
       if (sel) {
         propsPanel.postComponentSchema(sel, store.getConfiguredProps(sel.id));
+        notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath);
       }
     },
     onPropsUpdated: (componentId, props) => {
       store.setConfiguredProps(componentId, props);
+    },
+    onSwitchVersion: async (pkg, version) => {
+      const installations = installationsMap.get(pkg);
+      const installation = installations?.find((i) => i.version === version);
+      if (!installation) return;
+      const descriptor = registry.list().find((p) => p.name === pkg);
+      if (!descriptor) return;
+
+      const all = await introspector.introspect(descriptor, {
+        dir: installation.dir,
+        version: installation.version,
+      });
+      const whitelisted = applyWhitelist(all, descriptor);
+
+      const selected = store.getSelected();
+      if (selected?.id.startsWith(`${pkg}#`)) {
+        const updated = whitelisted.find((c) => c.id === selected.id);
+        if (updated) propsPanel.postComponentSchema(updated, store.getConfiguredProps(selected.id));
+      }
+
+      const resolvedFilePath =
+        vscode.window.activeTextEditor?.document.uri.fsPath ?? lastKnownFilePath;
+      const hasFileContext = !!resolvedFilePath;
+      let inPackageJson = false;
+      if (resolvedFilePath) {
+        const nearestPkg = findNearestPackageJson(resolvedFilePath, workspaceRoot);
+        if (nearestPkg) {
+          try {
+            const json = JSON.parse(fs.readFileSync(nearestPkg, 'utf8')) as {
+              dependencies?: Record<string, string>;
+              devDependencies?: Record<string, string>;
+            };
+            inPackageJson = !!(json.dependencies?.[pkg] ?? json.devDependencies?.[pkg]);
+          } catch {}
+        }
+      }
+      propsPanel.postVersionsAvailable(
+        pkg,
+        installations!.map((i) => i.version),
+        version,
+        false,
+        inPackageJson,
+        hasFileContext,
+      );
+    },
+    onAddToPackageJson: async (pkg, version) => {
+      const resolvedFilePath =
+        vscode.window.activeTextEditor?.document.uri.fsPath ?? lastKnownFilePath;
+      if (!resolvedFilePath) {
+        vscode.window.showWarningMessage('Snapds: No active editor to determine app location.');
+        return;
+      }
+      const pkgJsonPath = findNearestPackageJson(resolvedFilePath, workspaceRoot);
+      if (!pkgJsonPath) {
+        vscode.window.showWarningMessage(
+          'Snapds: Could not find a package.json near the current file.',
+        );
+        return;
+      }
+      try {
+        const content = fs.readFileSync(pkgJsonPath, 'utf8');
+        const json = JSON.parse(content) as Record<string, unknown> & {
+          dependencies?: Record<string, string>;
+        };
+        if (!json.dependencies) json.dependencies = {};
+        json.dependencies[pkg] = `^${version}`;
+
+        // Preserve existing indentation style
+        const indentMatch = content.match(/^([ \t]+)/m);
+        const indent = indentMatch ? indentMatch[1] : '  ';
+        fs.writeFileSync(pkgJsonPath, `${JSON.stringify(json, null, indent)}\n`, 'utf8');
+
+        const relPath = workspaceRoot
+          ? path.relative(workspaceRoot, pkgJsonPath)
+          : path.basename(pkgJsonPath);
+        vscode.window.showInformationMessage(
+          `Snapds: Added ${pkg}@^${version} to ${relPath}. Run \`pnpm install\` to finish.`,
+        );
+
+        // Re-notify with updated inPackageJson = true
+        const installations = installationsMap.get(pkg) ?? [];
+        const resolved = resolveForFile(resolvedFilePath, pkg, installations);
+        const active = resolved ?? latestInstallation(installations);
+        if (active) {
+          propsPanel.postVersionsAvailable(
+            pkg,
+            installations.map((i) => i.version),
+            active.version,
+            !resolved,
+            true,
+            true,
+          );
+        }
+      } catch (e) {
+        vscode.window.showErrorMessage(
+          `Snapds: Failed to update package.json: ${(e as Error).message}`,
+        );
+      }
     },
   });
 
@@ -49,12 +268,26 @@ export function activate(ctx: vscode.ExtensionContext): void {
       if (!meta) return;
       store.select(componentId);
       propsPanel.postComponentSchema(meta, store.getConfiguredProps(componentId));
+      notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath);
     },
   });
 
   ctx.subscriptions.push(
     vscode.window.registerWebviewViewProvider(GalleryViewProvider.viewId, gallery, {
       webviewOptions: { retainContextWhenHidden: true },
+    }),
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (!editor) return;
+      lastKnownFilePath = editor.document.uri.fsPath;
+      notifyVersions(lastKnownFilePath);
+    }),
+
+    // When the tracked file is closed, drop the context so the panel
+    // transitions to the "no file open" state rather than showing stale info.
+    vscode.workspace.onDidCloseTextDocument((doc) => {
+      if (doc.uri.fsPath !== lastKnownFilePath) return;
+      lastKnownFilePath = vscode.window.activeTextEditor?.document.uri.fsPath;
+      notifyVersions(lastKnownFilePath);
     }),
   );
 
@@ -118,9 +351,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
           all.map((c) => c.name),
         );
       } catch (e) {
-        vscode.window.showErrorMessage(
-          `Failed to introspect ${pkgName}: ${(e as Error).message}`,
-        );
+        vscode.window.showErrorMessage(`Failed to introspect ${pkgName}: ${(e as Error).message}`);
         settingsPanel.postComponentNames(pkgName, []);
       }
     },
@@ -175,7 +406,10 @@ export function activate(ctx: vscode.ExtensionContext): void {
       settingsPanel.postUserOverrides(userOverrides.all());
     },
     onSetScopeFilters: async (filters) => {
-      await ctx.workspaceState.update('snapds.scopeFilters', filters.length > 0 ? filters : undefined);
+      await ctx.workspaceState.update(
+        'snapds.scopeFilters',
+        filters.length > 0 ? filters : undefined,
+      );
     },
     onSaveUserOverride: async ({ pkg, component, override }) => {
       await userOverrides.set(pkg, component, override);
@@ -245,7 +479,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
           const activePackages = registry.list();
 
-          progress.report({ message: `Loading ${activePackages.length} package${activePackages.length > 1 ? 's' : ''}…` });
+          progress.report({
+            message: `Loading ${activePackages.length} package${activePackages.length > 1 ? 's' : ''}…`,
+          });
 
           // Introspect all packages concurrently. Each call either hits the in-memory
           // cache (instant for packages already opened in the modal) or starts a fresh
@@ -273,6 +509,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
       settingsPanel.postSaved();
       settingsPanel.postPackageList(await buildPackageList());
+      void afterDiscovery();
     },
   });
 
@@ -303,10 +540,14 @@ export function activate(ctx: vscode.ExtensionContext): void {
       out.appendLine('=== Registered packages ===');
       for (const pkg of registry.list()) {
         const cached = introspector.getCached(pkg);
-        out.appendLine(`${pkg.name}@${pkg.version}: ${cached ? cached.length + ' components cached' : 'not cached'}`);
+        out.appendLine(
+          `${pkg.name}@${pkg.version}: ${cached ? cached.length + ' components cached' : 'not cached'}`,
+        );
         if (cached) {
           for (const c of cached) {
-            out.appendLine(`  ${c.name}: ${c.props.length} props${c.standardPropsOnly ? ' (DOM only)' : ''}`);
+            out.appendLine(
+              `  ${c.name}: ${c.props.length} props${c.standardPropsOnly ? ' (DOM only)' : ''}`,
+            );
           }
         }
       }
@@ -324,7 +565,10 @@ export function activate(ctx: vscode.ExtensionContext): void {
           let dir = folder;
           while (true) {
             const candidate = path.join(dir, 'node_modules', pkg.name);
-            if (fs.existsSync(candidate)) { pkgDir = candidate; break; }
+            if (fs.existsSync(candidate)) {
+              pkgDir = candidate;
+              break;
+            }
             const parent = path.dirname(dir);
             if (parent === dir) break;
             dir = parent;
@@ -332,7 +576,11 @@ export function activate(ctx: vscode.ExtensionContext): void {
           // pnpm / monorepo fallback
           if (!pkgDir) {
             try {
-              const uris = await vscode.workspace.findFiles(`**/node_modules/${pkg.name}/package.json`, null, 1);
+              const uris = await vscode.workspace.findFiles(
+                `**/node_modules/${pkg.name}/package.json`,
+                null,
+                1,
+              );
               if (uris.length > 0) pkgDir = path.dirname(uris[0].fsPath);
             } catch {}
           }
@@ -342,7 +590,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
               shouldExtractLiteralValuesFromEnum: true,
               shouldRemoveUndefinedFromOptional: true,
               propFilter: (prop) => {
-                out.appendLine(`  prop: ${prop.name} | parent: ${prop.parent?.fileName ?? '(none)'}`);
+                out.appendLine(
+                  `  prop: ${prop.name} | parent: ${prop.parent?.fileName ?? '(none)'}`,
+                );
                 return true;
               },
             });
@@ -376,6 +626,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
       // All cached: warm up silently so the gallery populates without disturbing the user.
       await Promise.all(list.map((pkg) => refreshActiveComponents(pkg)));
       settingsPanel.postPackageList(await buildPackageList());
+      void afterDiscovery();
       return;
     }
 
@@ -406,6 +657,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
     vscode.window.showInformationMessage(
       `Snapds: indexed ${list.length} package${list.length > 1 ? 's' : ''} — ${totalComponents} component${totalComponents !== 1 ? 's' : ''} ready.`,
     );
+    void afterDiscovery();
   })();
 
   async function buildPackageList(): Promise<PackageMeta[]> {
@@ -495,7 +747,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
       { location: vscode.ProgressLocation.Window, title: 'Snapds' },
       async (progress) => {
         let done = 0;
-        progress.report({ message: `Re-indexing ${list.length} package${list.length > 1 ? 's' : ''}…` });
+        progress.report({
+          message: `Re-indexing ${list.length} package${list.length > 1 ? 's' : ''}…`,
+        });
         await Promise.all(
           list.map(async (pkg) => {
             await refreshActiveComponents(pkg);
