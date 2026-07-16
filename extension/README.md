@@ -125,6 +125,7 @@ Snapds provides the following commands via the Command Palette (`Cmd+Shift+P` or
 - **`Snapds: Open Props Panel`**: Opens a dedicated panel for editing component properties.
 - **`Snapds: Generate Skills`**: Generates agent-consumable skill docs from your components with an interactive format/destination prompt (see [Generate Skills](#generate-skills)).
 - **`Snapds: Regenerate All Skills`**: Rewrites every skill doc from your current component selection using the saved *Agent Skills* settings.
+- **`Snapds: Clear Introspection Cache`**: Clears all cached component introspection results and re-parses configured packages. Use this if the gallery or props panel is showing stale/outdated props.
 
 ## Development
 

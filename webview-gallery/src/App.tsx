@@ -105,8 +105,6 @@ export default function App() {
       ) : (
         <div className="tree" role="tree">
           {Object.entries(groupedComponents).map(([pkgName, pkgComponents]) => {
-            // During an active search, force matching groups open so results are
-            // visible; the user's manual collapse state is restored on clear.
             const isOpen = hasQuery || !collapsed[pkgName];
             return (
               <div key={pkgName} className="tree-group">

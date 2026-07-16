@@ -103,7 +103,8 @@ export type FromSettings =
   | { type: 'requestComponentDetail'; pkg: string; component: string }
   | { type: 'saveUserOverride'; pkg: string; component: string; override: UserOverride }
   | { type: 'resetUserOverride'; pkg: string; component: string }
-  | { type: 'requestUserOverrides' };
+  | { type: 'requestUserOverrides' }
+  | { type: 'setScopeFilters'; filters: string[] };
 
 export type ToGallery = { type: 'componentList'; components: ComponentMeta[] };
 
@@ -132,6 +133,7 @@ export type ToSettings =
   | { type: 'customPathPicked'; path: string }
   | { type: 'skillsList'; files: SkillFileEntry[] }
   | { type: 'componentDetail'; detail: ComponentDetail }
-  | { type: 'userOverrides'; overrides: Record<string, Record<string, UserOverride>> };
+  | { type: 'userOverrides'; overrides: Record<string, Record<string, UserOverride>> }
+  | { type: 'scopeFilters'; filters: string[] };
 
 export const DRAG_MIME = 'application/vnd.code.tree.snapds.component';

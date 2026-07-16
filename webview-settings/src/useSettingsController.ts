@@ -108,6 +108,8 @@ export function useSettingsController() {
         setSkillFiles(msg.files);
       } else if (msg.type === 'componentDetail') {
         setComponentDetail(msg.detail);
+      } else if (msg.type === 'scopeFilters') {
+        setScopeFilters(msg.filters);
       }
     };
     window.addEventListener('message', onMessage);
@@ -187,9 +189,11 @@ export function useSettingsController() {
   };
 
   const toggleScope = (scope: string) =>
-    setScopeFilters((prev) =>
-      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
-    );
+    setScopeFilters((prev) => {
+      const next = prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope];
+      vscode.postMessage({ type: 'setScopeFilters', filters: next });
+      return next;
+    });
 
   const setManualInput = (pkg: string, value: string) =>
     setManualInputs((prev) => ({ ...prev, [pkg]: value }));

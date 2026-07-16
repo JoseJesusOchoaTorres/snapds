@@ -94,6 +94,13 @@ export class DsRegistry {
     return Array.from(foundPackages).sort();
   }
 
+  /** Writes the entire package list in a single settings.json update. */
+  async saveAll(list: DsPackage[]): Promise<void> {
+    await vscode.workspace
+      .getConfiguration('snapds')
+      .update('packages', list, vscode.ConfigurationTarget.Workspace);
+  }
+
   async updatePackage(
     name: string,
     enabled: boolean,

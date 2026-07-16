@@ -74,6 +74,21 @@
         "command": "snapds.regenerateSkills",
         "title": "Snapds: Regenerate All Skills",
         "category": "Snapds"
+      },
+      {
+        "command": "snapds.clearCache",
+        "title": "Snapds: Clear Introspection Cache",
+        "category": "Snapds"
+      },
+      {
+        "command": "snapds.reindex",
+        "title": "Snapds: Reindex Packages",
+        "category": "Snapds"
+      },
+      {
+        "command": "snapds.diagnostics",
+        "title": "Snapds: Diagnostics",
+        "category": "Snapds"
       }
     ],
     "menus": {

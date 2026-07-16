@@ -31,6 +31,7 @@ export default function App() {
     setManualInput,
     toggleComponent,
     addManual,
+    removePackage,
     handleSave,
     updateSkills,
     toggleFormat,
@@ -104,6 +105,7 @@ export default function App() {
                 scopeFilters={scopeFilters}
                 onToggleScope={toggleScope}
                 onOpenPackage={openPackage}
+                onRemovePackage={removePackage}
               />
             ),
             actions: saveAction,

@@ -13,7 +13,7 @@ export function EnumControl({ prop, value, onChange }: Props) {
       <span className="name">{prop.name}</span>
       <select
         value={value === undefined || value === null ? '' : String(value)}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value)}
       >
         <option value="">(unset)</option>
         {options.map((v) => (

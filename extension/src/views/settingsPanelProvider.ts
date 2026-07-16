@@ -30,6 +30,7 @@ export interface SettingsHandlers {
   }) => void | Promise<void>;
   onResetUserOverride?: (args: { pkg: string; component: string }) => void | Promise<void>;
   onRequestUserOverrides?: () => void | Promise<void>;
+  onSetScopeFilters?: (filters: string[]) => void | Promise<void>;
 }
 
 export class SettingsPanelProvider {
@@ -105,6 +106,9 @@ export class SettingsPanelProvider {
         case 'requestUserOverrides':
           void this.handlers.onRequestUserOverrides?.();
           break;
+        case 'setScopeFilters':
+          void this.handlers.onSetScopeFilters?.(msg.filters);
+          break;
       }
     });
 
@@ -177,6 +181,12 @@ export class SettingsPanelProvider {
         type: 'userOverrides',
         overrides,
       } satisfies ToSettings);
+    }
+  }
+
+  postScopeFilters(filters: string[]): void {
+    if (this.panel) {
+      void this.panel.webview.postMessage({ type: 'scopeFilters', filters } satisfies ToSettings);
     }
   }
 }

@@ -343,6 +343,52 @@ label > .desc {
   opacity: 0.6;
   font-size: 12px;
 }
+
+/* The package card is a container: the clickable body is an inner <button> that
+   must reset the user-agent button styling, otherwise it paints its own light
+   (white) background over the card. The optional remove button floats top-right. */
+.pkg-card {
+  position: relative;
+  flex-direction: row;
+  padding: 0;
+  overflow: hidden;
+}
+.pkg-card-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+.pkg-card-removable .pkg-card-main {
+  padding-right: 34px;
+}
+.pkg-card-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.6;
+}
+.pkg-card-remove:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, transparent);
+}
 .skill-card-title {
   font-weight: 600;
   flex: 1;

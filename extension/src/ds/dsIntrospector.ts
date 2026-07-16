@@ -1,11 +1,20 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as docgen from 'react-docgen-typescript';
+import * as ts from 'typescript';
 import * as vscode from 'vscode';
 import type { UserOverridesStore } from '../state/userOverrides';
 import type { ComponentMeta, PropMeta, UserOverride } from '../util/messaging';
 import type { DsPackage } from './dsRegistry';
-import { enumerateComponentExports } from './exportsScan';
+import { buildCompilerOptions, enumerateComponentExports } from './exportsScan';
+
+/**
+ * Schema/code version of the introspection cache. Bump this whenever the
+ * introspection logic changes in a way that would invalidate previously cached
+ * results (e.g. new prop extraction). This is part of the cache key, so bumping
+ * it forces a fresh parse for everyone without clearing unrelated globalState.
+ */
+const CACHE_SCHEMA_VERSION = 3;
 
 interface CompOverride {
   snippet?: string;
@@ -30,6 +39,9 @@ interface SnapdsConfig {
 }
 
 export class DsIntrospector {
+  /** Deduplicates concurrent introspect() calls for the same package. */
+  private inFlight = new Map<string, Promise<ComponentMeta[]>>();
+
   constructor(
     private ctx: vscode.ExtensionContext,
     private userOverrides: UserOverridesStore,
@@ -77,8 +89,39 @@ export class DsIntrospector {
     return config?.packages?.[pkg]?.overrides?.[comp];
   }
 
+  /**
+   * Reads the installed version of a package directly from node_modules.
+   * Uses a synchronous upward walk — covers standard layouts and most monorepos.
+   * Falls back to `p.version` (the registry-stored value) if the package isn't
+   * found via the sync walk (e.g. deep pnpm virtual store paths).
+   */
+  private resolveInstalledVersion(p: DsPackage): string {
+    const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!folder) return p.version;
+    let dir = folder;
+    while (true) {
+      const pkgJsonPath = path.join(dir, 'node_modules', p.name, 'package.json');
+      if (fs.existsSync(pkgJsonPath)) {
+        try {
+          return (JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8')) as { version?: string }).version ?? p.version;
+        } catch {
+          return p.version;
+        }
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    return p.version;
+  }
+
   private getCacheKey(p: DsPackage): string {
-    let key = `ds.cache.${p.name}@${p.version}`;
+    // Use the live installed version so the cache auto-invalidates when the
+    // package is updated (e.g. after `pnpm update`), not just when the user
+    // re-saves settings. Falls back to the registry-stored version for pnpm
+    // virtual store packages that aren't reachable via the sync upward walk.
+    const installedVersion = this.resolveInstalledVersion(p);
+    let key = `ds.cache.v${CACHE_SCHEMA_VERSION}.${p.name}@${installedVersion}`;
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (folder) {
       for (const file of ['snapds.config.json', '.snapds.json']) {
@@ -109,7 +152,23 @@ export class DsIntrospector {
     if (!opts.force) {
       const cached = this.ctx.globalState.get<ComponentMeta[]>(cacheKey);
       if (cached) return this.applyUserOverrides(p, cached);
+
+      // If the same package is already being parsed (e.g. startup warm-up races
+      // with a requestComponents message), await the in-flight promise instead of
+      // starting a redundant parse.
+      const inflight = this.inFlight.get(cacheKey);
+      if (inflight) return inflight.then((raw) => this.applyUserOverrides(p, raw));
     }
+
+    const promise = this.doIntrospect(p);
+    this.inFlight.set(cacheKey, promise);
+    promise.finally(() => this.inFlight.delete(cacheKey));
+    const raw = await promise;
+    return this.applyUserOverrides(p, raw);
+  }
+
+  private async doIntrospect(p: DsPackage): Promise<ComponentMeta[]> {
+    const cacheKey = this.getCacheKey(p);
 
     const pkgDir = await this.resolvePackageDir(p);
     const entry = this.resolveTypingsEntry(pkgDir);
@@ -156,6 +215,12 @@ export class DsIntrospector {
       }
     }
 
+    // Create one TS program for the whole package — reused by extractInterfaceProps
+    // so we don't pay the ts.createProgram cost once per component.
+    const tsProgram = entry
+      ? ts.createProgram([entry], buildCompilerOptions(p.tsconfigPath))
+      : undefined;
+
     const components: ComponentMeta[] = parsed
       .filter((c) => c.displayName && c.displayName !== '__type' && /^[A-Z]/.test(c.displayName))
       .filter((c) => {
@@ -188,8 +253,15 @@ export class DsIntrospector {
         let props = Object.values(c.props).map((prop) => normalizeProp(prop));
         // Backfill props docgen dropped for barrel-re-exported components.
         if (props.length === 0) {
-          const enriched = siblingProps.get(c.displayName);
-          if (enriched && enriched.length > 0) props = enriched;
+          const fromSibling = siblingProps.get(c.displayName) ?? siblingProps.get(`${c.displayName}Props`);
+          if (fromSibling && fromSibling.length > 0) {
+            props = fromSibling;
+          } else if (tsProgram && entry) {
+            // Last resort: react-docgen-typescript can't expand Omit<T,K> on
+            // ForwardRefExoticComponent, so we use the TS compiler API to read
+            // the ${Name}Props interface directly from the package types.
+            props = extractInterfaceProps(tsProgram, entry, `${c.displayName}Props`, pkgDir);
+          }
         }
         props = this.applyCompanyPropOverrides(props, compOverride);
 
@@ -231,11 +303,28 @@ export class DsIntrospector {
     if (components.length > 0) {
       await this.ctx.globalState.update(cacheKey, components);
     }
-    return this.applyUserOverrides(p, components);
+    return components;
   }
 
   async invalidate(p: DsPackage): Promise<void> {
     await this.ctx.globalState.update(this.getCacheKey(p), undefined);
+  }
+
+  /**
+   * Removes every introspection cache entry from globalState, across all schema
+   * versions, forcing a fresh parse on the next introspect. USER overrides and
+   * package selections live elsewhere and are left untouched. Returns the number
+   * of entries cleared.
+   */
+  async clearCache(): Promise<number> {
+    // Drop in-flight dedup entries so the subsequent re-index starts fresh parses
+    // instead of joining the already-running startup warm-up promises.
+    this.inFlight.clear();
+    const keys = this.ctx.globalState.keys().filter((k) => k.startsWith('ds.cache.'));
+    for (const k of keys) {
+      await this.ctx.globalState.update(k, undefined);
+    }
+    return keys.length;
   }
 
   /** Applies company (`snapds.config.json`) prop overrides: hide + default/description. */
@@ -380,6 +469,98 @@ export class DsIntrospector {
   }
 }
 
+/**
+ * Uses the TypeScript Compiler API to extract props from a `${Name}Props`
+ * interface exported by the package. This handles the case where
+ * react-docgen-typescript returns 0 props because the component type is
+ * wrapped in `Omit<T, K>` (e.g. `ForwardRefExoticComponent<Omit<ButtonProps, "ref">>`).
+ * Only includes props declared within the package directory itself, skipping
+ * anything inherited from @types/react or other node_modules.
+ *
+ * Accepts an already-created program to avoid the expensive `ts.createProgram`
+ * call on every component — callers should create one program per package and
+ * reuse it across all extractInterfaceProps calls.
+ */
+function extractInterfaceProps(
+  program: ts.Program,
+  entry: string,
+  interfaceName: string,
+  pkgDir: string,
+): PropMeta[] {
+  try {
+    const checker = program.getTypeChecker();
+    const source = program.getSourceFile(entry);
+    if (!source) return [];
+    const moduleSymbol = checker.getSymbolAtLocation(source);
+    if (!moduleSymbol) return [];
+
+    let targetSym: ts.Symbol | undefined;
+    for (const exp of checker.getExportsOfModule(moduleSymbol)) {
+      if (exp.getName() === interfaceName) {
+        targetSym = exp;
+        break;
+      }
+    }
+    if (!targetSym) return [];
+
+    if (targetSym.flags & ts.SymbolFlags.Alias) {
+      try {
+        targetSym = checker.getAliasedSymbol(targetSym);
+      } catch {}
+    }
+
+    const ifaceType = checker.getDeclaredTypeOfSymbol(targetSym);
+    const props = checker.getPropertiesOfType(ifaceType);
+    const result: PropMeta[] = [];
+
+    for (const prop of props) {
+      const declarations = prop.getDeclarations();
+      if (!declarations || declarations.length === 0) continue;
+      // Skip props inherited from outside the package (DOM props, @types/react, etc.)
+      const fromPkg = declarations.some((d) => d.getSourceFile().fileName.startsWith(pkgDir));
+      if (!fromPkg) continue;
+
+      const propType = checker.getTypeOfSymbol(prop);
+      const raw = checker.typeToString(propType);
+      const required = !(prop.flags & ts.SymbolFlags.Optional);
+      const doc = ts.displayPartsToString(prop.getDocumentationComment(checker)).trim();
+
+      let type: PropMeta['type'] = raw;
+      let enumValues: string[] | undefined;
+
+      if (propType.flags & ts.TypeFlags.String) {
+        type = 'string';
+      } else if (propType.flags & (ts.TypeFlags.Boolean | ts.TypeFlags.BooleanLiteral)) {
+        type = 'boolean';
+      } else if (propType.flags & ts.TypeFlags.Number) {
+        type = 'number';
+      } else if (propType.isUnion()) {
+        const nonUndef = propType.types.filter((t) => !(t.flags & ts.TypeFlags.Undefined));
+        if (nonUndef.length > 0 && nonUndef.every((t) => t.flags & ts.TypeFlags.BooleanLiteral)) {
+          type = 'boolean';
+        } else if (nonUndef.length > 0 && nonUndef.every((t) => t.isStringLiteral())) {
+          type = 'enum';
+          enumValues = nonUndef.map((t) => (t as ts.StringLiteralType).value);
+        } else if (/=>/.test(raw)) {
+          type = 'function';
+        } else if (/ReactNode|ReactElement|JSX\.Element/.test(raw)) {
+          type = 'ReactNode';
+        }
+      } else if (/=>/.test(raw)) {
+        type = 'function';
+      } else if (/ReactNode|ReactElement|JSX\.Element/.test(raw)) {
+        type = 'ReactNode';
+      }
+
+      result.push({ name: prop.getName(), type, raw, required, description: doc || undefined, enumValues });
+    }
+
+    return result;
+  } catch {
+    return [];
+  }
+}
+
 function normalizeProp(prop: docgen.PropItem): PropMeta {
   const raw = prop.type.name;
   let type: PropMeta['type'] = raw;
@@ -395,12 +576,18 @@ function normalizeProp(prop: docgen.PropItem): PropMeta {
   else if (/=>/.test(raw)) type = 'function';
   else if (/ReactNode|ReactElement|JSX\.Element/.test(raw)) type = 'ReactNode';
 
+  let defaultValue: unknown = prop.defaultValue ? prop.defaultValue.value : undefined;
+  if (defaultValue !== undefined) {
+    if (type === 'boolean') defaultValue = defaultValue === 'true';
+    else if (type === 'number') defaultValue = Number(defaultValue);
+  }
+
   return {
     name: prop.name,
     type,
     raw,
     required: prop.required,
-    defaultValue: prop.defaultValue ? prop.defaultValue.value : undefined,
+    defaultValue,
     description: prop.description || undefined,
     enumValues,
   };
