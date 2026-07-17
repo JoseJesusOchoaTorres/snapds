@@ -1,5 +1,3 @@
 name = "snapds"
 compatibility_date = "2025-01-01"
-
-[assets]
-directory = "landing/out"
+pages_build_output_dir = "landing/out"
