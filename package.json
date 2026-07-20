@@ -3,6 +3,7 @@
   "private": false,
   "version": "0.0.0",
   "scripts": {
+    "prepare": "husky",
     "dev": "concurrently -k -n ext,web,cp \"pnpm dev:extension\" \"pnpm dev:webviews\" \"pnpm dev:copy\"",
     "dev:extension": "pnpm --filter snapds run dev",
     "dev:webviews": "pnpm --filter snapds run dev:webviews",
@@ -18,7 +19,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
     "chokidar-cli": "^3.0.0",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "husky": "^9.0.0"
   }
 }
