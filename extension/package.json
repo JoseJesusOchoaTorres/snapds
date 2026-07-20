@@ -2,7 +2,7 @@
   "name": "snapds",
   "displayName": "Snapds",
   "description": "Browse, configure, and drop Snapds components into your React code.",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "Octojose",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -27,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/JoseJesusOchoaTorres/snapds/issues"
   },
-  "homepage": "https://github.com/JoseJesusOchoaTorres/snapds#readme",
+  "homepage": "https://snap-ds.com/",
   "main": "./dist/extension.js",
   "activationEvents": [
     "onStartupFinished",
@@ -197,21 +197,33 @@
     }
   },
   "scripts": {
-    "build": "node esbuild.config.mjs --production",
-    "watch": "node esbuild.config.mjs --watch",
+    "dev": "node esbuild.config.mjs --watch",
+    "dev:webviews": "vite build -c webviews/gallery/vite.config.ts --watch & vite build -c webviews/props/vite.config.ts --watch & vite build -c webviews/settings/vite.config.ts --watch & wait",
+    "build": "pnpm run build:webviews && node esbuild.config.mjs --production",
+    "build:webviews": "vite build -c webviews/gallery/vite.config.ts && vite build -c webviews/props/vite.config.ts && vite build -c webviews/settings/vite.config.ts",
+    "test": "pnpm run test:webviews && node esbuild.test.mjs && node --test \"dist-test/**/*.test.cjs\"",
+    "test:webviews": "vitest run --config webviews/gallery/vite.config.ts && vitest run --config webviews/props/vite.config.ts && vitest run --config webviews/settings/vite.config.ts",
     "icon:png": "node scripts/render-icon.cjs",
-    "test": "node esbuild.test.mjs && node --test \"dist-test/**/*.test.cjs\"",
     "package": "vsce package --no-dependencies",
     "publish": "vsce publish --no-dependencies",
-    "vscode:prepublish": "npm run build"
+    "vscode:prepublish": "pnpm run build"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
+    "@testing-library/react": "16.3.2",
     "@types/node": "^20.11.0",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
     "@types/vscode": "^1.85.0",
+    "@vitejs/plugin-react": "4.7.0",
     "@vscode/vsce": "^2.24.0",
     "esbuild": "^0.20.0",
-    "typescript": "^5.4.0"
+    "jsdom": "29.1.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "^5.4.0",
+    "vite": "5.4.21",
+    "vitest": "2.1.9"
   },
   "dependencies": {
     "react-docgen-typescript": "^2.2.2"

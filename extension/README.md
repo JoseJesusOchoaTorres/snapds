@@ -142,30 +142,40 @@ Snapds provides the following commands via the Command Palette (`Cmd+Shift+P` or
 
 ## Development
 
-This extension is built as a monorepo containing the VS Code extension, a shared package (`@snapds/webview-shared`) with common types/controls, and three Vite-based React applications for the webviews (gallery, props, settings).
+The extension package lives at `extension/` within the monorepo. The three webviews (gallery, props, settings) live under `extension/webviews/` as plain Vite apps — each has its own `vite.config.ts` and shares types via `extension/webviews/shared/`. Their compiled output is copied to `extension/media/` by `scripts/copy-webviews.mjs`.
 
 To build and run the extension locally:
 
-1. Install dependencies:
+1. Install dependencies from the repo root:
    ```bash
    pnpm install
    ```
-2. Build the extension and webviews:
+2. Build the extension and all webviews:
    ```bash
    pnpm run build
+   ```
+   Or build just the webviews:
+   ```bash
+   pnpm run build:webviews
    ```
 3. Open the project in VS Code, press `F5` to open a new Extension Development Host window.
 4. In the new window, open a React project, click on the **Snapds** icon in the Activity Bar, and start exploring your components!
 
-### Running tests
-
-Run the whole suite from the repo root:
+For active development, run from the repo root:
 
 ```bash
-pnpm -r run test
+pnpm run dev
+```
+
+This concurrently watches the extension host (esbuild) and all three webviews (Vite).
+
+### Running tests
+
+```bash
+pnpm run test
 ```
 
 - **Extension** logic (PKCE, path-traversal guard, component whitelist, export scanning, skill generation, JSX codegen, user overrides) is bundled with esbuild and runs on Node's built-in test runner.
 - **Webviews** use Vitest + Testing Library (jsdom) to cover the shared prop controls and key UI components.
 
-Linting and formatting are handled by [Biome](https://biomejs.dev/): `pnpm run check` (lint + format check) and `pnpm run check:fix` (apply safe fixes).
+Linting and formatting are handled by [Biome](https://biomejs.dev/): `pnpm run lint` (check) and `pnpm run lint:fix` (apply safe fixes).

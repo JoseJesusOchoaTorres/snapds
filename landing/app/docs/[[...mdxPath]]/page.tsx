@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import type { ComponentType } from 'react';
 import { generateStaticParamsFor, importPage } from 'nextra/pages';
+import type { ComponentType } from 'react';
 import { useMDXComponents as getMDXComponents } from '../../../mdx-components';
 
 export const generateStaticParams = generateStaticParamsFor('mdxPath');

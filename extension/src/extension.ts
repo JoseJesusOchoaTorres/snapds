@@ -4,13 +4,6 @@ import * as vscode from 'vscode';
 import { DsIntrospector } from './ds/dsIntrospector';
 import { applyWhitelist, type DsPackage, DsRegistry } from './ds/dsRegistry';
 import {
-  discoverInstallations,
-  findNearestPackageJson,
-  latestInstallation,
-  type PackageInstallation,
-  resolveForFile,
-} from './ds/versionResolver';
-import {
   generateSkillsToConfig,
   getSkillsConfig,
   listComponentSkillFiles,
@@ -18,6 +11,13 @@ import {
   runGenerateSkills,
   setSkillsConfig,
 } from './ds/skillWriter';
+import {
+  discoverInstallations,
+  findNearestPackageJson,
+  latestInstallation,
+  type PackageInstallation,
+  resolveForFile,
+} from './ds/versionResolver';
 import { registerDropProvider } from './providers/dropProvider';
 import { Store } from './state/store';
 import { UserOverridesStore } from './state/userOverrides';
@@ -442,7 +442,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
             packages.map(async (pkg) => {
               const existing = oldByName.get(pkg.name);
               let version = existing?.version ?? 'unknown';
-              let importPath = existing?.importPath ?? pkg.name;
+              const importPath = existing?.importPath ?? pkg.name;
               let tsconfigPath = existing?.tsconfigPath;
 
               if (!existing) {

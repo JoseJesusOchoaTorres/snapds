@@ -8,9 +8,9 @@ const __dirname = dirname(__filename);
 const root = resolve(__dirname, '..');
 
 const pairs = [
-  ['webview-gallery/dist', 'extension/media/gallery'],
-  ['webview-props/dist', 'extension/media/props'],
-  ['webview-settings/dist', 'extension/media/settings'],
+  ['extension/webviews/gallery/dist', 'extension/media/gallery'],
+  ['extension/webviews/props/dist', 'extension/media/props'],
+  ['extension/webviews/settings/dist', 'extension/media/settings'],
 ];
 
 for (const [src, dst] of pairs) {

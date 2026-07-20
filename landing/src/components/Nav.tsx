@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { LINKS, NAV_LINKS } from '../content';
-import { ThemeToggle } from './ThemeToggle';
 import { GitHub, Logo, Menu } from './icons';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
