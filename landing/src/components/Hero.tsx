@@ -1,10 +1,10 @@
-import { LINKS } from '../content';
+import { LINKS, NAV_LINKS } from '../content';
 import { EditorMock } from './EditorMock';
-import { ArrowRight, GitHub } from './icons';
+import { ArrowRight } from './icons';
 
 export function Hero() {
   return (
-    <section className="hero" id="top">
+    <section className="hero section--vlines" id="top">
       <div className="container hero__grid">
         <div>
           <span className="badge">
@@ -27,13 +27,8 @@ export function Hero() {
             >
               Get the extension <ArrowRight size={18} />
             </a>
-            <a
-              className="btn btn--ghost btn--lg"
-              href={LINKS.github}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <GitHub size={18} /> View source
+            <a className="btn btn--ghost btn--lg" href={NAV_LINKS[4].href} rel="noreferrer">
+              Documentation
             </a>
           </div>
           <ul className="hero__meta">

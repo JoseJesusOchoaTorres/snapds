@@ -17,10 +17,10 @@
   --accent-soft: rgba(76, 141, 255, 0.14);
   --ring: rgba(76, 141, 255, 0.65);
 
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 26px;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 
   --container: 1140px;
   --gutter: clamp(1rem, 4vw, 2rem);
@@ -96,22 +96,45 @@ body {
   overflow-x: hidden;
 }
 
-/* Ambient background glows, kept cheap and fixed so they never reflow. */
-body::before {
+/* Ambient background glows — on html (not body) so position:fixed works
+   correctly even though body has overflow-x:hidden. */
+html::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(60rem 40rem at 72% -10%, rgba(76, 141, 255, 0.16), transparent 60%),
-    radial-gradient(46rem 34rem at 8% 4%, rgba(44, 212, 182, 0.1), transparent 55%);
+    radial-gradient(70rem 54rem at 85% 0%, rgba(76, 141, 255, 0.55), transparent 65%),
+    radial-gradient(56rem 44rem at -4% 18%, rgba(44, 212, 182, 0.38), transparent 60%),
+    radial-gradient(48rem 38rem at 50% 28%, rgba(139, 92, 246, 0.28), transparent 58%),
+    radial-gradient(42rem 34rem at 94% 75%, rgba(44, 212, 182, 0.25), transparent 55%),
+    radial-gradient(38rem 30rem at 8% 85%, rgba(76, 141, 255, 0.22), transparent 55%);
 }
 
-html.light body::before {
+/* Grain texture — diffuse-light organic feel. */
+html::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.12;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+html.light::before {
   background:
-    radial-gradient(60rem 40rem at 72% -10%, rgba(47, 109, 240, 0.09), transparent 60%),
-    radial-gradient(46rem 34rem at 8% 4%, rgba(18, 165, 140, 0.07), transparent 55%);
+    radial-gradient(70rem 54rem at 85% 0%, rgba(47, 109, 240, 0.45), transparent 65%),
+    radial-gradient(56rem 44rem at -4% 18%, rgba(18, 165, 140, 0.32), transparent 60%),
+    radial-gradient(48rem 38rem at 50% 28%, rgba(124, 58, 237, 0.22), transparent 58%),
+    radial-gradient(42rem 34rem at 94% 75%, rgba(18, 165, 140, 0.2), transparent 55%),
+    radial-gradient(38rem 30rem at 8% 85%, rgba(47, 109, 240, 0.18), transparent 55%);
+}
+
+html.light::after {
+  opacity: 0.09;
 }
 
 img,
@@ -202,6 +225,43 @@ code {
   }
 }
 
+/* ---------- Ruled section lines (Tailwind-style) ---------- */
+
+/* x-position of vertical rules: container left/right edge, clamped to gutter on small screens */
+.section--vlines,
+.section--ruled {
+  --_rx: max(var(--gutter), calc(50% - var(--container) / 2));
+}
+
+/* Two vertical rules only — no top border (used on Hero) */
+.section--vlines {
+  background-image:
+    linear-gradient(var(--border), var(--border)), linear-gradient(var(--border), var(--border));
+  background-size:
+    1px 100%,
+    1px 100%;
+  background-position:
+    var(--_rx) 0,
+    right var(--_rx) top 0;
+  background-repeat: no-repeat;
+}
+
+/* Full-width top border + two vertical rules — all three connect at the corners */
+.section--ruled {
+  background-image:
+    linear-gradient(var(--border), var(--border)), linear-gradient(var(--border), var(--border)),
+    linear-gradient(var(--border), var(--border));
+  background-size:
+    100% 1px,
+    1px 100%,
+    1px 100%;
+  background-position:
+    0 0,
+    var(--_rx) 0,
+    right var(--_rx) top 0;
+  background-repeat: no-repeat;
+}
+
 /* ---------- Layout primitives ---------- */
 
 .container {
@@ -290,9 +350,10 @@ html.light .gradient-text {
 
 .btn--primary {
   background: linear-gradient(180deg, #5c97ff, #3f7cff);
-  color: #061530;
+  color: white;
   border-color: rgba(255, 255, 255, 0.22);
   box-shadow: 0 10px 28px -12px rgba(76, 141, 255, 0.8);
+  border-radius: var(--radius-sm);
 }
 
 .btn--primary:hover {
@@ -313,6 +374,12 @@ html.light .gradient-text {
 .btn--lg {
   padding: 0.88rem 1.4rem;
   font-size: 1rem;
+}
+
+.btn--sm {
+  padding: 0.42rem 0.85rem;
+  font-size: 0.84rem;
+  gap: 0.38rem;
 }
 
 /* ---------- Nav ---------- */
@@ -598,6 +665,12 @@ html.light .gradient-text {
   color: var(--text);
 }
 
+.tree-item__grip {
+  margin-left: auto;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
 .editor__code {
   padding: 1rem 1.1rem;
   font-family: var(--font-mono);
@@ -760,8 +833,10 @@ html.light .tok-attr {
 /* ---------- Steps ---------- */
 
 .steps {
+  padding: 0;
   display: grid;
   gap: 1.1rem;
+  list-style: none;
   grid-template-columns: 1fr;
 }
 
@@ -794,7 +869,7 @@ html.light .tok-attr {
   border-radius: 8px;
   font-weight: 600;
   background: linear-gradient(180deg, #5c97ff, #3f7cff);
-  color: #061530;
+  color: white;
 }
 
 .step__title {
@@ -1004,7 +1079,6 @@ html.light .tok-attr {
 /* ---------- Footer ---------- */
 
 .footer {
-  margin-top: clamp(3rem, 7vw, 5rem);
   padding-block: clamp(2.5rem, 5vw, 3.5rem);
   border-top: 1px solid var(--border);
 }
@@ -1057,4 +1131,388 @@ html.light .tok-attr {
   border-top: 1px solid var(--border);
   color: var(--text-faint);
   font-size: 0.85rem;
+}
+
+/* ---------- Demo showcase ---------- */
+
+.demo-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.demo-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.demo-tab:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.demo-tab--active {
+  background: var(--accent-soft);
+  border-color: rgba(76, 141, 255, 0.3);
+  color: var(--accent);
+}
+
+html.light .demo-tab--active {
+  background: var(--accent-soft);
+  border-color: rgba(47, 109, 240, 0.25);
+  color: var(--accent);
+}
+
+.demo-panel {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.demo-panel__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.95rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--editor-bar-bg);
+}
+
+.demo-panel__title {
+  margin-left: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+/* Shell: sidebar + main */
+.demo-shell {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  min-height: 22rem;
+}
+
+@media (max-width: 560px) {
+  .demo-shell {
+    grid-template-columns: 9rem 1fr;
+    min-height: 18rem;
+  }
+}
+
+/* Sidebar */
+.demo-sidebar {
+  border-right: 1px solid var(--border);
+  padding: 0.75rem;
+  background: var(--editor-side-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.demo-sidebar__title {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-faint);
+  padding: 0 0.3rem;
+  margin-bottom: 0.4rem;
+}
+
+.demo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.demo-row--active {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.demo-row--hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.demo-row--dragging {
+  background: rgba(76, 141, 255, 0.08);
+  border: 1px dashed var(--border-2);
+  color: var(--accent);
+}
+
+.demo-row--check {
+  cursor: default;
+}
+
+.demo-row--checked {
+  color: var(--text);
+}
+
+.demo-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border-2);
+  font-size: 9px;
+  color: var(--accent-2);
+  background: transparent;
+  flex-shrink: 0;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.demo-row--checked .demo-checkbox {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #08090d;
+}
+
+.demo-generate-btn {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: default;
+  transition:
+    background 0.25s,
+    color 0.25s,
+    border-color 0.25s,
+    box-shadow 0.25s;
+}
+
+.demo-generate-btn--active {
+  cursor: pointer;
+  background: linear-gradient(180deg, #5c97ff, #3f7cff);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  box-shadow: 0 6px 20px -8px rgba(76, 141, 255, 0.8);
+}
+
+/* Props panel */
+.demo-props {
+  padding: 1rem 1.1rem;
+  opacity: 0;
+  transform: translateX(8px);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.demo-props--in {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.demo-props__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.demo-props__name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.demo-props__pkg {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+.demo-props__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.demo-props__table th {
+  text-align: left;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 0.5rem 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.demo-props__table td {
+  padding: 0.38rem 0.5rem 0.38rem 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.demo-props__table tr:last-child td {
+  border-bottom: none;
+}
+
+.demo-props__prop {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.demo-props__type {
+  font-family: var(--font-mono);
+  color: #82e6b4;
+  font-size: 0.75rem;
+}
+
+html.light .demo-props__type {
+  color: #0a8a5a;
+}
+
+.demo-props__req {
+  color: var(--accent-2);
+  font-size: 0.8rem;
+}
+
+/* Code panel (drop demo) */
+.demo-code {
+  padding: 1rem 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.75;
+  overflow: auto;
+  margin: 0;
+}
+
+.demo-code__line {
+  white-space: pre;
+  display: block;
+}
+
+.demo-code__line--added {
+  margin-inline: -1.1rem;
+  padding-inline: 1.1rem;
+  background: rgba(44, 212, 182, 0.1);
+  box-shadow: inset 2px 0 0 var(--accent-2);
+  animation: slide-in 0.25s ease;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.demo-drop-target {
+  margin: 0.15rem -1.1rem;
+  padding: 0.4rem 1.1rem;
+  border: 1px dashed var(--border);
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    color 0.2s;
+}
+
+.demo-drop-target--active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Skill output panel */
+.demo-skill-output {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.demo-skill-output__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  background: var(--editor-bar-bg);
+}
+
+.demo-skill-output__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(44, 212, 182, 0.14);
+  color: var(--accent-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.demo-skill-output__code {
+  flex: 1;
+  margin: 0;
+  padding: 0.9rem 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+  overflow: auto;
+}
+
+.demo-skill-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  color: var(--text-faint);
+  font-size: 0.88rem;
+}
+
+.demo-cursor {
+  display: inline-block;
+  color: var(--accent);
+  animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }

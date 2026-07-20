@@ -10,7 +10,9 @@ export type IconName =
   | 'file'
   | 'folder'
   | 'refresh'
-  | 'check';
+  | 'check'
+  | 'component'
+  | 'grip';
 
 type IconProps = { size?: number; className?: string };
 
@@ -105,6 +107,22 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   check: <path d="M20 6L9 17l-5-5" />,
+  component: (
+    <>
+      <path d="M14 6l6 6-6 6" />
+      <path d="M10 18l-6-6 6-6" />
+    </>
+  ),
+  grip: (
+    <>
+      <circle cx="9" cy="8" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="8" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="16" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="16" r="1.2" fill="currentColor" stroke="none" />
+    </>
+  ),
 };
 
 export function Icon({ name, ...rest }: IconProps & { name: IconName }) {

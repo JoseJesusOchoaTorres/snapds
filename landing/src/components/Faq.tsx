@@ -12,7 +12,7 @@ function withCode(text: string): ReactNode {
 
 export function Faq() {
   return (
-    <section id="faq" className="section">
+    <section id="faq" className="section section--ruled">
       <div className="container">
         <div className="section__head">
           <p className="eyebrow">FAQ</p>

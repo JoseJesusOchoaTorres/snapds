@@ -3,7 +3,7 @@ import { Icon } from './icons';
 
 export function Skills() {
   return (
-    <section id="skills" className="section">
+    <section id="skills" className="section section--ruled">
       <div className="container">
         <div className="skills__grid">
           <div>

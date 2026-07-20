@@ -11,7 +11,7 @@ function withCode(text: string): ReactNode {
 
 export function ConfigHierarchy() {
   return (
-    <section className="section">
+    <section className="section section--ruled">
       <div className="container">
         <div className="section__head">
           <p className="eyebrow">Configuration</p>

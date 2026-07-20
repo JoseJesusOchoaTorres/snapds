@@ -2,7 +2,7 @@ import { STEPS } from '../content';
 
 export function HowItWorks() {
   return (
-    <section id="how" className="section">
+    <section id="how" className="section section--ruled">
       <div className="container">
         <div className="section__head">
           <p className="eyebrow">How it works</p>

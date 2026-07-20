@@ -34,11 +34,21 @@ export function Nav() {
 
         <div className="nav__actions">
           <ThemeToggle />
-          <a className="btn btn--ghost" href={LINKS.github} target="_blank" rel="noreferrer">
-            <GitHub size={18} />
+          <a
+            className="btn btn--ghost btn--sm"
+            href={LINKS.github}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <GitHub size={16} />
             GitHub
           </a>
-          <a className="btn btn--primary" href={LINKS.marketplace} target="_blank" rel="noreferrer">
+          <a
+            className="btn btn--primary btn--sm"
+            href={LINKS.marketplace}
+            target="_blank"
+            rel="noreferrer"
+          >
             Get the extension
           </a>
           <button

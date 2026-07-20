@@ -15,7 +15,7 @@ export const NAV_LINKS = [
   { href: '/docs', label: 'Docs' },
 ];
 
-export const TECH = ['React', 'TypeScript', 'Vite', 'pnpm'];
+export const TECH = ['React', 'TypeScript'];
 
 export type Feature = {
   icon: IconName;

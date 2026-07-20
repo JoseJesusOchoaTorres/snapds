@@ -3,7 +3,7 @@ import { Icon } from './icons';
 
 export function Features() {
   return (
-    <section id="features" className="section">
+    <section id="features" className="section section--ruled">
       <div className="container">
         <div className="section__head">
           <p className="eyebrow">Features</p>

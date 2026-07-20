@@ -21,16 +21,18 @@ export function EditorMock() {
             <Icon name="grid" size={15} /> @acme/ui
           </div>
           <div className="tree-item tree-item--drag">
-            <Icon name="cursor" size={15} /> Button
+            <Icon name="component" size={15} />
+            Button
+            <Icon name="grip" size={15} className="tree-item__grip" />
           </div>
           <div className="tree-item">
-            <Icon name="grid" size={15} /> Card
+            <Icon name="component" size={15} /> Card
           </div>
           <div className="tree-item">
-            <Icon name="grid" size={15} /> Badge
+            <Icon name="component" size={15} /> Badge
           </div>
           <div className="tree-item">
-            <Icon name="grid" size={15} /> Avatar
+            <Icon name="component" size={15} /> Avatar
           </div>
         </aside>
 

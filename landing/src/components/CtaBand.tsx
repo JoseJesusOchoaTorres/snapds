@@ -3,7 +3,7 @@ import { ArrowRight, GitHub } from './icons';
 
 export function CtaBand() {
   return (
-    <section className="section">
+    <section className="section section--ruled">
       <div className="container">
         <div className="cta">
           <h2 className="gradient-text">Bring your design system into every file</h2>

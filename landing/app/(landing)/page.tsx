@@ -1,5 +1,6 @@
 import { ConfigHierarchy } from '../../src/components/ConfigHierarchy';
 import { CtaBand } from '../../src/components/CtaBand';
+import { DemoShowcase } from '../../src/components/DemoShowcase';
 import { Faq } from '../../src/components/Faq';
 import { Features } from '../../src/components/Features';
 import { Footer } from '../../src/components/Footer';
@@ -18,6 +19,7 @@ export default function HomePage() {
       <main id="main">
         <Hero />
         <Features />
+        <DemoShowcase />
         <HowItWorks />
         <Skills />
         <ConfigHierarchy />
