@@ -2,6 +2,7 @@
   "name": "snapds-monorepo",
   "private": false,
   "version": "0.0.0",
+  "packageManager": "pnpm@9.12.3",
   "scripts": {
     "prepare": "husky",
     "dev": "concurrently -k -n ext,web,cp \"pnpm dev:extension\" \"pnpm dev:webviews\" \"pnpm dev:copy\"",
