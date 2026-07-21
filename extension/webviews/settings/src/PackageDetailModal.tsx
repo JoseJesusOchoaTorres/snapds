@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Icon } from './Icon';
 import { Modal } from './Modal';
 
 interface Props {
@@ -30,6 +31,7 @@ export function PackageDetailModal({
   onClose,
 }: Props) {
   const [filter, setFilter] = useState('');
+  const [showManualAdd, setShowManualAdd] = useState(false);
 
   const all = useMemo(
     () => Array.from(new Set([...detected, ...selected])).sort((a, b) => a.localeCompare(b)),
@@ -57,7 +59,7 @@ export function PackageDetailModal({
           title="View details"
           aria-label={`View ${c} details`}
         >
-          👁
+          <Icon name="eye" />
         </button>
         <button
           type="button"
@@ -66,7 +68,7 @@ export function PackageDetailModal({
           title="Edit overrides"
           aria-label={`Edit ${c} overrides`}
         >
-          ⚙
+          <Icon name="gear" />
         </button>
       </div>
     );
@@ -109,18 +111,43 @@ export function PackageDetailModal({
         </div>
       )}
 
-      <div className="manual-add">
-        <input
-          type="text"
-          className="filter-input"
-          placeholder="Add component manually…"
-          value={manualValue}
-          onChange={(e) => onManualChange(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && onAddManual()}
-        />
-        <button type="button" className="btn-secondary" onClick={onAddManual}>
-          Add
+      <div className="manual-add-section">
+        <button
+          type="button"
+          className="manual-add-toggle"
+          onClick={() => setShowManualAdd((v) => !v)}
+          aria-expanded={showManualAdd}
+        >
+          <span
+            className="accordion-twisty"
+            style={{ transform: showManualAdd ? 'rotate(90deg)' : 'none' }}
+          >
+            ▶
+          </span>
+          Add component manually
         </button>
+        {showManualAdd && (
+          <div className="manual-add-body">
+            <p className="manual-add-desc">
+              Use this when a component wasn't auto-detected. Type its export name and press{' '}
+              <kbd>Enter</kbd> or click <strong>Add</strong>. Manually added components are marked
+              with an asterisk (*) in the list above.
+            </p>
+            <div className="manual-add">
+              <input
+                type="text"
+                className="filter-input"
+                placeholder="ComponentName…"
+                value={manualValue}
+                onChange={(e) => onManualChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onAddManual()}
+              />
+              <button type="button" className="btn-secondary" onClick={onAddManual}>
+                Add
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

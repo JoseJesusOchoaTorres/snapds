@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type {
   ComponentDetail,
+  ConfigExportMode,
+  ConfigImportPreviewPayload,
+  ConfigStatusPayload,
   PackageMeta,
   SkillFileEntry,
   SkillFormat,
@@ -35,10 +38,15 @@ export function useSettingsController() {
   const [query, setQuery] = useState('');
   const [scopeFilters, setScopeFilters] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [activeTab, setActiveTab] = useState('components');
   const [openPkg, setOpenPkg] = useState<string | null>(null);
   const [detail, setDetail] = useState<DetailTarget | null>(null);
   const [componentDetail, setComponentDetail] = useState<ComponentDetail | null>(null);
+  const [configStatus, setConfigStatus] = useState<ConfigStatusPayload | null>(null);
+  const [configBannerDismissed, setConfigBannerDismissed] = useState(false);
+  const [importPreview, setImportPreview] = useState<ConfigImportPreviewPayload | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const packagesRef = useRef<PackageMeta[]>(packages);
   packagesRef.current = packages;
@@ -98,6 +106,7 @@ export function useSettingsController() {
         setIsSaving(true);
       } else if (msg.type === 'saved') {
         setIsSaving(false);
+        setIsRegenerating(false);
       } else if (msg.type === 'customPathPicked') {
         setSkills((prev) => {
           const next = { ...prev, destination: 'custom' as const, customPath: msg.path };
@@ -110,6 +119,16 @@ export function useSettingsController() {
         setComponentDetail(msg.detail);
       } else if (msg.type === 'scopeFilters') {
         setScopeFilters(msg.filters);
+      } else if (msg.type === 'configStatus') {
+        setConfigStatus(msg.payload);
+        // If the status changes (e.g. after import), un-dismiss the banner.
+        if (msg.payload.detected && msg.payload.hasConflicts) {
+          setConfigBannerDismissed(false);
+        }
+      } else if (msg.type === 'configImportPreview') {
+        setImportPreview(msg.payload);
+      } else if (msg.type === 'configExported') {
+        // Nothing to update in UI state — extension shows its own notification.
       }
     };
     window.addEventListener('message', onMessage);
@@ -121,16 +140,8 @@ export function useSettingsController() {
   // destination/formats change, so the list reflects what's on disk.
   // biome-ignore lint/correctness/useExhaustiveDependencies: destination/customPath/formats are intentional triggers even though not read in the effect body.
   useEffect(() => {
-    if (activeTab === 'ai' && skills.enabled && showSkillsDir)
-      vscode.postMessage({ type: 'listSkills' });
-  }, [
-    activeTab,
-    skills.enabled,
-    showSkillsDir,
-    skills.destination,
-    skills.customPath,
-    skills.formats,
-  ]);
+    if (activeTab === 'ai' && showSkillsDir) vscode.postMessage({ type: 'listSkills' });
+  }, [activeTab, showSkillsDir, skills.destination, skills.customPath, skills.formats]);
 
   const requestComponents = (name: string) => {
     if (requestedRef.current.has(name)) return;
@@ -160,6 +171,11 @@ export function useSettingsController() {
       return cur.includes(value) ? prev : { ...prev, [pkg]: [...cur, value] };
     });
     setManualInputs((prev) => ({ ...prev, [pkg]: '' }));
+  };
+
+  const handleRegenerate = () => {
+    setIsRegenerating(true);
+    vscode.postMessage({ type: 'regenerateAllSkills' });
   };
 
   const handleSave = () => {
@@ -237,6 +253,35 @@ export function useSettingsController() {
       ? componentDetail
       : null;
 
+  const openImportConfig = (filePath?: string) => {
+    vscode.postMessage({ type: 'importConfig', filePath });
+  };
+
+  const confirmImport = (applyOverrides: boolean) => {
+    vscode.postMessage({ type: 'confirmImportConfig', applyOverrides });
+    setImportPreview(null);
+  };
+
+  const exportConfig = (opts: {
+    includeOverrides: boolean;
+    mode: ConfigExportMode;
+    outputPath?: string;
+  }) => {
+    // Include current UI selection state so the serializer can compute excluded
+    // from detected−selected without requiring a "Save Preferences" first.
+    const packageSelections = packages
+      .filter((p) => componentsByPkg[p.name] !== undefined)
+      .map((p) => ({
+        name: p.name,
+        detected: componentsByPkg[p.name] ?? [],
+        selected: selectedByPkg[p.name] ?? [],
+      }));
+    vscode.postMessage({ type: 'exportConfig', ...opts, packageSelections });
+  };
+
+  const dismissConfigBanner = () => setConfigBannerDismissed(true);
+  const clearImportPreview = () => setImportPreview(null);
+
   return {
     packages,
     componentsByPkg,
@@ -248,6 +293,7 @@ export function useSettingsController() {
     query,
     scopeFilters,
     isSaving,
+    isRegenerating,
     activeTab,
     openPkg,
     detail,
@@ -262,6 +308,7 @@ export function useSettingsController() {
     addManual,
     removePackage,
     handleSave,
+    handleRegenerate,
     updateSkills,
     toggleFormat,
     toggleScope,
@@ -269,5 +316,15 @@ export function useSettingsController() {
     openComponentModal,
     saveOverride,
     resetOverride,
+    configStatus,
+    configBannerDismissed,
+    importPreview,
+    showExportModal,
+    setShowExportModal,
+    openImportConfig,
+    confirmImport,
+    exportConfig,
+    dismissConfigBanner,
+    clearImportPreview,
   };
 }

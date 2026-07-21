@@ -27,9 +27,16 @@ header {
 }
 
 .toolbar-row {
+  top: 0;
+  z-index: 1;
   display: flex;
+  position: sticky;
   align-items: center;
   gap: 4px;
+  padding: 6px 0;
+  background: var(--vscode-sideBar-background, var(--vscode-editor-background, #1e1e1e));
+  border-bottom: 1px solid
+    var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.4)));
 }
 
 .search {
@@ -168,6 +175,16 @@ header {
   font-size: 11px;
   opacity: 0.6;
   padding-left: 6px;
+}
+
+.toolbar-total {
+  flex: 0 0 auto;
+  font-size: 11px;
+  opacity: 0.7;
+  padding: 0 4px;
+  line-height: 24px;
+  border-left: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.3));
+  margin-left: 2px;
 }
 
 /* Rotating twisty mirrors the VS Code explorer expand/collapse affordance. */

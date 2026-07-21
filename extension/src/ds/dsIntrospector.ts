@@ -3,6 +3,8 @@ import * as path from 'node:path';
 import * as docgen from 'react-docgen-typescript';
 import * as ts from 'typescript';
 import * as vscode from 'vscode';
+import { getConfigMtime, normalizePackage, resolveConfig } from '../config/configResolver';
+import type { ConfigComponentOverride, SnapdsConfigPackage } from '../config/configSchema';
 import type { UserOverridesStore } from '../state/userOverrides';
 import type { ComponentMeta, PropMeta, UserOverride } from '../util/messaging';
 import type { DsPackage } from './dsRegistry';
@@ -15,28 +17,6 @@ import { buildCompilerOptions, enumerateComponentExports } from './exportsScan';
  * it forces a fresh parse for everyone without clearing unrelated globalState.
  */
 const CACHE_SCHEMA_VERSION = 3;
-
-interface CompOverride {
-  snippet?: string;
-  props?: {
-    [propName: string]: {
-      defaultValue?: unknown;
-      description?: string;
-      hidden?: boolean;
-    };
-  };
-}
-
-interface SnapdsConfig {
-  packages?: {
-    [pkgName: string]: {
-      ignore?: string[];
-      overrides?: {
-        [compName: string]: CompOverride;
-      };
-    };
-  };
-}
 
 export class DsIntrospector {
   /** Deduplicates concurrent introspect() calls for the same package. */
@@ -85,8 +65,11 @@ export class DsIntrospector {
    * the settings UI can render the inherited (auto < company) baseline read-only.
    */
   getCompanyOverride(pkg: string, comp: string): UserOverride | undefined {
-    const config = this.readSnapdsConfig();
-    return config?.packages?.[pkg]?.overrides?.[comp];
+    const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!folder) return undefined;
+    const resolved = resolveConfig(folder);
+    const pkgConfig = resolved?.config.packages?.find((p) => p.name === pkg);
+    return pkgConfig?.overrides?.[comp];
   }
 
   /**
@@ -123,15 +106,12 @@ export class DsIntrospector {
     let key = `ds.cache.v${CACHE_SCHEMA_VERSION}.${p.name}@${installedVersion}`;
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (folder) {
-      for (const file of ['snapds.config.json', '.snapds.json']) {
-        const configPath = path.join(folder, file);
-        if (fs.existsSync(configPath)) {
-          try {
-            const stat = fs.statSync(configPath);
-            key += `@${stat.mtimeMs}`;
-            break;
-          } catch {}
-        }
+      const resolved = resolveConfig(folder);
+      if (resolved) {
+        const mtime = getConfigMtime(resolved.owningPath);
+        // Include both the path and mtime so different sub-app configs never
+        // collide in the global cache even if their versions match.
+        key += `@${resolved.owningPath}@${mtime ?? 0}`;
       }
     }
     return key;
@@ -194,8 +174,11 @@ export class DsIntrospector {
     const entryFiles = entry ? [entry] : this.collectComponentFiles(pkgDir);
     const parsed = parser.parse(entryFiles);
 
-    const config = this.readSnapdsConfig();
-    const pkgConfig = config?.packages?.[p.name];
+    const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const resolved = folder ? resolveConfig(folder) : undefined;
+    const pkgConfig: SnapdsConfigPackage | undefined = resolved?.config.packages
+      ?.map(normalizePackage)
+      .find((pkg) => pkg.name === p.name);
 
     // Public component surface. When the entry is a barrel that re-exports from
     // sub-files, this resolves the real (re-)exported value names via the TS
@@ -250,7 +233,7 @@ export class DsIntrospector {
       })
       .filter((c) => {
         // Repository Config (Ignore list)
-        if (pkgConfig?.ignore && pkgConfig.ignore.includes(c.displayName)) {
+        if (pkgConfig?.excluded && pkgConfig.excluded.includes(c.displayName)) {
           return false;
         }
         // Automatic Filtering (@internal)
@@ -299,7 +282,7 @@ export class DsIntrospector {
     const detectedNames = new Set(components.map((c) => c.name));
     for (const exp of exportedComponents) {
       if (detectedNames.has(exp.name)) continue;
-      if (pkgConfig?.ignore && pkgConfig.ignore.includes(exp.name)) continue;
+      if (pkgConfig?.excluded && pkgConfig.excluded.includes(exp.name)) continue;
       if (exp.description && exp.description.includes('@internal')) continue;
       const compOverride = pkgConfig?.overrides?.[exp.name];
       const props = this.applyCompanyPropOverrides(siblingProps.get(exp.name) ?? [], compOverride);
@@ -343,7 +326,10 @@ export class DsIntrospector {
   }
 
   /** Applies company (`snapds.config.json`) prop overrides: hide + default/description. */
-  private applyCompanyPropOverrides(props: PropMeta[], compOverride?: CompOverride): PropMeta[] {
+  private applyCompanyPropOverrides(
+    props: PropMeta[],
+    compOverride?: ConfigComponentOverride,
+  ): PropMeta[] {
     if (!compOverride?.props) return props;
     return props
       .filter((prop) => !compOverride.props?.[prop.name]?.hidden)
@@ -358,22 +344,6 @@ export class DsIntrospector {
             propOverride.description !== undefined ? propOverride.description : prop.description,
         };
       });
-  }
-
-  private readSnapdsConfig(): SnapdsConfig | undefined {
-    const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (!folder) return undefined;
-    for (const file of ['snapds.config.json', '.snapds.json']) {
-      const configPath = path.join(folder, file);
-      if (fs.existsSync(configPath)) {
-        try {
-          return JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        } catch {
-          return undefined;
-        }
-      }
-    }
-    return undefined;
   }
 
   private parserOptions(domOnly?: Set<string>): docgen.ParserOptions {

@@ -89,6 +89,7 @@ export function ComponentsTab({
         onRemove={available ? undefined : () => onRemovePackage(p.name)}
         showCount={!available}
         showEmptyPreview={!available}
+        isActive={!available}
       />
     );
   };

@@ -89,6 +89,8 @@ export interface ComponentDetail {
   skillFiles: { path: string; label: string; format: SkillFormat }[];
 }
 
+export type ConfigExportMode = 'replace' | 'merge' | 'full';
+
 export type FromSettings =
   | { type: 'ready' }
   | {
@@ -106,7 +108,18 @@ export type FromSettings =
   | { type: 'saveUserOverride'; pkg: string; component: string; override: UserOverride }
   | { type: 'resetUserOverride'; pkg: string; component: string }
   | { type: 'requestUserOverrides' }
-  | { type: 'setScopeFilters'; filters: string[] };
+  | { type: 'setScopeFilters'; filters: string[] }
+  | {
+      type: 'exportConfig';
+      includeOverrides: boolean;
+      mode: ConfigExportMode;
+      outputPath?: string;
+      /** Current webview selection state — used to compute excluded from detected−selected. */
+      packageSelections?: { name: string; detected: string[]; selected: string[] }[];
+    }
+  | { type: 'importConfig'; filePath?: string }
+  | { type: 'requestConfigStatus' }
+  | { type: 'confirmImportConfig'; applyOverrides: boolean };
 
 export type ToGallery = { type: 'componentList'; components: ComponentMeta[] };
 
@@ -141,6 +154,23 @@ export interface PackageMeta {
   manual?: string[];
 }
 
+export interface ConfigStatusPayload {
+  detected: boolean;
+  hasConflicts: boolean;
+  configPath?: string;
+}
+
+export interface ConfigImportPreviewPayload {
+  packagesAdded: string[];
+  packagesRemoved: string[];
+  packagesUpdated: string[];
+  overridesCount: number;
+  skillsChanged: boolean;
+  scopeFiltersChanged: boolean;
+  /** Absolute path to the config file that will be imported. */
+  configPath: string;
+}
+
 export type ToSettings =
   | { type: 'packageList'; packages: PackageMeta[] }
   | { type: 'componentNames'; pkg: string; components: string[] }
@@ -152,6 +182,9 @@ export type ToSettings =
   | { type: 'skillsList'; files: SkillFileEntry[] }
   | { type: 'componentDetail'; detail: ComponentDetail }
   | { type: 'userOverrides'; overrides: Record<string, Record<string, UserOverride>> }
-  | { type: 'scopeFilters'; filters: string[] };
+  | { type: 'scopeFilters'; filters: string[] }
+  | { type: 'configStatus'; payload: ConfigStatusPayload }
+  | { type: 'configImportPreview'; payload: ConfigImportPreviewPayload }
+  | { type: 'configExported'; outputPath: string };
 
 export const DRAG_MIME = 'application/vnd.code.tree.snapds.component';

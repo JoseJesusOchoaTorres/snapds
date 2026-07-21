@@ -15,8 +15,12 @@ and default values. No file is required.
 
 ## Level 2 — Team / workspace
 
-Add a `snapds.config.json` (or `.snapds.json`) at the repo root for shared,
-committable overrides: ignore lists, custom snippets, and per-prop tweaks. See
+Add a `snapds.config.json` at the repo root for shared, committable overrides:
+package registrations, excluded components, custom snippets, per-prop tweaks,
+and AI skills config. In a monorepo, each sub-app can have its own config that
+inherits from a root via [`extends`](#monorepo-extends). You can also generate
+and load this file directly from the Settings panel — see
+[Export & import config](#export--import-config). See
 [Workspace config file](#workspace-config-file-snapdsconfigjson) below for the
 full schema.
 
@@ -65,16 +69,20 @@ An object controlling agent-skill export (see [Skills for agents](/docs/skills))
 
 ## Workspace config file (`snapds.config.json`)
 
-A committable file at the workspace root for team-wide overrides. Snapds looks
-for `snapds.config.json` first, then `.snapds.json`. Editing it invalidates the
-introspection cache automatically.
+A committable file for team-wide overrides. Snapds walks up from the active
+editor file toward the workspace root and uses the nearest `snapds.config.json`
+it finds. Editing the file invalidates the introspection cache automatically.
 
 ```jsonc
 // snapds.config.json
 {
-  "packages": {
-    "@acme/ui": {
-      "ignore": ["InternalOnly"],
+  "version": "1",
+  "packages": [
+    {
+      "name": "@acme/ui",
+      "importPath": "@acme/ui",
+      "excluded": ["InternalOnly"],
+      "manual": ["PolymorphicButton"],
       "overrides": {
         "Button": {
           "snippet": "<Button variant=\"primary\">$1</Button>",
@@ -85,17 +93,85 @@ introspection cache automatically.
         }
       }
     }
-  }
+  ],
+  "skills": {
+    "enabled": true,
+    "formats": ["augment"],
+    "destination": "workspace",
+    "autoGenerate": false
+  },
+  "scopeFilters": ["button", "form"]
 }
 ```
 
-| Path                                   | Type      | Purpose                                             |
-| -------------------------------------- | --------- | --------------------------------------------------- |
-| `packages`                             | `object`  | Maps package name → per-package config.             |
-| `packages[pkg].ignore`                 | `string[]`| Component names to filter out entirely.             |
-| `packages[pkg].overrides`              | `object`  | Maps component name → override block.               |
-| `…overrides[Name].snippet`             | `string`  | Custom JSX used for drag & drop and in skills.      |
-| `…overrides[Name].props`               | `object`  | Maps prop name → prop override.                     |
-| `…props[prop].defaultValue`            | `unknown` | Default shown in the props panel and skill tables.  |
-| `…props[prop].description`             | `string`  | Overrides the prop's description.                   |
-| `…props[prop].hidden`                  | `boolean` | Hide the prop from the UI and skills.               |
+| Field                              | Type                        | Purpose                                             |
+| ---------------------------------- | --------------------------- | --------------------------------------------------- |
+| `version`                          | `string`                    | Schema version identifier (currently `"1"`).        |
+| `extends`                          | `string`                    | Relative path to a parent config (for monorepos).   |
+| `packages`                         | `array`                     | List of package configurations.                     |
+| `packages[].name`                  | `string`                    | Package name, e.g. `@acme/ui`.                      |
+| `packages[].importPath`            | `string`                    | Specifier used in generated imports.                |
+| `packages[].excluded`              | `string[]`                  | Component names to filter out of the gallery.       |
+| `packages[].manual`                | `string[]`                  | Components to add even if not detected.             |
+| `packages[].overrides`             | `object`                    | Maps component name → override block.               |
+| `…overrides[Name].snippet`         | `string`                    | Custom JSX used for drag & drop and in skills.      |
+| `…overrides[Name].props`           | `object`                    | Maps prop name → prop override.                     |
+| `…props[prop].defaultValue`        | `unknown`                   | Default shown in the props panel and skill tables.  |
+| `…props[prop].description`         | `string`                    | Overrides the prop's description.                   |
+| `…props[prop].hidden`              | `boolean`                   | Hide the prop from the UI and skills.               |
+| `skills`                           | `object`                    | AI skills export config (mirrors `snapds.skills`).  |
+| `scopeFilters`                     | `string[]`                  | Active scope tags pre-applied to all teammates.     |
+
+<Callout type="info">
+**Backward compat:** The older `ignore` field on a package object is still
+accepted and automatically mapped to `excluded`.
+</Callout>
+
+## Monorepo `extends`
+
+In a monorepo where different apps share a base config but have different
+package registrations, use `extends` to inherit and override:
+
+```
+/monorepo
+├── snapds.config.json            ← shared skills config, scope filters
+└── apps/
+    ├── mobile/
+    │   └── snapds.config.json    ← extends root, overrides packages
+    └── web/
+        └── snapds.config.json    ← extends root, overrides packages
+```
+
+```jsonc
+// apps/web/snapds.config.json
+{
+  "extends": "../../snapds.config.json",
+  "packages": [
+    { "name": "@acme/web-ui", "importPath": "@acme/web-ui" }
+  ]
+}
+```
+
+Resolution rules:
+- Snapds walks up from the active file and uses the **nearest** `snapds.config.json`.
+- The `extends` chain is followed recursively (cycle-safe).
+- Child values win on deep merge; arrays are **replaced** (not concatenated).
+- Packages are merged per-name — a child package entry overrides only the fields it sets.
+
+## Export & import config
+
+The Settings panel has two buttons at the top right:
+
+**Export config** generates a `snapds.config.json` from your current settings.
+Options:
+- **Include my overrides** — optionally bundle your local component overrides into the file.
+- **Replace** (default when no file exists) / **Merge** (only write changed fields) — choose when a file already exists.
+
+**Load config** imports a config file into your local settings. Before applying,
+a preview shows exactly what will change (packages added / removed / updated,
+overrides count, skills and scope filter changes). You can also opt in to applying
+any component overrides included in the file.
+
+When Snapds detects a `snapds.config.json` at startup that differs from your
+current settings, it shows a **one-time notification**. After that, a banner in
+the Settings panel always lets you load the config on demand.
