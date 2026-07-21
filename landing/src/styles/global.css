@@ -105,11 +105,11 @@ html::before {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(70rem 54rem at 85% 0%, rgba(76, 141, 255, 0.55), transparent 65%),
-    radial-gradient(56rem 44rem at -4% 18%, rgba(44, 212, 182, 0.38), transparent 60%),
-    radial-gradient(48rem 38rem at 50% 28%, rgba(139, 92, 246, 0.28), transparent 58%),
-    radial-gradient(42rem 34rem at 94% 75%, rgba(44, 212, 182, 0.25), transparent 55%),
-    radial-gradient(38rem 30rem at 8% 85%, rgba(76, 141, 255, 0.22), transparent 55%);
+    radial-gradient(50rem 40rem at 85%  0%,  rgba(76, 141, 255, 0.42),  transparent 65%),
+    radial-gradient(40rem 32rem at -4% 18%,  rgba(44, 212, 182, 0.29),  transparent 60%),
+    radial-gradient(34rem 28rem at 50% 28%,  rgba(139, 92, 246, 0.21),  transparent 58%),
+    radial-gradient(30rem 24rem at 94% 75%,  rgba(44, 212, 182, 0.19),  transparent 55%),
+    radial-gradient(28rem 22rem at  8% 85%,  rgba(76, 141, 255, 0.17),  transparent 55%);
 }
 
 /* Grain texture — diffuse-light organic feel. */
@@ -126,11 +126,11 @@ html::after {
 
 html.light::before {
   background:
-    radial-gradient(70rem 54rem at 85% 0%, rgba(47, 109, 240, 0.45), transparent 65%),
-    radial-gradient(56rem 44rem at -4% 18%, rgba(18, 165, 140, 0.32), transparent 60%),
-    radial-gradient(48rem 38rem at 50% 28%, rgba(124, 58, 237, 0.22), transparent 58%),
-    radial-gradient(42rem 34rem at 94% 75%, rgba(18, 165, 140, 0.2), transparent 55%),
-    radial-gradient(38rem 30rem at 8% 85%, rgba(47, 109, 240, 0.18), transparent 55%);
+    radial-gradient(50rem 40rem at 85%  0%,  rgba(47, 109, 240, 0.34),  transparent 65%),
+    radial-gradient(40rem 32rem at -4% 18%,  rgba(18, 165, 140, 0.24),  transparent 60%),
+    radial-gradient(34rem 28rem at 50% 28%,  rgba(124, 58, 237, 0.17),  transparent 58%),
+    radial-gradient(30rem 24rem at 94% 75%,  rgba(18, 165, 140, 0.15),  transparent 55%),
+    radial-gradient(28rem 22rem at  8% 85%,  rgba(47, 109, 240, 0.14),  transparent 55%);
 }
 
 html.light::after {
@@ -162,6 +162,34 @@ html.light::after {
 
   html.light::after {
     opacity: 0.04;
+  }
+}
+
+@media (min-width: 1500px) {
+  html::before {
+    background:
+      radial-gradient(70rem 54rem at 85%  0%,  rgba(76, 141, 255, 0.55),  transparent 65%),
+      radial-gradient(56rem 44rem at -4% 18%,  rgba(44, 212, 182, 0.38),  transparent 60%),
+      radial-gradient(48rem 38rem at 50% 28%,  rgba(139, 92, 246, 0.28),  transparent 58%),
+      radial-gradient(42rem 34rem at 94% 75%,  rgba(44, 212, 182, 0.25),  transparent 55%),
+      radial-gradient(38rem 30rem at  8% 85%,  rgba(76, 141, 255, 0.22),  transparent 55%);
+  }
+
+  html::after {
+    opacity: 0.12;
+  }
+
+  html.light::before {
+    background:
+      radial-gradient(70rem 54rem at 85%  0%,  rgba(47, 109, 240, 0.45),  transparent 65%),
+      radial-gradient(56rem 44rem at -4% 18%,  rgba(18, 165, 140, 0.32),  transparent 60%),
+      radial-gradient(48rem 38rem at 50% 28%,  rgba(124, 58, 237, 0.22),  transparent 58%),
+      radial-gradient(42rem 34rem at 94% 75%,  rgba(18, 165, 140, 0.2),   transparent 55%),
+      radial-gradient(38rem 30rem at  8% 85%,  rgba(47, 109, 240, 0.18),  transparent 55%);
+  }
+
+  html.light::after {
+    opacity: 0.09;
   }
 }
 
@@ -377,15 +405,15 @@ html.light .gradient-text {
 }
 
 .btn--primary {
-  background: linear-gradient(180deg, #5c97ff, #3f7cff);
+  background: linear-gradient(180deg, #3168e8, #2563eb);
   color: white;
   border-color: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 10px 28px -12px rgba(76, 141, 255, 0.8);
+  box-shadow: 0 10px 28px -12px rgba(47, 109, 240, 0.7);
   border-radius: var(--radius-sm);
 }
 
 .btn--primary:hover {
-  background: linear-gradient(180deg, #6ba0ff, #4a86ff);
+  background: linear-gradient(180deg, #3570e8, #2f6df0);
 }
 
 .btn--ghost {
@@ -489,7 +517,7 @@ html.light .gradient-text {
   width: 1.85rem;
   height: 1.85rem;
   border-radius: 999px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   transition:
     color 0.15s ease,
     background 0.15s ease;

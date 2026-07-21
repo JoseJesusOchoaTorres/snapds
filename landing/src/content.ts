@@ -2,7 +2,7 @@ import type { IconName } from './components/icons';
 
 export const LINKS = {
   github: 'https://github.com/JoseJesusOchoaTorres/snapds',
-  marketplace: 'https://marketplace.visualstudio.com/search?term=snapds&target=VSCode',
+  marketplace: 'https://marketplace.visualstudio.com/items?itemName=Octojose.snapds',
   issues: 'https://github.com/JoseJesusOchoaTorres/snapds/issues',
   changelog: 'https://github.com/JoseJesusOchoaTorres/snapds/blob/main/extension/CHANGELOG.md',
 };
