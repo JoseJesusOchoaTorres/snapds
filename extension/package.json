@@ -2,7 +2,7 @@
   "name": "snapds",
   "displayName": "Snapds",
   "description": "Browse, configure, and drop Snapds components into your React code.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "Octojose",
   "license": "MIT",
   "icon": "media/icon.png",
