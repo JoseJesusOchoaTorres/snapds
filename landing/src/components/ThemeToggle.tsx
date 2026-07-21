@@ -8,7 +8,7 @@ import {
   THEME_KEY,
   type ThemeChoice,
 } from '../lib/theme';
-import { Moon, Monitor, Sun } from './icons';
+import { Monitor, Moon, Sun } from './icons';
 
 type Option = { value: ThemeChoice; label: string; Icon: typeof Sun };
 

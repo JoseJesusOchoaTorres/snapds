@@ -5,6 +5,9 @@ esbuild.test.mjs
 tsconfig.json
 .gitignore
 
+# Webview sources & build tooling — compiled output is copied to media/ by build
+webviews/**
+
 # Tests & their build output
 dist-test/**
 **/*.test.ts

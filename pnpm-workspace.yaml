@@ -1,9 +1,5 @@
 packages:
   - 'extension'
-  - 'shared'
-  - 'webview-gallery'
-  - 'webview-props'
-  - 'webview-settings'
   - 'landing'
 allowBuilds:
   '@vscode/vsce-sign': true

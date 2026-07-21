@@ -1,5 +1,5 @@
-import { Footer, Layout, Navbar } from 'nextra-theme-docs';
 import { getPageMap } from 'nextra/page-map';
+import { Footer, Layout, Navbar } from 'nextra-theme-docs';
 import type { ReactNode } from 'react';
 import { Logo } from '../../src/components/icons';
 import 'nextra-theme-docs/style.css';
