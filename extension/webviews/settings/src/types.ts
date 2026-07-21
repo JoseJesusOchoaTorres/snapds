@@ -80,7 +80,8 @@ export type FromSettings =
     }
   | { type: 'importConfig'; filePath?: string }
   | { type: 'requestConfigStatus' }
-  | { type: 'confirmImportConfig'; applyOverrides: boolean };
+  | { type: 'confirmImportConfig'; applyOverrides: boolean }
+  | { type: 'reloadPackage'; pkg: string };
 
 export interface PackageMeta {
   name: string;

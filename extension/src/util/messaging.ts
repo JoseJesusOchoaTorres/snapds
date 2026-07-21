@@ -119,7 +119,8 @@ export type FromSettings =
     }
   | { type: 'importConfig'; filePath?: string }
   | { type: 'requestConfigStatus' }
-  | { type: 'confirmImportConfig'; applyOverrides: boolean };
+  | { type: 'confirmImportConfig'; applyOverrides: boolean }
+  | { type: 'reloadPackage'; pkg: string };
 
 export type ToGallery = { type: 'componentList'; components: ComponentMeta[] };
 

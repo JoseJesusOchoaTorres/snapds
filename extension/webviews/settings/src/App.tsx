@@ -42,6 +42,7 @@ export default function App() {
     toggleFormat,
     toggleScope,
     openPackage,
+    reloadPackage,
     openComponentModal,
     saveOverride,
     resetOverride,
@@ -73,6 +74,7 @@ export default function App() {
         onOpenEye={(comp) => openComponentModal('eye', comp)}
         onOpenGear={(comp) => openComponentModal('gear', comp)}
         onClose={() => setOpenPkg(null)}
+        onReload={() => name && reloadPackage(name)}
       />
     );
   };
@@ -156,6 +158,7 @@ export default function App() {
           {
             id: 'components',
             label: 'Components',
+            icon: 'components' as const,
             panel: (
               <ComponentsTab
                 packages={packages}
@@ -174,6 +177,7 @@ export default function App() {
           {
             id: 'ai',
             label: 'AI',
+            icon: 'sparkle' as const,
             panel: (
               <AiTab
                 skills={skills}

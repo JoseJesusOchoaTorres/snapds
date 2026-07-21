@@ -12,6 +12,7 @@ All Snapds commands are available from the **Command Palette**
 
 | Command                          | Command ID               | Where |
 | -------------------------------- | ------------------------ | ----- |
+| Snapds: Quick Component Search   | `snapds.quickSearch`     | Command Palette · `⌃⌥⌘K` (macOS) · `Ctrl+Shift+Alt+K` (Win/Linux) |
 | Snapds: Open Settings            | `snapds.openSettings`    | Command Palette · ⚙️ gear in the **Components** view title |
 | Snapds: Open Props Panel         | `snapds.openPropsPanel`  | Command Palette · opens automatically when you select a component |
 | Snapds: Generate Skills          | `snapds.generateSkills`  | Command Palette · prompts for format + destination |
@@ -20,12 +21,41 @@ All Snapds commands are available from the **Command Palette**
 | Snapds: Clear Introspection Cache| `snapds.clearCache`      | Command Palette · clears all cached results and forces a full re-parse |
 
 <Callout type="info">
-Snapds does not ship default key bindings, so it never clashes with your
-existing shortcuts. You can assign your own in **Preferences: Open Keyboard
-Shortcuts** by searching for any command ID above.
+`snapds.quickSearch` is the only command with a default keybinding: **`⌃⌥⌘K`**
+on macOS and **`Ctrl+Shift+Alt+K`** on Windows / Linux. All other Snapds commands
+ship without a default binding so they never clash with your existing
+shortcuts. Reassign any command via **Preferences: Open Keyboard Shortcuts**.
 </Callout>
 
-## Assigning a keybinding
+## Quick Component Search
+
+`snapds.quickSearch` opens a native VS Code Quick Pick populated with every
+component Snapds has indexed. Start typing a component name — results filter
+instantly — then press `Enter` or click to inject the JSX snippet and its
+import at the cursor, exactly as if you had dragged it from the gallery.
+
+| Platform        | Default shortcut |
+| --------------- | ---------------- |
+| macOS           | `⌃⌥⌘K`               |
+| Windows / Linux | `Ctrl+Shift+Alt+K`   |
+
+The shortcut fires only in React files (`editorLangId == typescriptreact` or
+`javascriptreact`) so it won't interfere with other editors.
+
+To reassign it, open **Preferences: Open Keyboard Shortcuts (JSON)** and add:
+
+```jsonc
+[
+  {
+    "key": "ctrl+alt+cmd+k",         // macOS — your preferred combo
+    "win": "ctrl+shift+alt+k",      // Windows / Linux — your preferred combo
+    "command": "snapds.quickSearch",
+    "when": "editorTextFocus && (editorLangId == typescriptreact || editorLangId == javascriptreact)"
+  }
+]
+```
+
+## Assigning any other keybinding
 
 To bind a command — for example, opening Settings with `Cmd/Ctrl+Alt+S`:
 

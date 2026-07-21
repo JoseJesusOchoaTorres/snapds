@@ -32,6 +32,7 @@ Snapds is a powerful VS Code extension designed for React monorepos. It introspe
 
 - 🧩 **Visual Component Gallery**: Browse all available components from your registered packages in a dedicated sidebar webview.
 - 🚀 **Drag and Drop JSX**: Drag a component from the gallery and drop it into your React code. Snapds automatically generates the correct JSX and handles the necessary import statements.
+- **Quick Component Search**: Press `⌃⌥⌘K` (macOS) or `Ctrl+Shift+Alt+K` (Windows/Linux) to open a spotlight-style picker. Type any component name, press `Enter`, and the JSX snippet and import are injected at the cursor — identical result to drag & drop, without touching the mouse.
 - 📦 **Smart Import Management**: Automatically injects new imports without duplicating existing ones. It correctly handles multi-line Prettier-formatted imports and updates them seamlessly.
 - ⚡ **Performance Optimized**: Uses advanced caching based on package version and config file mtime so re-opening the gallery is instant. Each package version is cached independently, so switching between versions in the props panel requires no re-parse after startup.
 - 🗂️ **Monorepo multi-version support**: In a monorepo with apps using different versions of the same package, Snapds auto-detects the right version from the file currently open in your editor and shows the matching props. A version selector in the props panel lets you override this manually, and an "Add to this app" button injects the dependency into the nearest `package.json` when the package isn't listed there yet.
@@ -182,6 +183,7 @@ When Snapds detects a config file at startup that differs from your current sett
 
 Snapds provides the following commands via the Command Palette (`Cmd+Shift+P` or `Ctrl+Shift+P`):
 
+- **`Snapds: Quick Component Search`** (`snapds.quickSearch`): Opens a spotlight-style Quick Pick populated with every indexed component. Start typing to filter, press `Enter` to inject the selected component's JSX snippet and import at the cursor — same result as drag & drop. Default shortcut: `⌃⌥⌘K` on macOS, `Ctrl+Shift+Alt+K` on Windows/Linux. Reassign via **Preferences: Open Keyboard Shortcuts**.
 - **`Snapds: Open Settings`**: Opens the package management and configuration panel.
 - **`Snapds: Open Props Panel`**: Opens a dedicated panel for editing component properties.
 - **`Snapds: Generate Skills`**: Generates agent-consumable skill docs from your components with an interactive format/destination prompt (see [Generate Skills](#generate-skills)).

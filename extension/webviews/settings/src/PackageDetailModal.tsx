@@ -14,6 +14,7 @@ interface Props {
   onOpenEye: (comp: string) => void;
   onOpenGear: (comp: string) => void;
   onClose: () => void;
+  onReload: () => void;
 }
 
 /** Package DETAIL modal: filterable checkbox list with per-row EYE + GEAR actions. */
@@ -29,6 +30,7 @@ export function PackageDetailModal({
   onOpenEye,
   onOpenGear,
   onClose,
+  onReload,
 }: Props) {
   const [filter, setFilter] = useState('');
   const [showManualAdd, setShowManualAdd] = useState(false);
@@ -74,8 +76,20 @@ export function PackageDetailModal({
     );
   };
 
+  const reloadButton = (
+    <button
+      type="button"
+      className="modal-close"
+      onClick={onReload}
+      title="Reload components from disk"
+      aria-label="Reload components from disk"
+    >
+      ↺
+    </button>
+  );
+
   return (
-    <Modal title={pkg} onClose={onClose}>
+    <Modal title={pkg} onClose={onClose} headerActions={reloadButton}>
       <input
         type="text"
         className="filter-input"

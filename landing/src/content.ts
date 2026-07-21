@@ -2,7 +2,7 @@ import type { IconName } from './components/icons';
 
 export const LINKS = {
   github: 'https://github.com/JoseJesusOchoaTorres/snapds',
-  marketplace: 'https://marketplace.visualstudio.com/search?term=snapds&target=VSCode',
+  marketplace: 'https://marketplace.visualstudio.com/items?itemName=Octojose.snapds',
   issues: 'https://github.com/JoseJesusOchoaTorres/snapds/issues',
   changelog: 'https://github.com/JoseJesusOchoaTorres/snapds/blob/main/extension/CHANGELOG.md',
 };
@@ -43,6 +43,11 @@ export const FEATURES: Feature[] = [
   },
   {
     icon: 'bolt',
+    title: 'Quick Component Search',
+    desc: 'Open a spotlight-style command palette with a keyboard shortcut, type any component name, and inject it at the cursor — same snippet and import as drag & drop.',
+  },
+  {
+    icon: 'layers',
     title: 'Blazing performance',
     desc: 'mtime-based caching and differential updates keep introspection and the gallery fast, even on large monorepos.',
   },
