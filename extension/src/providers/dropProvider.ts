@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { generateJSX } from '../ds/codegen';
 import type { Store } from '../state/store';
-import { DRAG_MIME } from '../util/messaging';
 import { buildImportEdit } from '../util/injectComponent';
+import { DRAG_MIME } from '../util/messaging';
 
 export function registerDropProvider(ctx: vscode.ExtensionContext, store: Store): void {
   const provider: vscode.DocumentDropEditProvider = {

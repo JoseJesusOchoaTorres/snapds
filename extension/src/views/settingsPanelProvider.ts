@@ -43,6 +43,7 @@ export interface SettingsHandlers {
   onImportConfig?: (filePath?: string) => void | Promise<void>;
   onRequestConfigStatus?: () => void | Promise<void>;
   onConfirmImportConfig?: (applyOverrides: boolean) => void | Promise<void>;
+  onReloadPackage?: (pkg: string) => void | Promise<void>;
 }
 
 export class SettingsPanelProvider {
@@ -138,6 +139,9 @@ export class SettingsPanelProvider {
           break;
         case 'confirmImportConfig':
           void this.handlers.onConfirmImportConfig?.(msg.applyOverrides);
+          break;
+        case 'reloadPackage':
+          void this.handlers.onReloadPackage?.(msg.pkg);
           break;
       }
     });

@@ -291,7 +291,8 @@ function SearchDemo() {
     return () => t.forEach(clearTimeout);
   }, [step]);
 
-  const showResults = step === 'results' || step === 'selecting' || step === 'injected' || step === 'pause';
+  const showResults =
+    step === 'results' || step === 'selecting' || step === 'injected' || step === 'pause';
   const showInjected = step === 'injected' || step === 'pause';
 
   return (
@@ -364,9 +365,10 @@ function SearchDemo() {
         ) : (
           <div className="demo-code__line">
             {'      '}
-            {(step === 'idle' || step === 'typing' || step === 'results' || step === 'selecting') && (
-              <span className="demo-cursor">▋</span>
-            )}
+            {(step === 'idle' ||
+              step === 'typing' ||
+              step === 'results' ||
+              step === 'selecting') && <span className="demo-cursor">▋</span>}
           </div>
         )}
         <div className="demo-code__line">

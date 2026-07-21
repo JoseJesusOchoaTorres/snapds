@@ -1,8 +1,10 @@
 import { type ReactNode, useRef } from 'react';
+import { Icon, type IconName } from './Icon';
 
 export interface TabItem {
   id: string;
   label: string;
+  icon?: IconName;
   panel: ReactNode;
   /** Primary action buttons for this tab, rendered in the shared action bar. */
   actions?: ReactNode;
@@ -62,6 +64,7 @@ export function Tabs({ tabs, active, onChange }: TabsProps) {
               className="tab"
               onClick={() => onChange(t.id)}
             >
+              {t.icon && <Icon name={t.icon} />}
               {t.label}
             </button>
           );

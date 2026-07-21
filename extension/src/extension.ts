@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { registerQuickSearch } from './commands/quickSearch';
 import { applyConfig, detectConfigConflict, previewImport } from './config/configImporter';
 import { resolveConfig } from './config/configResolver';
 import type { SnapdsConfig } from './config/configSchema';
@@ -26,7 +27,6 @@ import {
   type PackageInstallation,
   resolveForFile,
 } from './ds/versionResolver';
-import { registerQuickSearch } from './commands/quickSearch';
 import { registerDropProvider } from './providers/dropProvider';
 import { Store } from './state/store';
 import { UserOverridesStore } from './state/userOverrides';
@@ -370,6 +370,34 @@ export function activate(ctx: vscode.ExtensionContext): void {
         settingsPanel.postComponentNames(pkgName, []);
       }
     },
+    onReloadPackage: async (pkgName) => {
+      const existing = registry.list().find((p) => p.name === pkgName);
+      const descriptor = existing ?? (await registry.resolveDescriptor(pkgName));
+      if (!descriptor) {
+        settingsPanel.postComponentNames(pkgName, []);
+        return;
+      }
+      await introspector.invalidate(descriptor);
+      try {
+        let all: ComponentMeta[] = [];
+        await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Window, title: 'Snapds', cancellable: false },
+          async (progress) => {
+            progress.report({ message: `Reloading ${pkgName}…` });
+            all = await introspector.introspect(descriptor);
+          },
+        );
+        settingsPanel.postComponentNames(
+          pkgName,
+          all.map((c) => c.name),
+        );
+      } catch (e) {
+        vscode.window.showErrorMessage(
+          `Snapds: failed to reload "${pkgName}": ${(e as Error).message}`,
+        );
+        settingsPanel.postComponentNames(pkgName, []);
+      }
+    },
     onPickCustomPath: async () => {
       const picked = await vscode.window.showOpenDialog({
         canSelectFolders: true,
@@ -392,9 +420,13 @@ export function activate(ctx: vscode.ExtensionContext): void {
       await vscode.window.showTextDocument(vscode.Uri.file(skillPath));
     },
     onRegenerateAllSkills: async () => {
-      await regenerateAll();
-      // Refresh the directory listing so newly written files appear immediately.
-      settingsPanel.postSkillsList(listSkillFiles(getSkillsConfig()));
+      try {
+        await regenerateAll();
+        // Refresh the directory listing so newly written files appear immediately.
+        settingsPanel.postSkillsList(listSkillFiles(getSkillsConfig()));
+      } finally {
+        settingsPanel.postSaved();
+      }
     },
     onRequestComponentDetail: async ({ pkg, component }) => {
       const existing = registry.list().find((p) => p.name === pkg);
@@ -523,94 +555,97 @@ export function activate(ctx: vscode.ExtensionContext): void {
     onSavePackages: async (packages) => {
       settingsPanel.postSaving();
 
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'Updating Snapds Packages...',
-          cancellable: false,
-        },
-        async (progress) => {
-          const oldList = registry.list();
-          const oldByName = new Map(oldList.map((p) => [p.name, p]));
-          const enabledNames = new Set(packages.map((p) => p.name));
+      try {
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Updating Snapds Packages...',
+            cancellable: false,
+          },
+          async (progress) => {
+            const oldList = registry.list();
+            const oldByName = new Map(oldList.map((p) => [p.name, p]));
+            const enabledNames = new Set(packages.map((p) => p.name));
 
-          progress.report({ message: 'Saving…' });
+            progress.report({ message: 'Saving…' });
 
-          // Build the new list in memory, resolving descriptors for brand-new
-          // packages in parallel. Then write once — instead of one settings.json
-          // write per package (the previous N-serial-writes pattern).
-          const resolved = await Promise.all(
-            packages.map(async (pkg) => {
-              const existing = oldByName.get(pkg.name);
-              let version = existing?.version ?? 'unknown';
-              const importPath = existing?.importPath ?? pkg.name;
-              let tsconfigPath = existing?.tsconfigPath;
+            // Build the new list in memory, resolving descriptors for brand-new
+            // packages in parallel. Then write once — instead of one settings.json
+            // write per package (the previous N-serial-writes pattern).
+            const resolved = await Promise.all(
+              packages.map(async (pkg) => {
+                const existing = oldByName.get(pkg.name);
+                let version = existing?.version ?? 'unknown';
+                const importPath = existing?.importPath ?? pkg.name;
+                let tsconfigPath = existing?.tsconfigPath;
 
-              if (!existing) {
-                const descriptor = await registry.resolveDescriptor(pkg.name);
-                if (descriptor) {
-                  version = descriptor.version;
-                  tsconfigPath = descriptor.tsconfigPath;
+                if (!existing) {
+                  const descriptor = await registry.resolveDescriptor(pkg.name);
+                  if (descriptor) {
+                    version = descriptor.version;
+                    tsconfigPath = descriptor.tsconfigPath;
+                  }
                 }
-              }
 
-              // When `components` is absent the package was never expanded in the
-              // UI — keep the existing persisted selection.
-              if (pkg.components === undefined) {
-                return {
-                  name: pkg.name,
-                  version,
-                  importPath,
-                  tsconfigPath,
-                  excluded: existing?.excluded ?? [],
-                  manual: existing?.manual ?? [],
-                };
-              }
+                // When `components` is absent the package was never expanded in the
+                // UI — keep the existing persisted selection.
+                if (pkg.components === undefined) {
+                  return {
+                    name: pkg.name,
+                    version,
+                    importPath,
+                    tsconfigPath,
+                    excluded: existing?.excluded ?? [],
+                    manual: existing?.manual ?? [],
+                  };
+                }
 
-              const selected = pkg.selected ?? [];
-              const excluded = pkg.components.filter((c) => !selected.includes(c));
-              const manual = selected.filter((c) => !pkg.components!.includes(c));
-              return { name: pkg.name, version, importPath, tsconfigPath, excluded, manual };
-            }),
-          );
+                const selected = pkg.selected ?? [];
+                const excluded = pkg.components.filter((c) => !selected.includes(c));
+                const manual = selected.filter((c) => !pkg.components!.includes(c));
+                return { name: pkg.name, version, importPath, tsconfigPath, excluded, manual };
+              }),
+            );
 
-          // Drop packages the user removed. Single write.
-          const finalList = resolved.filter((p) => enabledNames.has(p.name));
-          await registry.saveAll(finalList);
+            // Drop packages the user removed. Single write.
+            const finalList = resolved.filter((p) => enabledNames.has(p.name));
+            await registry.saveAll(finalList);
 
-          const activePackages = registry.list();
+            const activePackages = registry.list();
 
-          progress.report({
-            message: `Loading ${activePackages.length} package${activePackages.length > 1 ? 's' : ''}…`,
-          });
+            progress.report({
+              message: `Loading ${activePackages.length} package${activePackages.length > 1 ? 's' : ''}…`,
+            });
 
-          // Introspect all packages concurrently. Each call either hits the in-memory
-          // cache (instant for packages already opened in the modal) or starts a fresh
-          // parse. No force: isNew — onRequestComponents already cached new packages.
-          const results = await Promise.all(
-            activePackages.map(async (pkg) => {
-              try {
-                const detected = await introspector.introspect(pkg);
-                return applyWhitelist(detected, pkg);
-              } catch (e) {
-                vscode.window.showErrorMessage(
-                  `Failed to introspect ${pkg.name}: ${(e as Error).message}`,
-                );
-                return [] as ComponentMeta[];
-              }
-            }),
-          );
-          const allComponents = results.flat();
+            // Introspect all packages concurrently. Each call either hits the in-memory
+            // cache (instant for packages already opened in the modal) or starts a fresh
+            // parse. No force: isNew — onRequestComponents already cached new packages.
+            const results = await Promise.all(
+              activePackages.map(async (pkg) => {
+                try {
+                  const detected = await introspector.introspect(pkg);
+                  return applyWhitelist(detected, pkg);
+                } catch (e) {
+                  vscode.window.showErrorMessage(
+                    `Failed to introspect ${pkg.name}: ${(e as Error).message}`,
+                  );
+                  return [] as ComponentMeta[];
+                }
+              }),
+            );
+            const allComponents = results.flat();
 
-          store.setComponents(allComponents);
-          gallery.postComponentList(allComponents);
-          await autoGenerateForNew(allComponents);
-        },
-      );
+            store.setComponents(allComponents);
+            gallery.postComponentList(allComponents);
+            await autoGenerateForNew(allComponents);
+          },
+        );
 
-      settingsPanel.postSaved();
-      settingsPanel.postPackageList(await buildPackageList());
-      void afterDiscovery();
+        settingsPanel.postPackageList(await buildPackageList());
+        void afterDiscovery();
+      } finally {
+        settingsPanel.postSaved();
+      }
     },
   });
 

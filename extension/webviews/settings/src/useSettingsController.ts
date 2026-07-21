@@ -219,6 +219,16 @@ export function useSettingsController() {
     requestComponents(name);
   };
 
+  const reloadPackage = (name: string) => {
+    setComponentsByPkg((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    requestedRef.current.delete(name);
+    vscode.postMessage({ type: 'reloadPackage', pkg: name });
+  };
+
   const openComponentModal = (mode: 'eye' | 'gear', component: string) => {
     if (!openPkg) return;
     setComponentDetail(null);
@@ -313,6 +323,7 @@ export function useSettingsController() {
     toggleFormat,
     toggleScope,
     openPackage,
+    reloadPackage,
     openComponentModal,
     saveOverride,
     resetOverride,

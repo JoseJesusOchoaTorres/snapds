@@ -54,6 +54,12 @@ header {
   outline: none;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+  opacity: 1;
+}
+
 .icon-btn {
   display: inline-flex;
   align-items: center;

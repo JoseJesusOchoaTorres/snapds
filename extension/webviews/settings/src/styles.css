@@ -6,6 +6,16 @@
   background: var(--vscode-sideBar-background, transparent);
   /* Shared horizontal padding so the sticky action bar can bleed to the edges. */
   --snapds-pad: 16px;
+  /* Brand background applied to the root and sticky action bar. */
+  --snapds-bg: #0c2a42;
+  /* Semi-transparent overlays used for chip and grid separator tints. */
+  --snapds-overlay-faint: rgba(255, 255, 255, 0.1);
+  --snapds-overlay-subtle: rgba(255, 255, 255, 0.05);
+  --snapds-chip-border: rgba(255, 255, 255, 0.15);
+  /* Card/section surfaces that sit above the root background. */
+  --snapds-card-bg: rgba(255, 255, 255, 0.06);
+  --snapds-card-border: rgba(255, 255, 255, 0.18);
+  --snapds-legend-color: rgba(255, 255, 255, 0.55);
 }
 
 * {
@@ -22,6 +32,8 @@ body {
   flex-direction: column;
   gap: 8px;
   padding: var(--snapds-pad);
+  min-height: 100vh;
+  background: var(--snapds-bg);
 }
 
 /* Narrow sidebars / small windows: tighten spacing so nothing overflows. */
@@ -130,6 +142,12 @@ select,
   font: inherit;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+  opacity: 1;
+}
+
 .filter-input {
   width: 100%;
   margin-bottom: 8px;
@@ -217,13 +235,13 @@ label > .desc {
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 12px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--snapds-overlay-faint);
   color: var(--vscode-foreground);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--snapds-chip-border);
 }
 .chip-muted {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--snapds-overlay-subtle);
+  border-color: var(--snapds-overlay-faint);
   opacity: 0.9;
 }
 .chip-x {
@@ -241,15 +259,18 @@ label > .desc {
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--vscode-panel-border);
-  margin-bottom: 12px;
+  margin: 1rem 0;
 }
 .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   color: var(--vscode-foreground);
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 0.75rem;
   font: inherit;
   opacity: 0.75;
 }
@@ -291,9 +312,11 @@ label > .desc {
   background: var(--vscode-toolbar-hoverBackground, transparent);
 }
 .scope-chip-active {
-  border-color: var(--vscode-focusBorder);
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+.scope-chip-active:hover {
+  color: var(--vscode-foreground);
 }
 .section-title {
   display: flex;
@@ -309,8 +332,9 @@ label > .desc {
 .skill-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 1px;
+  background: var(--snapds-overlay-faint);
+  border: 1px solid var(--snapds-overlay-faint);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -322,8 +346,6 @@ label > .desc {
   padding: 10px;
   text-align: left;
   border: none;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   background: var(--vscode-sideBarSectionHeader-background, transparent);
   color: var(--vscode-foreground);
@@ -637,15 +659,30 @@ label > .desc {
 .ai-config {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+}
+.ai-tab-desc {
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: var(--snapds-legend-color);
 }
 .fieldset {
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border: 1px solid var(--snapds-card-border);
+  border-radius: 6px;
+  background: var(--snapds-card-bg);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px;
+  gap: 6px;
+  padding: 10px 12px 12px;
+}
+.fieldset > legend {
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--snapds-legend-color);
+  padding: 0 2px;
+  margin-bottom: 2px;
 }
 .dir-head {
   display: flex;
@@ -665,7 +702,7 @@ label > .desc {
   gap: 8px;
   margin: 16px calc(-1 * var(--snapds-pad)) 0;
   padding: 12px var(--snapds-pad);
-  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  background: var(--snapds-bg);
   border-top: 1px solid var(--vscode-panel-border);
   z-index: 10;
 }

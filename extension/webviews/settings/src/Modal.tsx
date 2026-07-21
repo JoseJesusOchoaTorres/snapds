@@ -4,6 +4,7 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  headerActions?: ReactNode;
 }
 
 const FOCUSABLE =
@@ -14,7 +15,7 @@ const FOCUSABLE =
  * restoration to the trigger on unmount, and body scroll lock. All colors come
  * from VS Code theme variables (see styles.css).
  */
-export function Modal({ title, onClose, children }: ModalProps) {
+export function Modal({ title, onClose, children, headerActions }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const prevFocus = useRef<Element | null>(null);
   const titleId = useId();
@@ -82,6 +83,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
           <h3 id={titleId} style={{ margin: 0, fontSize: 15, flex: 1, minWidth: 0 }}>
             {title}
           </h3>
+          {headerActions}
           <button
             type="button"
             className="modal-close"
