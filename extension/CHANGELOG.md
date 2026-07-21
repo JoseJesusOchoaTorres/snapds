@@ -5,6 +5,13 @@ All notable changes to the **Snapds** extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v0.1.0...snapds-v0.2.0) (2026-07-21)
+
+
+### Features
+
+* export and import config ([d8e5798](https://github.com/JoseJesusOchoaTorres/snapds/commit/d8e57982b8e620aba7212dd2972b7eeec370886d))
+
 ## [Unreleased]
 
 ### Added
