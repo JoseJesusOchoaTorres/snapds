@@ -89,6 +89,19 @@
         "command": "snapds.diagnostics",
         "title": "Snapds: Diagnostics",
         "category": "Snapds"
+      },
+      {
+        "command": "snapds.quickSearch",
+        "title": "Snapds: Quick Component Search",
+        "category": "Snapds"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "snapds.quickSearch",
+        "key": "ctrl+shift+alt+k",
+        "mac": "ctrl+alt+cmd+k",
+        "when": "editorTextFocus"
       }
     ],
     "menus": {

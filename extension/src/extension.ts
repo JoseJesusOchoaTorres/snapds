@@ -26,6 +26,7 @@ import {
   type PackageInstallation,
   resolveForFile,
 } from './ds/versionResolver';
+import { registerQuickSearch } from './commands/quickSearch';
 import { registerDropProvider } from './providers/dropProvider';
 import { Store } from './state/store';
 import { UserOverridesStore } from './state/userOverrides';
@@ -304,6 +305,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   );
 
   registerDropProvider(ctx, store);
+  registerQuickSearch(ctx, store);
 
   const onGenerateSkills = async () => {
     try {

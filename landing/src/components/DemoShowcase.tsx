@@ -238,7 +238,150 @@ function DropDemo() {
   );
 }
 
-/* ─── Tab 3: Skill Generation ────────────────────────────────── */
+/* ─── Tab 3: Quick Component Search ─────────────────────────── */
+
+const SEARCH_QUERY = 'butt';
+const SEARCH_RESULTS = [
+  { name: 'Button', pkg: '@acme/ui', jsx: '<Button variant="primary" />' },
+  { name: 'ButtonGroup', pkg: '@acme/ui', jsx: '<ButtonGroup>…</ButtonGroup>' },
+  { name: 'IconButton', pkg: '@acme/ui', jsx: '<IconButton icon="…" />' },
+] as const;
+
+type SearchStep = 'idle' | 'typing' | 'results' | 'selecting' | 'injected' | 'pause';
+
+function SearchDemo() {
+  const [step, setStep] = useState<SearchStep>('idle');
+  const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    const t: ReturnType<typeof setTimeout>[] = [];
+
+    if (step === 'idle') {
+      t.push(setTimeout(() => setStep('typing'), 900));
+    }
+
+    if (step === 'typing') {
+      SEARCH_QUERY.split('').forEach((_, i) => {
+        t.push(setTimeout(() => setQuery(SEARCH_QUERY.slice(0, i + 1)), i * 130));
+      });
+      t.push(setTimeout(() => setStep('results'), SEARCH_QUERY.length * 130 + 300));
+    }
+
+    if (step === 'results') {
+      t.push(setTimeout(() => setStep('selecting'), 700));
+    }
+
+    if (step === 'selecting') {
+      t.push(setTimeout(() => setStep('injected'), 500));
+    }
+
+    if (step === 'injected') {
+      t.push(setTimeout(() => setStep('pause'), 100));
+    }
+
+    if (step === 'pause') {
+      t.push(
+        setTimeout(() => {
+          setStep('idle');
+          setQuery('');
+        }, 3200),
+      );
+    }
+
+    return () => t.forEach(clearTimeout);
+  }, [step]);
+
+  const showResults = step === 'results' || step === 'selecting' || step === 'injected' || step === 'pause';
+  const showInjected = step === 'injected' || step === 'pause';
+
+  return (
+    <div className="demo-search-shell">
+      <div className="demo-palette">
+        <div className="demo-palette__bar">
+          <Icon name="bolt" size={13} className="demo-palette__icon" />
+          <span className="demo-palette__query">
+            {query || <span className="demo-palette__placeholder">Search components…</span>}
+            {step === 'typing' && <span className="demo-cursor">▋</span>}
+          </span>
+          <span className="demo-palette__kbd">⌃⌥⌘K</span>
+          <span className="demo-palette__kbd demo-palette__kbd--win">Ctrl+Shift+Alt+K</span>
+        </div>
+
+        {showResults && (
+          <div className="demo-palette__results">
+            {SEARCH_RESULTS.map((r, i) => (
+              <div
+                key={r.name}
+                className={`demo-palette__item${i === 0 && (step === 'selecting' || showInjected) ? ' demo-palette__item--active' : ''}`}
+              >
+                <Icon name="component" size={12} />
+                <span className="demo-palette__item-name">{r.name}</span>
+                <span className="demo-palette__item-pkg">{r.pkg}</span>
+                <span className="demo-palette__item-jsx">{r.jsx}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <pre className="demo-code">
+        <div className="demo-code__line">
+          <span className="tok-key">import</span>
+          {' { Card } '}
+          <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>;
+        </div>
+        {showInjected && (
+          <div className="demo-code__line demo-code__line--added">
+            <span className="tok-key">import</span>
+            {' { Button } '}
+            <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>;
+          </div>
+        )}
+        <div className="demo-code__line"> </div>
+        <div className="demo-code__line">
+          <span className="tok-key">export function </span>
+          <span className="tok-tag">Toolbar</span>
+          {'() {'}
+        </div>
+        <div className="demo-code__line">
+          {'  '}
+          <span className="tok-key">return</span>
+          {' ('}
+        </div>
+        <div className="demo-code__line">
+          {'    <'}
+          <span className="tok-tag">Card</span>
+          {'>'}
+        </div>
+        {showInjected ? (
+          <div className="demo-code__line demo-code__line--added">
+            {'      <'}
+            <span className="tok-tag">Button</span>
+            {' variant="'}
+            <span className="tok-str">primary</span>
+            {'" />'}
+          </div>
+        ) : (
+          <div className="demo-code__line">
+            {'      '}
+            {(step === 'idle' || step === 'typing' || step === 'results' || step === 'selecting') && (
+              <span className="demo-cursor">▋</span>
+            )}
+          </div>
+        )}
+        <div className="demo-code__line">
+          {'    </'}
+          <span className="tok-tag">Card</span>
+          {'>'}
+        </div>
+        <div className="demo-code__line">{'  );'}</div>
+        <div className="demo-code__line">{'}'}</div>
+      </pre>
+    </div>
+  );
+}
+
+/* ─── Tab 4: Skill Generation ────────────────────────────────── */
 
 const SKILL_COMPONENTS: ComponentName[] = ['Button', 'Badge', 'Avatar'];
 type SkillStep = 'selecting' | 'ready' | 'generating' | 'done';
@@ -359,6 +502,7 @@ function SkillDemo() {
 const TABS = [
   { id: 'browse', label: 'Browse & Props', icon: 'grid' as const },
   { id: 'drop', label: 'Drop to Code', icon: 'cursor' as const },
+  { id: 'search', label: 'Quick Search', icon: 'bolt' as const },
   { id: 'skill', label: 'Generate Skill', icon: 'sparkles' as const },
 ];
 
@@ -370,7 +514,7 @@ export function DemoShowcase() {
       <div className="container">
         <div className="section__head">
           <p className="eyebrow">See it in action</p>
-          <h2 className="section__title">Three workflows, zero context switching</h2>
+          <h2 className="section__title">Every workflow, zero context switching</h2>
           <p className="section__lead">
             Everything happens inside VS Code — browse, drop, generate — without touching a browser
             or a docs page.
@@ -399,6 +543,7 @@ export function DemoShowcase() {
           </div>
           {active === 'browse' && <BrowseDemo />}
           {active === 'drop' && <DropDemo />}
+          {active === 'search' && <SearchDemo />}
           {active === 'skill' && <SkillDemo />}
         </div>
       </div>
