@@ -159,7 +159,7 @@ The landing page (`landing/`) is a Next.js static site deployed to Cloudflare Wo
 |---|---|
 | Build | `pnpm run build:landing` |
 | Production deploy | `npx wrangler deploy` (uses `wrangler.toml`) |
-| Branch/preview deploy | `pnpm run deploy:landing` |
+| Branch/preview deploy | `pnpm run deploy:landing` → `npx wrangler deploy` |
 
 ---
 

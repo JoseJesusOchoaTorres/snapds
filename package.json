@@ -10,7 +10,7 @@
     "dev:webviews": "pnpm --filter snapds run dev:webviews",
     "dev:landing": "pnpm --filter landing run dev",
     "build:landing": "pnpm --filter landing run build",
-    "deploy:landing": "npx wrangler pages deploy landing/out --project-name snapds",
+    "deploy:landing": "npx wrangler deploy",
     "dev:copy": "chokidar \"extension/webviews/gallery/dist/**\" \"extension/webviews/props/dist/**\" \"extension/webviews/settings/dist/**\" -c \"node scripts/copy-webviews.mjs\"",
     "build": "pnpm -r run build && node scripts/copy-webviews.mjs",
     "test": "pnpm -r run test",
