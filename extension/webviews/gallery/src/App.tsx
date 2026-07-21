@@ -93,6 +93,12 @@ export default function App() {
             >
               <CollapseAllIcon />
             </button>
+            <span
+              className="toolbar-total"
+              title={`${filtered.length} component${filtered.length !== 1 ? 's' : ''} total`}
+            >
+              {filtered.length}
+            </span>
           </>
         )}
       </div>

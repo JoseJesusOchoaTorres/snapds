@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import type {
   ComponentDetail,
+  ConfigExportMode,
+  ConfigImportPreviewPayload,
+  ConfigStatusPayload,
   FromSettings,
   PackageMeta,
   SkillFileEntry,
@@ -31,6 +34,15 @@ export interface SettingsHandlers {
   onResetUserOverride?: (args: { pkg: string; component: string }) => void | Promise<void>;
   onRequestUserOverrides?: () => void | Promise<void>;
   onSetScopeFilters?: (filters: string[]) => void | Promise<void>;
+  onExportConfig?: (args: {
+    includeOverrides: boolean;
+    mode: ConfigExportMode;
+    outputPath?: string;
+    packageSelections?: { name: string; detected: string[]; selected: string[] }[];
+  }) => void | Promise<void>;
+  onImportConfig?: (filePath?: string) => void | Promise<void>;
+  onRequestConfigStatus?: () => void | Promise<void>;
+  onConfirmImportConfig?: (applyOverrides: boolean) => void | Promise<void>;
 }
 
 export class SettingsPanelProvider {
@@ -59,6 +71,7 @@ export class SettingsPanelProvider {
       },
     );
 
+    this.panel.iconPath = new vscode.ThemeIcon('gear');
     this.panel.webview.html = getWebviewHtml(this.panel.webview, this.ctx, 'settings');
 
     this.panel.webview.onDidReceiveMessage((msg: FromSettings) => {
@@ -108,6 +121,23 @@ export class SettingsPanelProvider {
           break;
         case 'setScopeFilters':
           void this.handlers.onSetScopeFilters?.(msg.filters);
+          break;
+        case 'exportConfig':
+          void this.handlers.onExportConfig?.({
+            includeOverrides: msg.includeOverrides,
+            mode: msg.mode,
+            outputPath: msg.outputPath,
+            packageSelections: msg.packageSelections,
+          });
+          break;
+        case 'importConfig':
+          void this.handlers.onImportConfig?.(msg.filePath);
+          break;
+        case 'requestConfigStatus':
+          void this.handlers.onRequestConfigStatus?.();
+          break;
+        case 'confirmImportConfig':
+          void this.handlers.onConfirmImportConfig?.(msg.applyOverrides);
           break;
       }
     });
@@ -187,6 +217,30 @@ export class SettingsPanelProvider {
   postScopeFilters(filters: string[]): void {
     if (this.panel) {
       void this.panel.webview.postMessage({ type: 'scopeFilters', filters } satisfies ToSettings);
+    }
+  }
+
+  postConfigStatus(payload: ConfigStatusPayload): void {
+    if (this.panel) {
+      void this.panel.webview.postMessage({ type: 'configStatus', payload } satisfies ToSettings);
+    }
+  }
+
+  postConfigImportPreview(payload: ConfigImportPreviewPayload): void {
+    if (this.panel) {
+      void this.panel.webview.postMessage({
+        type: 'configImportPreview',
+        payload,
+      } satisfies ToSettings);
+    }
+  }
+
+  postConfigExported(outputPath: string): void {
+    if (this.panel) {
+      void this.panel.webview.postMessage({
+        type: 'configExported',
+        outputPath,
+      } satisfies ToSettings);
     }
   }
 }

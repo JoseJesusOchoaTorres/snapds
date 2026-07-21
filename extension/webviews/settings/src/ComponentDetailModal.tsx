@@ -45,7 +45,7 @@ export function ComponentDetailModal({ detail, onClose, onOpenSkill }: Props) {
 
       <h4 className="detail-heading">Skill files</h4>
       {detail.skillFiles.length === 0 ? (
-        <div className="empty">Aún no generado.</div>
+        <div className="empty">Not yet generated.</div>
       ) : (
         <div className="skill-file-list">
           {detail.skillFiles.map((f) => (

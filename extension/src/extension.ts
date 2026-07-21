@@ -1,6 +1,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { applyConfig, detectConfigConflict, previewImport } from './config/configImporter';
+import { resolveConfig } from './config/configResolver';
+import type { SnapdsConfig } from './config/configSchema';
+import {
+  defaultConfigPath,
+  serializeCurrentState,
+  writeConfigFile,
+} from './config/configSerializer';
 import { DsIntrospector } from './ds/dsIntrospector';
 import { applyWhitelist, type DsPackage, DsRegistry } from './ds/dsRegistry';
 import {
@@ -27,10 +35,14 @@ import { PropsPanelProvider } from './views/propsPanelProvider';
 import { SettingsPanelProvider } from './views/settingsPanelProvider';
 
 const GENERATED_IDS_KEY = 'snapds.skills.generatedIds';
+const CONFIG_NOTIFIED_PREFIX = 'snapds.configNotified.';
 
 export function activate(ctx: vscode.ExtensionContext): void {
   const registry = new DsRegistry(ctx);
   const userOverrides = new UserOverridesStore(ctx);
+
+  // Holds the resolved config waiting for user confirmation after an importConfig preview.
+  let pendingImport: { config: SnapdsConfig; configPath: string } | undefined;
   const introspector = new DsIntrospector(ctx, userOverrides);
   const store = new Store(ctx);
 
@@ -314,6 +326,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
       settingsPanel.postPackageList(await buildPackageList());
       settingsPanel.postSkillsConfig(getSkillsConfig());
       settingsPanel.postScopeFilters(ctx.workspaceState.get<string[]>('snapds.scopeFilters') ?? []);
+      settingsPanel.postConfigStatus(detectConfigConflict(registry, ctx));
     },
     onRequestComponents: async (pkgName) => {
       const existing = registry.list().find((p) => p.name === pkgName);
@@ -418,6 +431,92 @@ export function activate(ctx: vscode.ExtensionContext): void {
     onResetUserOverride: async ({ pkg, component }) => {
       await userOverrides.reset(pkg, component);
       await reintrospectAndBroadcast(pkg);
+    },
+    onRequestConfigStatus: () => {
+      settingsPanel.postConfigStatus(detectConfigConflict(registry, ctx));
+    },
+    onExportConfig: async ({ includeOverrides, mode, outputPath, packageSelections }) => {
+      const filePath = outputPath ?? defaultConfigPath();
+      if (!filePath) {
+        vscode.window.showWarningMessage('Snapds: No workspace folder open.');
+        return;
+      }
+      const config = serializeCurrentState(registry.list(), userOverrides.all(), ctx, {
+        includeUserOverrides: includeOverrides,
+        mode,
+        packageSelections,
+      });
+      try {
+        await writeConfigFile(config, filePath, mode);
+        settingsPanel.postConfigExported(filePath);
+        const rel = workspaceRoot ? path.relative(workspaceRoot, filePath) : filePath;
+        const action = await vscode.window.showInformationMessage(
+          `Snapds: config exported to ${rel}.`,
+          'Open file',
+        );
+        if (action === 'Open file') {
+          await vscode.window.showTextDocument(vscode.Uri.file(filePath));
+        }
+      } catch (e) {
+        vscode.window.showErrorMessage(`Snapds: failed to write config: ${(e as Error).message}`);
+      }
+    },
+    onImportConfig: async (filePath) => {
+      let resolved: Awaited<ReturnType<typeof resolveConfig>>;
+
+      if (filePath) {
+        // Custom path: let the user pick a file if no path provided, or use the given one.
+        const fs_ = await import('node:fs');
+        if (!fs_.existsSync(filePath)) {
+          // Open file picker as fallback
+          const picked = await vscode.window.showOpenDialog({
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: false,
+            filters: { 'JSON config': ['json'] },
+            openLabel: 'Select snapds.config.json',
+          });
+          if (!picked || !picked.length) return;
+          filePath = picked[0].fsPath;
+        }
+        const configImporter = await import('./config/configResolver');
+        const raw = configImporter.resolveConfig(path.dirname(filePath), path.dirname(filePath));
+        resolved = raw;
+      } else {
+        resolved = resolveConfig(workspaceRoot ?? '');
+      }
+
+      if (!resolved) {
+        vscode.window.showWarningMessage('Snapds: No config file found.');
+        return;
+      }
+
+      pendingImport = { config: resolved.config, configPath: resolved.owningPath };
+      const summary = previewImport(resolved.config, registry, ctx);
+      settingsPanel.postConfigImportPreview({
+        ...summary,
+        configPath: resolved.owningPath,
+      });
+    },
+    onConfirmImportConfig: async (applyOverrides) => {
+      if (!pendingImport) return;
+      try {
+        await applyConfig(pendingImport.config, registry, userOverrides, ctx, { applyOverrides });
+        pendingImport = undefined;
+
+        // Re-index all packages with the new registry state.
+        const list = registry.list();
+        await Promise.all(list.map((pkg) => refreshActiveComponents(pkg)));
+        settingsPanel.postPackageList(await buildPackageList());
+        settingsPanel.postSkillsConfig(getSkillsConfig());
+        settingsPanel.postScopeFilters(
+          ctx.workspaceState.get<string[]>('snapds.scopeFilters') ?? [],
+        );
+        settingsPanel.postConfigStatus(detectConfigConflict(registry, ctx));
+        vscode.window.showInformationMessage('Snapds: config loaded successfully.');
+      } catch (e) {
+        vscode.window.showErrorMessage(`Snapds: failed to apply config: ${(e as Error).message}`);
+      }
     },
     onSavePackages: async (packages) => {
       settingsPanel.postSaving();
@@ -614,6 +713,26 @@ export function activate(ctx: vscode.ExtensionContext): void {
       out.show();
     }),
   );
+
+  // Show a one-time VS Code notification when a config file is found at startup
+  // and it differs from current settings. After the first show it falls back to
+  // the silent banner inside the settings panel.
+  void (async () => {
+    const conflict = detectConfigConflict(registry, ctx);
+    if (!conflict.detected || !conflict.hasConflicts) return;
+    const notifKey = `${CONFIG_NOTIFIED_PREFIX}${workspaceRoot ?? 'default'}`;
+    const alreadyShown = ctx.globalState.get<boolean>(notifKey) ?? false;
+    if (alreadyShown) return;
+    await ctx.globalState.update(notifKey, true);
+    const action = await vscode.window.showInformationMessage(
+      'Snapds: a config file was found that differs from your current settings.',
+      'Open Settings',
+      'Dismiss',
+    );
+    if (action === 'Open Settings') {
+      settingsPanel.show();
+    }
+  })();
 
   void (async () => {
     const list = registry.list();

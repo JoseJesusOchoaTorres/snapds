@@ -1,6 +1,9 @@
 import { AiTab } from './AiTab';
 import { ComponentDetailModal } from './ComponentDetailModal';
 import { ComponentsTab } from './ComponentsTab';
+import { ConfigDetectedBanner } from './ConfigDetectedBanner';
+import { ExportConfigModal } from './ExportConfigModal';
+import { ImportPreviewModal } from './ImportPreviewModal';
 import { OverrideEditorModal } from './OverrideEditorModal';
 import { PackageDetailModal } from './PackageDetailModal';
 import { Tabs } from './Tabs';
@@ -19,6 +22,7 @@ export default function App() {
     query,
     scopeFilters,
     isSaving,
+    isRegenerating,
     activeTab,
     openPkg,
     detail,
@@ -33,6 +37,7 @@ export default function App() {
     addManual,
     removePackage,
     handleSave,
+    handleRegenerate,
     updateSkills,
     toggleFormat,
     toggleScope,
@@ -40,6 +45,16 @@ export default function App() {
     openComponentModal,
     saveOverride,
     resetOverride,
+    configStatus,
+    configBannerDismissed,
+    importPreview,
+    showExportModal,
+    setShowExportModal,
+    openImportConfig,
+    confirmImport,
+    exportConfig,
+    dismissConfigBanner,
+    clearImportPreview,
   } = useSettingsController();
 
   const renderPackageModal = () => {
@@ -62,31 +77,77 @@ export default function App() {
     );
   };
 
+  const busy = isSaving || isRegenerating;
+
   // Save persists preferences across every tab, so it is shared; Regenerate is
   // AI-only. Each tab declares its own `actions` (see Tabs) to stay scalable.
   const saveAction = (
-    <>
-      {isSaving && <progress className="action-progress" />}
-      <button type="button" className="btn-primary" onClick={handleSave} disabled={isSaving}>
-        {isSaving ? 'Saving…' : 'Save Preferences'}
-      </button>
-    </>
+    <button type="button" className="btn-primary" onClick={handleSave} disabled={busy}>
+      {isSaving ? (
+        <>
+          <span className="btn-spinner" aria-hidden="true" />
+          Saving…
+        </>
+      ) : (
+        'Save Preferences'
+      )}
+    </button>
   );
 
-  const regenerateAction = skills.enabled ? (
+  const regenerateAction = (
     <button
       type="button"
       className="btn-secondary"
-      onClick={() => vscode.postMessage({ type: 'regenerateAllSkills' })}
+      onClick={handleRegenerate}
+      disabled={busy}
       title="Writes every selected component using the formats and destination chosen above."
     >
-      Regenerate skills
+      {isRegenerating ? (
+        <>
+          <span className="btn-spinner" aria-hidden="true" />
+          Regenerating…
+        </>
+      ) : (
+        'Regenerate skills'
+      )}
     </button>
-  ) : null;
+  );
+
+  const showBanner = configStatus?.detected && configStatus.hasConflicts && !configBannerDismissed;
 
   return (
     <div className="root">
-      <h2>Snapds Settings</h2>
+      <div className="settings-header">
+        <h2>Snapds Settings</h2>
+        <div className="config-actions">
+          <button
+            type="button"
+            className="btn-small"
+            onClick={() => openImportConfig()}
+            disabled={busy}
+            title="Load a snapds.config.json into your settings"
+          >
+            Load config
+          </button>
+          <button
+            type="button"
+            className="btn-small"
+            onClick={() => setShowExportModal(true)}
+            disabled={busy}
+            title="Export current settings to snapds.config.json"
+          >
+            Export config
+          </button>
+        </div>
+      </div>
+
+      {showBanner && configStatus?.configPath && (
+        <ConfigDetectedBanner
+          configPath={configStatus.configPath}
+          onLoad={() => openImportConfig()}
+          onDismiss={dismissConfigBanner}
+        />
+      )}
 
       <Tabs
         active={activeTab}
@@ -149,6 +210,23 @@ export default function App() {
           onClose={() => setDetail(null)}
           onSave={saveOverride}
           onResetAll={resetOverride}
+        />
+      )}
+
+      {showExportModal && (
+        <ExportConfigModal
+          defaultPath="snapds.config.json"
+          existingConfig={configStatus?.detected ?? false}
+          onExport={exportConfig}
+          onClose={() => setShowExportModal(false)}
+        />
+      )}
+
+      {importPreview && (
+        <ImportPreviewModal
+          preview={importPreview}
+          onConfirm={confirmImport}
+          onClose={clearImportPreview}
         />
       )}
     </div>

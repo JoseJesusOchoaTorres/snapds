@@ -109,25 +109,74 @@ At generation time Snapds resolves these into each component's detail file in or
 Snapds uses a 3-level cascading configuration system to give you maximum flexibility:
 
 1. **Auto (AST Introspection)**: By default, Snapds parses your TypeScript components to determine properties, types, and default values.
-2. **Team / Workspace (`snapds.config.json`)**: You can define a `snapds.config.json` (or `.snapds.json`) file at the root of your workspace to provide corporate overrides, custom snippets, and ignore lists for specific components.
-3. **User (`.vscode/settings.json`)**: Individual user preferences and package registrations are saved in your personal workspace settings under the `snapds.packages` key.
+2. **Team / Workspace (`snapds.config.json`)**: A committable file for shared overrides, package registrations, excluded components, snippets, and AI skills config. Snapds finds the nearest file by walking up from your active editor to the workspace root.
+3. **User (`.vscode/settings.json`)**: Individual user preferences and local overrides that never get committed.
 
-### Workspace Overrides (`snapds.config.json`)
+**Precedence:** auto introspection < team config (`snapds.config.json`) < user settings.
 
-To override default introspection or provide custom drag-and-drop snippets, create a `snapds.config.json` file in the root of your workspace:
+### Workspace config file (`snapds.config.json`)
 
-```json
+Create a `snapds.config.json` at the workspace root (or in a sub-directory for monorepo per-app config). The full schema:
+
+```jsonc
+// snapds.config.json
 {
-  "ignore": ["InternalHelperComponent"],
-  "overrides": {
-    "Button": {
-      "snippet": "<Button variant=\"primary\" onClick={() => {}}>\n  $1\n</Button>"
+  "version": "1",
+  "packages": [
+    {
+      "name": "@acme/ui",
+      "importPath": "@acme/ui",
+      "excluded": ["InternalOnly"],
+      "manual": ["PolymorphicButton"],
+      "overrides": {
+        "Button": {
+          "snippet": "<Button variant=\"primary\">$1</Button>",
+          "props": {
+            "variant": { "defaultValue": "primary" },
+            "internalId": { "hidden": true }
+          }
+        }
+      }
     }
-  }
+  ],
+  "skills": {
+    "enabled": true,
+    "formats": ["augment"],
+    "destination": "workspace",
+    "autoGenerate": false
+  },
+  "scopeFilters": ["button", "form"]
 }
 ```
 
-When a `snapds.config.json` file is present, any changes to it will automatically invalidate the cache and refresh the gallery.
+Editing the file automatically invalidates the introspection cache and refreshes the gallery.
+
+> **Backward compat:** The older `ignore` field (as a direct property on the package object) is still accepted and maps to `excluded`.
+
+### Monorepo per-app config (`extends`)
+
+In a monorepo where different apps use different design systems, each app can have its own `snapds.config.json` that inherits from a root base:
+
+```
+/monorepo
+├── snapds.config.json          ← shared skills config, global scope filters
+└── apps/
+    ├── mobile/
+    │   └── snapds.config.json  ← { "extends": "../../snapds.config.json", "packages": [...] }
+    └── web/
+        └── snapds.config.json  ← { "extends": "../../snapds.config.json", "packages": [...] }
+```
+
+Snapds walks up from the active editor file to find the nearest config. Child values override parent values on deep merge; all other parent values are inherited.
+
+### Export & import config from Settings
+
+You can generate or load a `snapds.config.json` directly from the Settings panel:
+
+- **Export config** — saves your current package selections, AI skills config, scope filters, and (optionally) your local component overrides to a `snapds.config.json`. Choose between **Replace** (full overwrite) and **Merge** (only write what changed) when a file already exists.
+- **Load config** — imports a config file into your settings. A summary shows what will change before you commit. Works with any path — defaults to the workspace root config, or browse to pick a file.
+
+When Snapds detects a config file at startup that differs from your current settings, it shows a one-time notification. Afterwards a banner in the Settings panel lets you load it at any time.
 
 ## Extension Commands
 

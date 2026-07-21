@@ -9,9 +9,10 @@ interface Props {
   onRemove?: () => void;
   showCount?: boolean;
   showEmptyPreview?: boolean;
+  isActive?: boolean;
 }
 
-const PREVIEW_LIMIT = 6;
+const PREVIEW_LIMIT = 3;
 
 /** Compact package card showing name, used/total badge and a chip preview. */
 export function PackageCard({
@@ -23,11 +24,14 @@ export function PackageCard({
   onRemove,
   showCount = true,
   showEmptyPreview = true,
+  isActive = false,
 }: Props) {
   const shown = preview.slice(0, PREVIEW_LIMIT);
   const extra = preview.length - shown.length;
   return (
-    <div className={`pkg-card${onRemove ? ' pkg-card-removable' : ''}`}>
+    <div
+      className={`pkg-card${onRemove ? ' pkg-card-removable' : ''}${isActive ? ' pkg-card-active' : ''}`}
+    >
       <button type="button" className="pkg-card-main" onClick={onOpen} title={`Configure ${name}`}>
         <div className="pkg-card-head">
           <span className="pkg-card-name">{name}</span>
@@ -58,7 +62,7 @@ export function PackageCard({
           title={`Remove ${name}`}
           aria-label={`Remove ${name}`}
         >
-          <Icon name="trash" />
+          <Icon name="close" />
         </button>
       )}
     </div>
