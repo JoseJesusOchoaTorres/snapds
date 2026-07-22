@@ -264,7 +264,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
         }
       } catch (e) {
         vscode.window.showErrorMessage(
-          `Snapds: Failed to update package.json: ${(e as Error).message}`,
+          `Snapds: Failed to update package.json: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
     },
@@ -318,7 +318,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
       );
       settingsPanel.postSkillsGenerated(true);
     } catch (e) {
-      vscode.window.showErrorMessage(`Snapds: failed to generate skills: ${(e as Error).message}`);
+      vscode.window.showErrorMessage(
+        `Snapds: failed to generate skills: ${e instanceof Error ? e.message : String(e)}`,
+      );
       settingsPanel.postSkillsGenerated(false);
     }
   };
@@ -367,7 +369,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
           all.map((c) => c.name),
         );
       } catch (e) {
-        vscode.window.showErrorMessage(`Failed to introspect ${pkgName}: ${(e as Error).message}`);
+        vscode.window.showErrorMessage(
+          `Failed to introspect ${pkgName}: ${e instanceof Error ? e.message : String(e)}`,
+        );
         settingsPanel.postComponentNames(pkgName, []);
       }
     },
@@ -394,7 +398,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
         );
       } catch (e) {
         vscode.window.showErrorMessage(
-          `Snapds: failed to reload "${pkgName}": ${(e as Error).message}`,
+          `Snapds: failed to reload "${pkgName}": ${e instanceof Error ? e.message : String(e)}`,
         );
         settingsPanel.postComponentNames(pkgName, []);
       }
@@ -504,7 +508,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
           await vscode.window.showTextDocument(vscode.Uri.file(filePath));
         }
       } catch (e) {
-        vscode.window.showErrorMessage(`Snapds: failed to write config: ${(e as Error).message}`);
+        vscode.window.showErrorMessage(
+          `Snapds: failed to write config: ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
     },
     onImportConfig: async (filePath) => {
@@ -561,7 +567,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
         settingsPanel.postConfigStatus(detectConfigConflict(registry, ctx));
         vscode.window.showInformationMessage('Snapds: config loaded successfully.');
       } catch (e) {
-        vscode.window.showErrorMessage(`Snapds: failed to apply config: ${(e as Error).message}`);
+        vscode.window.showErrorMessage(
+          `Snapds: failed to apply config: ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
     },
     onSavePackages: async (packages) => {
@@ -639,7 +647,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
                   return applyWhitelist(detected, pkg);
                 } catch (e) {
                   vscode.window.showErrorMessage(
-                    `Failed to introspect ${pkg.name}: ${(e as Error).message}`,
+                    `Failed to introspect ${pkg.name}: ${e instanceof Error ? e.message : String(e)}`,
                   );
                   return [] as ComponentMeta[];
                 }
@@ -851,7 +859,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
         const detected = await introspector.introspect(pkg);
         out.push(...applyWhitelist(detected, pkg));
       } catch (e) {
-        vscode.window.showErrorMessage(`Failed to introspect ${pkg.name}: ${(e as Error).message}`);
+        vscode.window.showErrorMessage(
+          `Failed to introspect ${pkg.name}: ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
     }
     return out;
@@ -976,7 +986,9 @@ export function activate(ctx: vscode.ExtensionContext): void {
       store.setComponents(combined);
       gallery.postComponentList(combined);
     } catch (e) {
-      vscode.window.showErrorMessage(`Failed to introspect ${pkg.name}: ${(e as Error).message}`);
+      vscode.window.showErrorMessage(
+        `Failed to introspect ${pkg.name}: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 }
