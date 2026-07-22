@@ -1,6 +1,6 @@
+import type { SkillFileEntry, SkillFormat, SkillsConfig } from '../types';
+import { vscode } from '../vscodeApi';
 import { SkillCard } from './SkillCard';
-import type { SkillFileEntry, SkillFormat, SkillsConfig } from './types';
-import { vscode } from './vscodeApi';
 
 interface Props {
   skills: SkillsConfig;
@@ -47,6 +47,7 @@ export function AiTab({
           <label className="row-checkbox">
             <input
               type="radio"
+              name="skills-destination"
               checked={skills.destination === 'workspace'}
               onChange={() => updateSkills({ destination: 'workspace' })}
             />
@@ -55,6 +56,7 @@ export function AiTab({
           <label className="row-checkbox">
             <input
               type="radio"
+              name="skills-destination"
               checked={skills.destination === 'custom'}
               onChange={() => updateSkills({ destination: 'custom' })}
             />

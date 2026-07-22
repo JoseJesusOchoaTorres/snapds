@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { vscode } from '../vscodeApi';
 import type {
   ComponentDetail,
   ConfigExportMode,
@@ -11,7 +12,6 @@ import type {
   ToSettings,
   UserOverride,
 } from './types';
-import { vscode } from './vscodeApi';
 
 const DEFAULT_SKILLS: SkillsConfig = {
   enabled: false,
