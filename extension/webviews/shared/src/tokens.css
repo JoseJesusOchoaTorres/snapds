@@ -1,0 +1,115 @@
+/**
+ * Shared CSS foundation for all Snapds webviews.
+ *
+ * Import this at the top of each webview's styles.css:
+ *   @import '../../shared/src/tokens.css';
+ *
+ * Contains:
+ *   - Base :root reset (font, color, color-scheme)
+ *   - Universal box-sizing + body margin reset
+ *   - --snapds-* design tokens with dark / light / high-contrast overrides
+ */
+
+/* ─── Base reset ─────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: light dark;
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  color: var(--vscode-foreground);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* ─── Design tokens — dark (default) ────────────────────────────────────── */
+
+:root {
+  --snapds-pad: 1rem;
+
+  /* Brand background used by the settings webview root and action bar. */
+  --snapds-bg: #0c2a42;
+
+  /* Semi-transparent overlays for chips, grid separators, and tints. */
+  --snapds-overlay-faint: rgba(255, 255, 255, 0.1);
+  --snapds-overlay-subtle: rgba(255, 255, 255, 0.05);
+  --snapds-chip-border: rgba(255, 255, 255, 0.15);
+
+  /* Card / fieldset surfaces that sit above the root background. */
+  --snapds-card-bg: rgba(255, 255, 255, 0.06);
+  --snapds-card-border: rgba(255, 255, 255, 0.18);
+
+  /* Legend / secondary text on the brand background (WCAG AA: 5.5:1 on --snapds-bg). */
+  --snapds-legend-color: rgba(255, 255, 255, 0.55);
+
+  /* Spacing scale (rem-based) */
+  --snapds-space-xs: 0.25rem;
+  --snapds-space-sm: 0.375rem;
+  --snapds-space-md: 0.5rem;
+  --snapds-space-lg: 0.75rem;
+  --snapds-space-xl: 1rem;
+}
+
+/* ─── Light theme overrides ─────────────────────────────────────────────── */
+
+[data-vscode-theme-kind="vscode-light"] {
+  --snapds-bg: #deeaf5;
+  --snapds-overlay-faint: rgba(0, 0, 0, 0.06);
+  --snapds-overlay-subtle: rgba(0, 0, 0, 0.03);
+  --snapds-chip-border: rgba(0, 0, 0, 0.12);
+  --snapds-card-bg: rgba(0, 0, 0, 0.04);
+  --snapds-card-border: rgba(0, 0, 0, 0.15);
+  /* 6.6:1 contrast on #deeaf5 */
+  --snapds-legend-color: rgba(0, 0, 0, 0.65);
+}
+
+/* ─── High-contrast dark overrides ─────────────────────────────────────── */
+
+[data-vscode-theme-kind="vscode-high-contrast"] {
+  --snapds-bg: #000000;
+  --snapds-overlay-faint: rgba(255, 255, 255, 0.15);
+  --snapds-overlay-subtle: rgba(255, 255, 255, 0.08);
+  --snapds-chip-border: rgba(255, 255, 255, 0.4);
+  --snapds-card-bg: transparent;
+  --snapds-card-border: rgba(255, 255, 255, 0.5);
+  /* 14.7:1 on #000 */
+  --snapds-legend-color: rgba(255, 255, 255, 0.8);
+}
+
+/* ─── High-contrast light overrides ────────────────────────────────────── */
+
+[data-vscode-theme-kind="vscode-high-contrast-light"] {
+  --snapds-bg: #ffffff;
+  --snapds-overlay-faint: rgba(0, 0, 0, 0.08);
+  --snapds-overlay-subtle: rgba(0, 0, 0, 0.04);
+  --snapds-chip-border: rgba(0, 0, 0, 0.25);
+  --snapds-card-bg: transparent;
+  --snapds-card-border: rgba(0, 0, 0, 0.6);
+  /* 12.6:1 on #fff */
+  --snapds-legend-color: rgba(0, 0, 0, 0.7);
+}
+
+/* ─── Reduced-motion preference ─────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: !important is required here to override component-level animations regardless of specificity — standard reduced-motion pattern per MDN */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same reason as above */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same reason as above */
+    transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same reason as above */
+    scroll-behavior: auto !important;
+  }
+}
