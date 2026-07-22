@@ -164,7 +164,7 @@ function setupPropsPanel(ctx: vscode.ExtensionContext, ac: ActivationCtx): Props
       }
       ac.propsPanel.postVersionsAvailable(
         pkg,
-        installations?.map((i) => i.version),
+        (installations ?? []).map((i) => i.version),
         version,
         false,
         inPackageJson,
