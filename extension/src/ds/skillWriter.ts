@@ -220,7 +220,7 @@ async function resolveBaseDir(
     canSelectMany: false,
     openLabel: 'Select destination folder',
   });
-  if (!picked || !picked.length) return undefined;
+  if (!picked?.length) return undefined;
   const chosen = picked[0].fsPath;
   const base = format === 'augment' ? path.join(chosen, '.augment', 'skills') : chosen;
   vscode.window.showInformationMessage(`Snapds: writing ${format} skills to ${base}`);

@@ -16,8 +16,6 @@ export interface DsPackage {
 }
 
 export class DsRegistry {
-  constructor(private ctx: vscode.ExtensionContext) {}
-
   list(): DsPackage[] {
     const raw = vscode.workspace.getConfiguration('snapds').get<DsPackage[]>('packages') ?? [];
     // Backward-compat: migrate the old `blacklist` field to `excluded` in memory.

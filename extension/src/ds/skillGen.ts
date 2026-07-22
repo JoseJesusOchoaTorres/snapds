@@ -48,7 +48,7 @@ export function kebab(name: string): string {
 }
 
 function componentDescription(meta: ComponentMeta): string {
-  if (meta.description && meta.description.trim()) return meta.description.trim();
+  if (meta.description?.trim()) return meta.description.trim();
   const { pkg, name } = splitComponentId(meta.id);
   return `Public props contract and usage for the ${name} component${pkg ? ` from ${pkg}` : ''}.`;
 }

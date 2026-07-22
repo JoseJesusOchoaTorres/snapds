@@ -1,12 +1,9 @@
-import type * as vscode from 'vscode';
 import type { ComponentMeta } from '../util/messaging';
 
 export class Store {
   private components = new Map<string, ComponentMeta>();
   private configured = new Map<string, Record<string, unknown>>();
   private selected: string | undefined;
-
-  constructor(_ctx: vscode.ExtensionContext) {}
 
   setComponents(list: ComponentMeta[]): void {
     this.components.clear();

@@ -104,7 +104,7 @@ export function latestInstallation(
   return installations[0];
 }
 
-function appRootFromDir(pkgDir: string): string {
+function _appRootFromDir(pkgDir: string): string {
   const idx = pkgDir.lastIndexOf(`${path.sep}node_modules${path.sep}`);
   return idx === -1 ? pkgDir : pkgDir.substring(0, idx);
 }

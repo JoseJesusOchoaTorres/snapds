@@ -1,8 +1,8 @@
 // Rasterizes the unified Snapds mark (media/icon.svg) into the 256x256
 // Marketplace PNG (media/icon.png). Run with `npm run icon:png` after editing
 // the SVG so the two stay in sync.
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const { Resvg } = require('@resvg/resvg-js');
 
 const root = path.resolve(__dirname, '..');

@@ -153,7 +153,7 @@ export async function writeConfigFile(
   const cleaned = JSON.parse(JSON.stringify(toWrite)) as SnapdsConfig;
   await vscode.workspace.fs.writeFile(
     vscode.Uri.file(filePath),
-    Buffer.from(JSON.stringify(cleaned, null, 2) + '\n', 'utf8'),
+    Buffer.from(`${JSON.stringify(cleaned, null, 2)}\n`, 'utf8'),
   );
 }
 

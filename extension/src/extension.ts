@@ -39,7 +39,7 @@ const GENERATED_IDS_KEY = 'snapds.skills.generatedIds';
 const CONFIG_NOTIFIED_PREFIX = 'snapds.configNotified.';
 
 export function activate(ctx: vscode.ExtensionContext): void {
-  const registry = new DsRegistry(ctx);
+  const registry = new DsRegistry();
   const userOverrides = new UserOverridesStore(ctx);
 
   // Holds the resolved config waiting for user confirmation after an importConfig preview.
@@ -206,7 +206,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
       }
       propsPanel.postVersionsAvailable(
         pkg,
-        installations!.map((i) => i.version),
+        installations?.map((i) => i.version),
         version,
         false,
         inPackageJson,
@@ -405,7 +405,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
         canSelectMany: false,
         openLabel: 'Select skills destination folder',
       });
-      if (picked && picked.length) {
+      if (picked?.length) {
         settingsPanel.postCustomPathPicked(picked[0].fsPath);
       }
     },
@@ -475,6 +475,17 @@ export function activate(ctx: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage('Snapds: No workspace folder open.');
         return;
       }
+      // Guard: reject webview-supplied paths that escape the workspace root.
+      if (workspaceRoot && outputPath) {
+        const normalizedRoot = path.resolve(workspaceRoot);
+        const normalizedOut = path.resolve(outputPath);
+        if (!normalizedOut.startsWith(normalizedRoot + path.sep)) {
+          vscode.window.showErrorMessage(
+            'Snapds: Export path must be within the workspace folder.',
+          );
+          return;
+        }
+      }
       const config = serializeCurrentState(registry.list(), userOverrides.all(), ctx, {
         includeUserOverrides: includeOverrides,
         mode,
@@ -510,7 +521,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
             filters: { 'JSON config': ['json'] },
             openLabel: 'Select snapds.config.json',
           });
-          if (!picked || !picked.length) return;
+          if (!picked?.length) return;
           filePath = picked[0].fsPath;
         }
         const configImporter = await import('./config/configResolver');
@@ -602,7 +613,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
                 const selected = pkg.selected ?? [];
                 const excluded = pkg.components.filter((c) => !selected.includes(c));
-                const manual = selected.filter((c) => !pkg.components!.includes(c));
+                const manual = selected.filter((c) => !pkg.components?.includes(c));
                 return { name: pkg.name, version, importPath, tsconfigPath, excluded, manual };
               }),
             );
@@ -677,7 +688,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
       for (const pkg of registry.list()) {
         const cached = introspector.getCached(pkg);
         out.appendLine(
-          `${pkg.name}@${pkg.version}: ${cached ? cached.length + ' components cached' : 'not cached'}`,
+          `${pkg.name}@${pkg.version}: ${cached ? `${cached.length} components cached` : 'not cached'}`,
         );
         if (cached) {
           for (const c of cached) {
@@ -945,7 +956,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
     if (!descriptor) return;
     await refreshActiveComponents(descriptor);
     const sel = store.getSelected();
-    if (sel && sel.id.startsWith(`${pkgName}#`) && propsPanel.isOpen()) {
+    if (sel?.id.startsWith(`${pkgName}#`) && propsPanel.isOpen()) {
       propsPanel.postComponentSchema(sel, store.getConfiguredProps(sel.id));
     }
   }

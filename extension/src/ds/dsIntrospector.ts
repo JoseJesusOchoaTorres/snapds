@@ -233,14 +233,14 @@ export class DsIntrospector {
       })
       .filter((c) => {
         // Repository Config (Ignore list)
-        if (pkgConfig?.excluded && pkgConfig.excluded.includes(c.displayName)) {
+        if (pkgConfig?.excluded?.includes(c.displayName)) {
           return false;
         }
         // Automatic Filtering (@internal)
         if (c.tags && c.tags.internal !== undefined) {
           return false;
         }
-        if (c.description && c.description.includes('@internal')) {
+        if (c.description?.includes('@internal')) {
           return false;
         }
         return true;
@@ -282,8 +282,8 @@ export class DsIntrospector {
     const detectedNames = new Set(components.map((c) => c.name));
     for (const exp of exportedComponents) {
       if (detectedNames.has(exp.name)) continue;
-      if (pkgConfig?.excluded && pkgConfig.excluded.includes(exp.name)) continue;
-      if (exp.description && exp.description.includes('@internal')) continue;
+      if (pkgConfig?.excluded?.includes(exp.name)) continue;
+      if (exp.description?.includes('@internal')) continue;
       const compOverride = pkgConfig?.overrides?.[exp.name];
       const props = this.applyCompanyPropOverrides(siblingProps.get(exp.name) ?? [], compOverride);
       components.push({

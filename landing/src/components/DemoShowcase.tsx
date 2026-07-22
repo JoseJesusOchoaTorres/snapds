@@ -82,7 +82,7 @@ function BrowseDemo() {
       clearTimeout(tHide);
       clearTimeout(tSwap);
     };
-  }, [selected]);
+  }, []);
 
   const name = COMPONENTS[selected];
   const props = PROPS[name];
@@ -155,7 +155,7 @@ function DropDemo() {
       }, 4800),
     );
     return () => t.forEach(clearTimeout);
-  }, [seqIdx]);
+  }, []);
 
   const showCode = step === 'dropped' || step === 'pause';
 
@@ -189,13 +189,15 @@ function DropDemo() {
         <div className="demo-code__line">
           <span className="tok-key">import</span>
           {' { Card } '}
-          <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>;
+          <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>
+          {';'}
         </div>
         {showCode && (
           <div className="demo-code__line demo-code__line--added">
             <span className="tok-key">import</span>
             {` { ${seq.label} } `}
-            <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>;
+            <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>
+            {';'}
           </div>
         )}
         <div className="demo-code__line"> </div>
@@ -329,13 +331,15 @@ function SearchDemo() {
         <div className="demo-code__line">
           <span className="tok-key">import</span>
           {' { Card } '}
-          <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>;
+          <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>
+          {';'}
         </div>
         {showInjected && (
           <div className="demo-code__line demo-code__line--added">
             <span className="tok-key">import</span>
             {' { Button } '}
-            <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>;
+            <span className="tok-key">from</span> <span className="tok-str">'@acme/ui'</span>
+            {';'}
           </div>
         )}
         <div className="demo-code__line"> </div>
@@ -448,6 +452,7 @@ function SkillDemo() {
           );
         })}
         <button
+          type="button"
           className={`demo-generate-btn${step === 'ready' ? ' demo-generate-btn--active' : ''}`}
           onClick={() => {
             if (step === 'ready') setStep('generating');
@@ -472,6 +477,7 @@ function SkillDemo() {
             </div>
             <pre className="demo-skill-output__code">
               {SKILL_LINES.slice(0, lineCount).map((line, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static ordered list, index is stable
                 <div key={i} className="demo-code__line">
                   {line || ' '}
                 </div>
@@ -526,6 +532,7 @@ export function DemoShowcase() {
         <div className="demo-tabs">
           {TABS.map((t) => (
             <button
+              type="button"
               key={t.id}
               className={`demo-tab${active === t.id ? ' demo-tab--active' : ''}`}
               onClick={() => setActive(t.id)}

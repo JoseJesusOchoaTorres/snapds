@@ -57,23 +57,26 @@ export function ThemeToggle() {
   };
 
   return (
-    <div className="theme-toggle" role="group" aria-label="Color theme">
-      {OPTIONS.map(({ value, label, Icon }) => {
-        const active = mounted && choice === value;
-        return (
-          <button
-            key={value}
-            type="button"
-            className={active ? 'theme-toggle__btn is-active' : 'theme-toggle__btn'}
-            aria-pressed={mounted ? active : undefined}
-            aria-label={label}
-            title={label}
-            onClick={() => pick(value)}
-          >
-            <Icon size={16} />
-          </button>
-        );
-      })}
-    </div>
+    <>
+      {/* biome-ignore lint/a11y/useSemanticElements: role="group" has no native HTML equivalent for non-form toggle groups */}
+      <div className="theme-toggle" role="group" aria-label="Color theme">
+        {OPTIONS.map(({ value, label, Icon }) => {
+          const active = mounted && choice === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              className={active ? 'theme-toggle__btn is-active' : 'theme-toggle__btn'}
+              aria-pressed={mounted ? active : undefined}
+              aria-label={label}
+              title={label}
+              onClick={() => pick(value)}
+            >
+              <Icon size={16} />
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }

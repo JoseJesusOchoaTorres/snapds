@@ -51,8 +51,11 @@ export function ExportConfigModal({ defaultPath, existingConfig, onExport, onClo
         )}
 
         <div className="fieldset-row">
-          <label className="field-label">Output path (optional)</label>
+          <label className="field-label" htmlFor="export-output-path">
+            Output path (optional)
+          </label>
           <input
+            id="export-output-path"
             type="text"
             className="filter-input"
             placeholder={defaultPath}

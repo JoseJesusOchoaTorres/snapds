@@ -31,7 +31,6 @@ export function Control({ prop, value, onChange }: Props) {
           <code>{'() => {}'}</code>
         </div>
       );
-    case 'string':
     default:
       return <StringControl prop={prop} value={value} onChange={onChange} />;
   }

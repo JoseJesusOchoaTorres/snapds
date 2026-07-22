@@ -93,7 +93,7 @@ export function generateJSX(meta: ComponentMeta, configured: Record<string, unkn
     attrParts.push(renderAttr(p, v, () => tab++));
   }
 
-  const attrs = attrParts.length ? ' ' + attrParts.join(' ') : '';
+  const attrs = attrParts.length ? ` ${attrParts.join(' ')}` : '';
 
   if (childrenValue !== undefined && String(childrenValue).length > 0) {
     lines.push(`<${name}${attrs}>`);
@@ -174,7 +174,7 @@ export function generateExampleJSX(meta: ComponentMeta): string {
     }
   }
 
-  const attrStr = attrs.length ? ' ' + attrs.join(' ') : '';
+  const attrStr = attrs.length ? ` ${attrs.join(' ')}` : '';
   return children === null ? `<${name}${attrStr} />` : `<${name}${attrStr}>${children}</${name}>`;
 }
 
