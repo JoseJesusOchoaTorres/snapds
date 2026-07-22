@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import type { ConfigImportPreviewPayload } from '../types';
 import { Modal } from './Modal';
-import type { ConfigImportPreviewPayload } from './types';
 
 interface Props {
   preview: ConfigImportPreviewPayload;
@@ -65,7 +65,7 @@ export function ImportPreviewModal({ preview, onConfirm, onClose }: Props) {
         )}
 
         {preview.overridesCount > 0 && (
-          <label className="row-checkbox" style={{ marginTop: 12 }}>
+          <label className="row-checkbox row-checkbox--spaced">
             <input
               type="checkbox"
               checked={applyOverrides}

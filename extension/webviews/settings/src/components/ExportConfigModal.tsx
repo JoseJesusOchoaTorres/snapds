@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import type { ConfigExportMode } from '../types';
 import { Modal } from './Modal';
-import type { ConfigExportMode } from './types';
 
 interface Props {
   defaultPath: string;
@@ -62,9 +62,7 @@ export function ExportConfigModal({ defaultPath, existingConfig, onExport, onClo
             value={customPath}
             onChange={(e) => setCustomPath(e.target.value)}
           />
-          <p className="muted" style={{ marginTop: 4 }}>
-            Leave empty to write to the workspace root.
-          </p>
+          <p className="muted field-hint">Leave empty to write to the workspace root.</p>
         </div>
 
         <div className="modal-footer modal-footer--split">

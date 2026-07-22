@@ -80,7 +80,7 @@ export function Modal({ title, onClose, children, headerActions }: ModalProps) {
         tabIndex={-1}
       >
         <div className="modal-header">
-          <h3 id={titleId} style={{ margin: 0, fontSize: 15, flex: 1, minWidth: 0 }}>
+          <h3 id={titleId} className="modal-title">
             {title}
           </h3>
           {headerActions}
