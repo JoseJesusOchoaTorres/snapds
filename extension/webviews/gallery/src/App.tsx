@@ -116,6 +116,7 @@ export default function App() {
                 <div
                   className="tree-row tree-group-header"
                   role="treeitem"
+                  aria-level={1}
                   aria-expanded={isOpen}
                   tabIndex={0}
                   onClick={() => toggleGroup(pkgName)}
