@@ -1,20 +1,20 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { LINKS, NAV_LINKS } from '../content';
-import { GitHub, Logo, Menu } from './icons';
-import { ThemeToggle } from './ThemeToggle';
+import { useEffect, useState } from 'react'
+import { LINKS, NAV_LINKS } from '../content'
+import { GitHub, Logo, Menu } from './icons'
+import { ThemeToggle } from './ThemeToggle'
 
 export function Nav() {
-  const [scrolled, setScrolled] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false)
+  const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   return (
     <header className={scrolled ? 'nav is-scrolled' : 'nav'}>
@@ -44,7 +44,7 @@ export function Nav() {
             GitHub
           </a>
           <a
-            className="btn btn--primary btn--sm"
+            className="btn btn--primary btn--sm nav-get-extension-btn"
             href={LINKS.marketplace}
             target="_blank"
             rel="noreferrer"
@@ -77,5 +77,5 @@ export function Nav() {
         </div>
       )}
     </header>
-  );
+  )
 }

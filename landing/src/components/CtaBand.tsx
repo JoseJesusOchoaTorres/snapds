@@ -1,15 +1,17 @@
-import { LINKS } from '../content';
-import { ArrowRight, GitHub } from './icons';
+import { LINKS } from '../content'
+import { ArrowRight, GitHub } from './icons'
 
 export function CtaBand() {
   return (
     <section className="section section--ruled">
       <div className="container">
         <div className="cta">
-          <h2 className="gradient-text">Bring your design system into every file</h2>
+          <h2 className="gradient-text">
+            Bring your design system into every file
+          </h2>
           <p>
-            Install Snapds, register a package, and start dropping production-ready components in
-            minutes.
+            Install Snapds, register a package, and start dropping
+            production-ready components in minutes.
           </p>
           <div className="cta__actions">
             <a
@@ -32,5 +34,5 @@ export function CtaBand() {
         </div>
       </div>
     </section>
-  );
+  )
 }

@@ -512,6 +512,12 @@ html.light .gradient-text {
   gap: 0.6rem;
 }
 
+@media (max-width: 450px) {
+  .nav__actions .nav-get-extension-btn {
+    display: none;
+  }
+}
+
 .theme-toggle {
   display: inline-flex;
   align-items: center;
@@ -605,6 +611,7 @@ html.light .gradient-text {
 
 .hero__title {
   font-size: clamp(2.4rem, 6vw, 4.1rem);
+  margin: 1.2rem 0;
 }
 
 .hero__lead {
