@@ -274,9 +274,12 @@ code {
   *,
   *::before,
   *::after {
-    animation-duration: 0.001ms;
-    animation-iteration-count: 1;
-    transition-duration: 0.001ms;
+    /* biome-ignore lint/complexity/noImportantStyles: required to override component-level animation rules per prefers-reduced-motion */
+    animation-duration: 0.001ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: required to override component-level animation rules per prefers-reduced-motion */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: required to override component-level animation rules per prefers-reduced-motion */
+    transition-duration: 0.001ms !important;
     scroll-behavior: auto;
   }
 }

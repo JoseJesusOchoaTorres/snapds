@@ -12,12 +12,19 @@ export function Accordion({ title, open, onToggle, children, headerAccessory }: 
   return (
     <section className="accordion">
       <div className="accordion-header">
-        <button type="button" className="accordion-toggle" aria-expanded={open} onClick={onToggle}>
-          <span aria-hidden="true" className={`accordion-twisty${open ? ' open' : ''}`}>
-            ▶
-          </span>
-          <h3 className="accordion-title">{title}</h3>
-        </button>
+        <h3 className="accordion-title">
+          <button
+            type="button"
+            className="accordion-toggle"
+            aria-expanded={open}
+            onClick={onToggle}
+          >
+            <span aria-hidden="true" className={`accordion-twisty${open ? ' open' : ''}`}>
+              ▶
+            </span>
+            {title}
+          </button>
+        </h3>
         {headerAccessory}
       </div>
       {open && <div className="accordion-body">{children}</div>}

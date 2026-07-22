@@ -766,6 +766,7 @@ label > .desc {
   margin: 0;
   flex: 1;
   font-size: 1.075rem;
+  display: flex;
 }
 
 .accordion-body {
@@ -924,21 +925,18 @@ label > .desc {
 }
 
 .change-add {
-  /* #2e7d32 on #fff = 4.71:1 (WCAG AA) */
-  background: var(--vscode-testing-iconPassed, #2e7d32);
-  color: #fff;
+  background: var(--vscode-gitDecoration-addedResourceForeground, #2e7d32);
+  color: var(--vscode-badge-foreground, #fff);
 }
 
 .change-remove {
-  /* #c62828 on #fff = 5.44:1 (WCAG AA) */
-  background: var(--vscode-testing-iconFailed, #c62828);
-  color: #fff;
+  background: var(--vscode-gitDecoration-deletedResourceForeground, #c62828);
+  color: var(--vscode-badge-foreground, #fff);
 }
 
 .change-update {
-  /* #b35900 on #fff = 4.71:1 (WCAG AA) */
-  background: var(--vscode-testing-iconQueued, #b35900);
-  color: #fff;
+  background: var(--vscode-gitDecoration-modifiedResourceForeground, #b35900);
+  color: var(--vscode-badge-foreground, #fff);
 }
 
 /* ---- Button spinner ------------------------------------------------------ */

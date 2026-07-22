@@ -71,6 +71,7 @@ function BrowseDemo() {
   const [selected, setSelected] = useState(0);
   const [visible, setVisible] = useState(true);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selected is an intentional restart trigger — not a stale-closure dep
   useEffect(() => {
     // Show props → wait 2.5 s → fade out → swap → fade in
     const tHide = setTimeout(() => setVisible(false), 2500);
@@ -82,7 +83,7 @@ function BrowseDemo() {
       clearTimeout(tHide);
       clearTimeout(tSwap);
     };
-  }, []);
+  }, [selected]);
 
   const name = COMPONENTS[selected];
   const props = PROPS[name];
@@ -142,6 +143,7 @@ function DropDemo() {
   const [seqIdx, setSeqIdx] = useState(0);
   const seq = DROP_SEQUENCE[seqIdx];
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: seqIdx is an intentional restart trigger — not a stale-closure dep
   useEffect(() => {
     const t: ReturnType<typeof setTimeout>[] = [];
     t.push(setTimeout(() => setStep('hover'), 600));
@@ -155,7 +157,7 @@ function DropDemo() {
       }, 4800),
     );
     return () => t.forEach(clearTimeout);
-  }, []);
+  }, [seqIdx]);
 
   const showCode = step === 'dropped' || step === 'pause';
 
