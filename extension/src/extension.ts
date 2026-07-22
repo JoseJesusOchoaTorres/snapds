@@ -77,6 +77,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
     const resolved = resolvedFilePath
       ? resolveForFile(resolvedFilePath, pkgName, installations)
       : undefined;
+    // biome-ignore lint/style/noNonNullAssertion: installations.length === 0 is guarded and returns early on line above
     const active = resolved ?? latestInstallation(installations)!;
     const isAutoResolved = !resolved;
 

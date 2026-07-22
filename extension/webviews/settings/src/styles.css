@@ -94,15 +94,6 @@ header {
   cursor: grabbing;
 }
 
-.card .name {
-  font-weight: 600;
-}
-
-.card .desc {
-  font-size: 0.9em;
-  opacity: 0.75;
-}
-
 .empty {
   opacity: 0.7;
   text-align: center;
@@ -172,6 +163,13 @@ label > .name,
 label > .desc {
   opacity: 0.7;
   font-size: 0.85em;
+}
+.card .name {
+  font-weight: 600;
+}
+.card .desc {
+  font-size: 0.9em;
+  opacity: 0.75;
 }
 .row-checkbox {
   flex-direction: row;

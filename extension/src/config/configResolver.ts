@@ -50,6 +50,7 @@ function mergeConfigs(parent: SnapdsConfig, child: SnapdsConfig): SnapdsConfig {
     merged.packages = [...names].map((name) => {
       const p = parentPkgs.get(name);
       const c = childPkgs.get(name);
+      // biome-ignore lint/style/noNonNullAssertion: names is union of both maps' keys, so if !p then c is guaranteed present
       if (!p) return c!;
       if (!c) return p;
       return {

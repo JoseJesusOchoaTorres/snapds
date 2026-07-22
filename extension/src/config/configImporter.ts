@@ -26,6 +26,7 @@ export function previewImport(
   const packagesUpdated = incomingPkgs
     .filter((p) => {
       if (!currentNames.has(p.name)) return false;
+      // biome-ignore lint/style/noNonNullAssertion: currentNames.has() on line above guarantees find() returns a value
       const cur = current.find((c) => c.name === p.name)!;
       // Packages exported with the new format carry `components` (allowlist) and
       // omit `excluded` when nothing is excluded. Treat that as excluded: [] so
