@@ -40,31 +40,6 @@ export class DsRegistry {
       .update('activePackage', name, vscode.ConfigurationTarget.Workspace);
   }
 
-  async importInstalledPackage(name: string): Promise<DsPackage> {
-    const root = this.firstWorkspaceFolder();
-    const pkgJsonPath = await this.findInNodeModules(root, name, 'package.json');
-    if (!pkgJsonPath) {
-      throw new Error(`Package "${name}" not found in node_modules of the active workspace.`);
-    }
-    const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8')) as { version: string };
-
-    const tsconfigPath = this.walkUpFor('tsconfig.json', path.dirname(pkgJsonPath), root);
-
-    const entry: DsPackage = {
-      name,
-      version: pkgJson.version,
-      importPath: name,
-      tsconfigPath,
-    };
-
-    const cfg = vscode.workspace.getConfiguration('snapds');
-    const list = (cfg.get<DsPackage[]>('packages') ?? []).filter((p) => p.name !== name);
-    list.push(entry);
-    await cfg.update('packages', list, vscode.ConfigurationTarget.Workspace);
-    await this.setActive(name);
-    return entry;
-  }
-
   async discoverAllPackagesInWorkspace(): Promise<string[]> {
     const packageJsonUris = await vscode.workspace.findFiles(
       '**/package.json',
@@ -97,53 +72,6 @@ export class DsRegistry {
     await vscode.workspace
       .getConfiguration('snapds')
       .update('packages', list, vscode.ConfigurationTarget.Workspace);
-  }
-
-  async updatePackage(
-    name: string,
-    enabled: boolean,
-    excluded?: string[],
-    manual?: string[],
-  ): Promise<void> {
-    const cfg = vscode.workspace.getConfiguration('snapds');
-    let list = this.list();
-
-    if (enabled) {
-      // Add it if it's not there, or update its selection if it is.
-      const existing = list.find((p) => p.name === name);
-      if (!existing) {
-        const root = this.firstWorkspaceFolder();
-        const pkgJsonPath = await this.findInNodeModules(root, name, 'package.json');
-        let version = 'unknown';
-        let tsconfigPath: string | undefined;
-
-        if (pkgJsonPath) {
-          try {
-            const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
-            version = pkgJson.version || 'unknown';
-            tsconfigPath = this.walkUpFor('tsconfig.json', path.dirname(pkgJsonPath), root);
-          } catch {}
-        }
-
-        list.push({
-          name,
-          version,
-          importPath: name,
-          tsconfigPath,
-          excluded: excluded || [],
-          manual: manual || [],
-        });
-      } else {
-        existing.excluded = excluded || [];
-        existing.manual = manual || [];
-        delete (existing as DsPackage & { blacklist?: string[] }).blacklist;
-      }
-    } else {
-      // Remove it
-      list = list.filter((p) => p.name !== name);
-    }
-
-    await cfg.update('packages', list, vscode.ConfigurationTarget.Workspace);
   }
 
   /**

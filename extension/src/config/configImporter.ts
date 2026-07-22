@@ -82,8 +82,6 @@ export async function applyConfig(
 ): Promise<void> {
   const incomingPkgs = (incoming.packages ?? []).map(normalizePackage);
   const currentPkgs = registry.list();
-  const currentNames = new Set(currentPkgs.map((p) => p.name));
-  const incomingNames = new Set(incomingPkgs.map((p) => p.name));
 
   // Build the new package list, preserving machine-local fields (version, tsconfigPath)
   // for packages that already exist.
@@ -102,12 +100,6 @@ export async function applyConfig(
       manual: incoming.manual ?? [],
     };
   });
-
-  // Remove packages that are no longer in the config.
-  const removed = currentPkgs.filter((p) => !incomingNames.has(p.name));
-  const kept = currentPkgs.filter((p) => incomingNames.has(p.name) || !currentNames.has(p.name));
-  void removed;
-  void kept; // used for summary only; newList is authoritative
 
   await registry.saveAll(newList);
 
