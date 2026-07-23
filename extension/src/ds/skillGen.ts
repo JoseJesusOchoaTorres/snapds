@@ -48,7 +48,7 @@ export function kebab(name: string): string {
 }
 
 function componentDescription(meta: ComponentMeta): string {
-  if (meta.description && meta.description.trim()) return meta.description.trim();
+  if (meta.description?.trim()) return meta.description.trim();
   const { pkg, name } = splitComponentId(meta.id);
   return `Public props contract and usage for the ${name} component${pkg ? ` from ${pkg}` : ''}.`;
 }
@@ -82,6 +82,7 @@ export function expectedSkillRelPaths(
   components: ComponentMeta[],
   id: string,
 ): { augment: string; generic: string } {
+  // biome-ignore lint/style/noNonNullAssertion: id comes from the same components array used to build the slug map
   const slug = resolveSlugs(components).get(id)!;
   return {
     augment: `.augment/skills/snapds-${slug}/SKILL.md`,
@@ -143,6 +144,7 @@ export function buildComponentSkillMarkdown(
   return parts.join('\n');
 }
 
+/** Builds the main skill file for the given format. */
 export function buildMainSkillMarkdown(
   components: ComponentMeta[],
   format: SkillFormat,
@@ -175,6 +177,7 @@ export function buildMainSkillMarkdown(
   const byPkg = new Map<string, ComponentMeta[]>();
   for (const c of components) {
     const key = splitComponentId(c.id).pkg || '(local)';
+    // biome-ignore lint/style/noNonNullAssertion: Map.set() is called immediately before .get(), so the key is guaranteed to exist
     (byPkg.get(key) ?? byPkg.set(key, []).get(key)!).push(c);
   }
 
@@ -183,6 +186,7 @@ export function buildMainSkillMarkdown(
     if (format === 'augment') {
       parts.push('| Component | Skill |', '|-----------|-------|');
       for (const c of comps) {
+        // biome-ignore lint/style/noNonNullAssertion: comps derives from components, the same array used to build slugs
         const slug = slugs.get(c.id)!;
         parts.push(
           `| ${splitComponentId(c.id).name} | [snapds-${slug}](../snapds-${slug}/SKILL.md) |`,
@@ -191,6 +195,7 @@ export function buildMainSkillMarkdown(
     } else {
       parts.push('| Component | Detail file |', '|-----------|-------------|');
       for (const c of comps) {
+        // biome-ignore lint/style/noNonNullAssertion: comps derives from components, the same array used to build slugs
         const slug = slugs.get(c.id)!;
         parts.push(
           `| ${splitComponentId(c.id).name} | [./snapds-skills/${slug}.md](./snapds-skills/${slug}.md) |`,
@@ -218,6 +223,7 @@ export function buildAugmentSkillArtifacts(
   for (const meta of components) {
     if (changedIds && !changedIds.has(meta.id)) continue;
     artifacts.push({
+      // biome-ignore lint/style/noNonNullAssertion: meta is from components, the same array used to build slugs
       relativePath: `snapds-${slugs.get(meta.id)!}/SKILL.md`,
       contents: buildComponentSkillMarkdown(meta, 'augment', guidance?.perComponent[meta.id]),
     });
@@ -240,6 +246,7 @@ export function buildGenericArtifacts(
   for (const meta of components) {
     if (changedIds && !changedIds.has(meta.id)) continue;
     artifacts.push({
+      // biome-ignore lint/style/noNonNullAssertion: meta is from components, the same array used to build slugs
       relativePath: `snapds-skills/${slugs.get(meta.id)!}.md`,
       contents: buildComponentSkillMarkdown(meta, 'generic', guidance?.perComponent[meta.id]),
     });

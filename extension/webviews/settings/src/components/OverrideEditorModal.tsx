@@ -1,7 +1,7 @@
 import { Control } from '@snapds/webview-shared';
 import { useMemo, useState } from 'react';
+import type { AddedProp, ComponentDetail, PropMeta, PropOverride, UserOverride } from '../types';
 import { Modal } from './Modal';
-import type { AddedProp, ComponentDetail, PropMeta, PropOverride, UserOverride } from './types';
 
 interface Props {
   detail: ComponentDetail;
@@ -93,7 +93,12 @@ export function OverrideEditorModal({ detail, onClose, onSave, onResetAll }: Pro
                 <span>hidden</span>
               </label>
               {overridden && (
-                <button type="button" className="link-btn" onClick={() => resetProp(p.name)}>
+                <button
+                  type="button"
+                  className="link-btn"
+                  aria-label={`Reset ${p.name} override`}
+                  onClick={() => resetProp(p.name)}
+                >
                   Reset
                 </button>
               )}

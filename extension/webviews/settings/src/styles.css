@@ -1,31 +1,4 @@
-:root {
-  color-scheme: light dark;
-  font-family: var(--vscode-font-family, sans-serif);
-  font-size: var(--vscode-font-size, 13px);
-  color: var(--vscode-foreground);
-  background: var(--vscode-sideBar-background, transparent);
-  /* Shared horizontal padding so the sticky action bar can bleed to the edges. */
-  --snapds-pad: 16px;
-  /* Brand background applied to the root and sticky action bar. */
-  --snapds-bg: #0c2a42;
-  /* Semi-transparent overlays used for chip and grid separator tints. */
-  --snapds-overlay-faint: rgba(255, 255, 255, 0.1);
-  --snapds-overlay-subtle: rgba(255, 255, 255, 0.05);
-  --snapds-chip-border: rgba(255, 255, 255, 0.15);
-  /* Card/section surfaces that sit above the root background. */
-  --snapds-card-bg: rgba(255, 255, 255, 0.06);
-  --snapds-card-border: rgba(255, 255, 255, 0.18);
-  --snapds-legend-color: rgba(255, 255, 255, 0.55);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-}
+@import "../../shared/src/tokens.css";
 
 .root {
   display: flex;
@@ -33,7 +6,7 @@ body {
   gap: 8px;
   padding: var(--snapds-pad);
   min-height: 100vh;
-  background: var(--snapds-bg);
+  background: var(--vscode-editor-background);
 }
 
 /* Narrow sidebars / small windows: tighten spacing so nothing overflows. */
@@ -94,15 +67,6 @@ header {
   cursor: grabbing;
 }
 
-.card .name {
-  font-weight: 600;
-}
-
-.card .desc {
-  font-size: 0.9em;
-  opacity: 0.75;
-}
-
 .empty {
   opacity: 0.7;
   text-align: center;
@@ -115,12 +79,21 @@ header {
   opacity: 0.75;
   margin: 0;
 }
+
+.field-hint {
+  margin-top: var(--snapds-space-xs);
+}
+
+.row-checkbox--spaced {
+  margin-top: 0.75rem;
+}
+
 .mono {
   font-family: var(--vscode-editor-font-family, monospace);
 }
 
 .badge {
-  font-size: 11px;
+  font-size: 0.85rem;
   line-height: 1.4;
   padding: 0 6px;
   border-radius: 8px;
@@ -172,6 +145,13 @@ label > .name,
 label > .desc {
   opacity: 0.7;
   font-size: 0.85em;
+}
+.card .name {
+  font-weight: 600;
+}
+.card .desc {
+  font-size: 0.9em;
+  opacity: 0.75;
 }
 .row-checkbox {
   flex-direction: row;
@@ -234,7 +214,7 @@ label > .desc {
   gap: 4px;
   padding: 2px 8px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 0.925rem;
   background: var(--snapds-overlay-faint);
   color: var(--vscode-foreground);
   border: 1px solid var(--snapds-chip-border);
@@ -250,7 +230,7 @@ label > .desc {
   color: inherit;
   cursor: pointer;
   padding: 0 2px;
-  font-size: 10px;
+  font-size: 0.75rem;
 }
 
 /* ---- Tabs --------------------------------------------------------------- */
@@ -302,7 +282,7 @@ label > .desc {
 .scope-chip {
   padding: 2px 10px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 0.925rem;
   cursor: pointer;
   border: 1px solid var(--vscode-panel-border);
   background: var(--vscode-editor-background);
@@ -375,7 +355,7 @@ label > .desc {
 }
 .pkg-card-empty {
   opacity: 0.6;
-  font-size: 12px;
+  font-size: 0.925rem;
 }
 
 /* The package card is a container: the clickable body is an inner <button> that
@@ -466,12 +446,19 @@ label > .desc {
   padding: 12px var(--snapds-pad);
   border-bottom: 1px solid var(--vscode-panel-border);
 }
+
+.modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  flex: 1;
+  min-width: 0;
+}
 .modal-close {
   background: transparent;
   border: none;
   color: var(--vscode-foreground);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 1.075rem;
   padding: 2px 6px;
   opacity: 0.7;
 }
@@ -505,7 +492,7 @@ label > .desc {
 .props-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 0.925rem;
 }
 .props-table th,
 .props-table td {
@@ -558,14 +545,14 @@ label > .desc {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 0.925rem;
   font-weight: 600;
   opacity: 0.85;
   margin-bottom: 4px;
 }
 .comp-empty {
   opacity: 0.6;
-  font-size: 12px;
+  font-size: 0.925rem;
 }
 .comp-row {
   display: flex;
@@ -702,7 +689,7 @@ label > .desc {
   gap: 8px;
   margin: 16px calc(-1 * var(--snapds-pad)) 0;
   padding: 12px var(--snapds-pad);
-  background: var(--snapds-bg);
+  background: var(--vscode-editor-background);
   border-top: 1px solid var(--vscode-panel-border);
   z-index: 10;
 }
@@ -736,12 +723,57 @@ label > .desc {
   }
 }
 
-/* ---- Accessibility ------------------------------------------------------ */
+/* ── Accordion ────────────────────────────────────────────────────────── */
+
+.accordion {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--vscode-editor-inactiveSelectionBackground);
+}
+
+.accordion-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  padding: 0.625rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 
 .accordion-twisty {
   display: inline-block;
   transition: transform 0.1s ease;
 }
+
+.accordion-twisty.open {
+  transform: rotate(90deg);
+}
+
+.accordion-title {
+  margin: 0;
+  flex: 1;
+  font-size: 1.075rem;
+  display: flex;
+}
+
+.accordion-body {
+  padding: 0.75rem;
+}
+
+/* ---- Accessibility ------------------------------------------------------ */
 
 .accordion-toggle:focus-visible,
 .icon-btn:focus-visible,
@@ -749,16 +781,6 @@ label > .desc {
 .scope-chip:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
-}
-
-/* Respect the user's reduced-motion preference. */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
 }
 
 /* ── Config export / import ──────────────────────────────────────────── */
@@ -782,7 +804,7 @@ label > .desc {
 }
 
 .btn-small {
-  font-size: 11px;
+  font-size: 0.85rem;
   padding: 3px 8px;
   border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, transparent));
   border-radius: 2px;
@@ -823,7 +845,7 @@ label > .desc {
 }
 
 .config-banner-text {
-  font-size: 12px;
+  font-size: 0.925rem;
 }
 
 .config-banner-actions {
@@ -854,14 +876,14 @@ label > .desc {
 }
 
 .export-overrides-toggle {
-  font-size: 12px;
+  font-size: 0.925rem;
   gap: 6px;
 }
 
 .export-overrides-hint {
   color: var(--vscode-descriptionForeground, var(--vscode-foreground));
   opacity: 0.75;
-  font-size: 11px;
+  font-size: 0.85rem;
 }
 
 .export-modal-body,
@@ -878,7 +900,7 @@ label > .desc {
 }
 
 .field-label {
-  font-size: 11px;
+  font-size: 0.85rem;
   font-weight: 600;
   opacity: 0.8;
 }
@@ -890,12 +912,12 @@ label > .desc {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12px;
+  font-size: 0.925rem;
 }
 
 .change-badge {
   display: inline-block;
-  font-size: 11px;
+  font-size: 0.85rem;
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 3px;
@@ -903,18 +925,18 @@ label > .desc {
 }
 
 .change-add {
-  background: var(--vscode-testing-iconPassed, #4caf50);
-  color: #fff;
+  background: var(--vscode-gitDecoration-addedResourceForeground, #2e7d32);
+  color: var(--vscode-badge-foreground, #fff);
 }
 
 .change-remove {
-  background: var(--vscode-testing-iconFailed, #f44336);
-  color: #fff;
+  background: var(--vscode-gitDecoration-deletedResourceForeground, #c62828);
+  color: var(--vscode-badge-foreground, #fff);
 }
 
 .change-update {
-  background: var(--vscode-testing-iconQueued, #ff9800);
-  color: #fff;
+  background: var(--vscode-gitDecoration-modifiedResourceForeground, #b35900);
+  color: var(--vscode-badge-foreground, #fff);
 }
 
 /* ---- Button spinner ------------------------------------------------------ */

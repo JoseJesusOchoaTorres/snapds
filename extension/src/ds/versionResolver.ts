@@ -104,11 +104,6 @@ export function latestInstallation(
   return installations[0];
 }
 
-function appRootFromDir(pkgDir: string): string {
-  const idx = pkgDir.lastIndexOf(`${path.sep}node_modules${path.sep}`);
-  return idx === -1 ? pkgDir : pkgDir.substring(0, idx);
-}
-
 function parseSemver(v: string): number[] {
   return v
     .replace(/^[^0-9]*/, '')

@@ -1,5 +1,5 @@
+import type { ComponentDetail } from '../types';
 import { Modal } from './Modal';
-import type { ComponentDetail } from './types';
 
 interface Props {
   detail: ComponentDetail;

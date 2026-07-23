@@ -107,5 +107,6 @@ test('generateExampleJSX produces a self-closing tag when there are no required 
 test('generateExampleJSX output contains no snippet tab-stop artifacts', () => {
   const meta = comp('Field', [prop({ name: 'name', type: 'string', required: true })]);
   const out = generateExampleJSX(meta);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: intentionally testing absence of snippet syntax
   assert.ok(!out.includes('${'), 'must not contain ${ } snippet placeholders');
 });

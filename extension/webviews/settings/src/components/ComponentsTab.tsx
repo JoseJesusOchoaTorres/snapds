@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
+import type { PackageMeta } from '../types';
 import { PackageCard } from './PackageCard';
-import type { PackageMeta } from './types';
 
 interface Props {
   packages: PackageMeta[];

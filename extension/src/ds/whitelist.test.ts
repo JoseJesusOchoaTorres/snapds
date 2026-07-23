@@ -26,6 +26,7 @@ test('excluded components are removed', () => {
 test('manual names are appended as empty-prop placeholders with a namespaced id', () => {
   const result = applyWhitelist(all, { name: '@acme/ui', manual: ['Text'] });
   assert.deepEqual(names(result), ['Button', 'Card', 'Link', 'Text']);
+  // biome-ignore lint/style/noNonNullAssertion: test verifies 'Text' is present via deepEqual on the line above
   const added = result.find((c) => c.name === 'Text')!;
   assert.equal(added.id, '@acme/ui#Text');
   assert.deepEqual(added.props, []);

@@ -1,3 +1,4 @@
+import { vscode } from '@snapds/webview-shared';
 import { useEffect, useRef, useState } from 'react';
 import type {
   ComponentDetail,
@@ -11,7 +12,6 @@ import type {
   ToSettings,
   UserOverride,
 } from './types';
-import { vscode } from './vscodeApi';
 
 const DEFAULT_SKILLS: SkillsConfig = {
   enabled: false,

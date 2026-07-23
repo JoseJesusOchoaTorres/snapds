@@ -226,7 +226,7 @@ This concurrently watches the extension host (esbuild) and all three webviews (V
 pnpm run test
 ```
 
-- **Extension** logic (PKCE, path-traversal guard, component whitelist, export scanning, skill generation, JSX codegen, user overrides) is bundled with esbuild and runs on Node's built-in test runner.
+- **Extension** logic (path-traversal guard, component whitelist, export scanning, skill generation, JSX codegen, user overrides) is bundled with esbuild and runs on Node's built-in test runner.
 - **Webviews** use Vitest + Testing Library (jsdom) to cover the shared prop controls and key UI components.
 
 Linting and formatting are handled by [Biome](https://biomejs.dev/): `pnpm run lint` (check) and `pnpm run lint:fix` (apply safe fixes).

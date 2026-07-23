@@ -5,6 +5,9 @@ import * as vscode from 'vscode';
 
 export type WebviewApp = 'gallery' | 'props' | 'settings';
 
+/**
+ * Returns the HTML content for a webview app, with resource URIs and a nonce.
+ */
 export function getWebviewHtml(
   webview: vscode.Webview,
   ctx: vscode.ExtensionContext,

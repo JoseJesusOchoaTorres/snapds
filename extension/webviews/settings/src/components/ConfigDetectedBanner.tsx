@@ -9,9 +9,9 @@ interface Props {
  * detected in the workspace and its contents differ from the current settings.
  */
 export function ConfigDetectedBanner({ configPath, onLoad, onDismiss }: Props) {
-  const filename = configPath.split('/').pop() ?? configPath;
+  const filename = configPath.split(/[/\\]/).pop() ?? configPath;
   return (
-    <div className="config-banner">
+    <div className="config-banner" role="status" aria-live="polite">
       <span className="config-banner-text">
         <strong>{filename}</strong> found — load it into your settings?
       </span>

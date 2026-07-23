@@ -1,6 +1,6 @@
+import { vscode } from '@snapds/webview-shared';
+import type { SkillFileEntry, SkillFormat, SkillsConfig } from '../types';
 import { SkillCard } from './SkillCard';
-import type { SkillFileEntry, SkillFormat, SkillsConfig } from './types';
-import { vscode } from './vscodeApi';
 
 interface Props {
   skills: SkillsConfig;
@@ -9,6 +9,7 @@ interface Props {
   onToggleShowDir: () => void;
   updateSkills: (partial: Partial<SkillsConfig>) => void;
   toggleFormat: (fmt: SkillFormat) => void;
+  activePackages: string[];
 }
 
 /** AI tab: skills config controls + generated-skills directory as cards. */
@@ -19,7 +20,13 @@ export function AiTab({
   onToggleShowDir,
   updateSkills,
   toggleFormat,
+  activePackages,
 }: Props) {
+  const togglePackageExclusion = (pkg: string) => {
+    const excluded = skills.excludedPackages ?? [];
+    const next = excluded.includes(pkg) ? excluded.filter((p) => p !== pkg) : [...excluded, pkg];
+    updateSkills({ excludedPackages: next });
+  };
   return (
     <div className="tab-content">
       <p className="muted ai-tab-desc">
@@ -47,6 +54,7 @@ export function AiTab({
           <label className="row-checkbox">
             <input
               type="radio"
+              name="skills-destination"
               checked={skills.destination === 'workspace'}
               onChange={() => updateSkills({ destination: 'workspace' })}
             />
@@ -55,6 +63,7 @@ export function AiTab({
           <label className="row-checkbox">
             <input
               type="radio"
+              name="skills-destination"
               checked={skills.destination === 'custom'}
               onChange={() => updateSkills({ destination: 'custom' })}
             />
@@ -88,6 +97,25 @@ export function AiTab({
           />
           <span>Auto-generate when components change</span>
         </label>
+
+        {activePackages.length > 0 && (
+          <fieldset className="fieldset">
+            <legend>Generate skills for</legend>
+            {activePackages.map((pkg) => {
+              const excluded = skills.excludedPackages?.includes(pkg) ?? false;
+              return (
+                <label key={pkg} className="row-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={!excluded}
+                    onChange={() => togglePackageExclusion(pkg)}
+                  />
+                  <span>{pkg}</span>
+                </label>
+              );
+            })}
+          </fieldset>
+        )}
 
         <fieldset className="fieldset">
           <div className="dir-head">

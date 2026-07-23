@@ -1,4 +1,4 @@
-import type { SkillFileEntry } from './types';
+import type { SkillFileEntry } from '../types';
 
 interface Props {
   file: SkillFileEntry;

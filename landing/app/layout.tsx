@@ -33,6 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         backgroundColor={{ dark: '#08090d', light: '#ffffff' }}
       />
       <body>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: trusted local theme-init script, runs before paint to avoid flash */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {children}
       </body>

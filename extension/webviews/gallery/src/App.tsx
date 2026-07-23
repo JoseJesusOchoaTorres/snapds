@@ -1,11 +1,9 @@
+import { DRAG_MIME, vscode } from '@snapds/webview-shared';
 import { type DragEvent, useEffect, useMemo, useState } from 'react';
 import { ComponentRow } from './components/ComponentRow';
 import { CollapseAllIcon, ExpandAllIcon, FolderIcon } from './components/icons';
 import { SearchBar } from './components/SearchBar';
 import type { ComponentMeta, ToGallery } from './types';
-import { vscode } from './vscodeApi';
-
-const DRAG_MIME = 'application/vnd.code.tree.snapds.component';
 
 export default function App() {
   const [components, setComponents] = useState<ComponentMeta[]>([]);
@@ -117,6 +115,7 @@ export default function App() {
                 <div
                   className="tree-row tree-group-header"
                   role="treeitem"
+                  aria-level={1}
                   aria-expanded={isOpen}
                   tabIndex={0}
                   onClick={() => toggleGroup(pkgName)}

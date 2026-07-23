@@ -1,11 +1,18 @@
 import type { ComponentMeta, PropMeta } from '../util/messaging';
 
+/**
+ * Splits a component id into package and name. The id must be in the form `pkg#Name`.
+ */
 export function splitComponentId(id: string): { pkg: string; name: string } {
   const idx = id.lastIndexOf('#');
   if (idx < 0) return { pkg: '', name: id };
   return { pkg: id.slice(0, idx), name: id.slice(idx + 1) };
 }
 
+/**
+ * Generates a named import statement for the component from its package.
+ * The package is derived from the component id which must be in the form `pkg#Name`.
+ */
 export function generateImport(meta: ComponentMeta): string {
   const { pkg, name } = splitComponentId(meta.id);
   return `import { ${name} } from '${pkg}';`;
@@ -16,6 +23,9 @@ export type ImportEdit =
   | { kind: 'replace'; start: number; end: number; text: string }
   | { kind: 'insert'; offset: number; text: string };
 
+/**
+ * Escapes a string for use in a regular expression.
+ */
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -93,7 +103,7 @@ export function generateJSX(meta: ComponentMeta, configured: Record<string, unkn
     attrParts.push(renderAttr(p, v, () => tab++));
   }
 
-  const attrs = attrParts.length ? ' ' + attrParts.join(' ') : '';
+  const attrs = attrParts.length ? ` ${attrParts.join(' ')}` : '';
 
   if (childrenValue !== undefined && String(childrenValue).length > 0) {
     lines.push(`<${name}${attrs}>`);
@@ -108,6 +118,9 @@ export function generateJSX(meta: ComponentMeta, configured: Record<string, unkn
   return lines.join('\n');
 }
 
+/**
+ * Renders a prop value as a snippet tab stop with appropriate syntax for the prop type.
+ */
 function renderAttr(p: PropMeta, v: unknown, nextTab: () => number): string {
   switch (p.type) {
     case 'string':
@@ -174,10 +187,13 @@ export function generateExampleJSX(meta: ComponentMeta): string {
     }
   }
 
-  const attrStr = attrs.length ? ' ' + attrs.join(' ') : '';
+  const attrStr = attrs.length ? ` ${attrs.join(' ')}` : '';
   return children === null ? `<${name}${attrStr} />` : `<${name}${attrStr}>${children}</${name}>`;
 }
 
+/**
+ * Escapes snippet tab-stop syntax so it's safe to embed in a snippet.
+ */
 function escapeSnippet(s: string): string {
   return s.replace(/\$/g, '\\$').replace(/\}/g, '\\}');
 }

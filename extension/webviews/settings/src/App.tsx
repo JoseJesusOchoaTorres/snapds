@@ -1,14 +1,14 @@
-import { AiTab } from './AiTab';
-import { ComponentDetailModal } from './ComponentDetailModal';
-import { ComponentsTab } from './ComponentsTab';
-import { ConfigDetectedBanner } from './ConfigDetectedBanner';
-import { ExportConfigModal } from './ExportConfigModal';
-import { ImportPreviewModal } from './ImportPreviewModal';
-import { OverrideEditorModal } from './OverrideEditorModal';
-import { PackageDetailModal } from './PackageDetailModal';
-import { Tabs } from './Tabs';
-import { useSettingsController } from './useSettingsController';
-import { vscode } from './vscodeApi';
+import { vscode } from '@snapds/webview-shared';
+import { AiTab } from './components/AiTab';
+import { ComponentDetailModal } from './components/ComponentDetailModal';
+import { ComponentsTab } from './components/ComponentsTab';
+import { ConfigDetectedBanner } from './components/ConfigDetectedBanner';
+import { ExportConfigModal } from './components/ExportConfigModal';
+import { ImportPreviewModal } from './components/ImportPreviewModal';
+import { OverrideEditorModal } from './components/OverrideEditorModal';
+import { PackageDetailModal } from './components/PackageDetailModal';
+import { Tabs } from './components/Tabs';
+import { useSettingsController } from './hooks/useSettingsController';
 
 export default function App() {
   const {
@@ -186,6 +186,7 @@ export default function App() {
                 onToggleShowDir={() => setShowSkillsDir((v) => !v)}
                 updateSkills={updateSkills}
                 toggleFormat={toggleFormat}
+                activePackages={packages.filter((p) => p.enabled).map((p) => p.name)}
               />
             ),
             actions: (

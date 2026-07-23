@@ -16,8 +16,6 @@ export interface DsPackage {
 }
 
 export class DsRegistry {
-  constructor(private ctx: vscode.ExtensionContext) {}
-
   list(): DsPackage[] {
     const raw = vscode.workspace.getConfiguration('snapds').get<DsPackage[]>('packages') ?? [];
     // Backward-compat: migrate the old `blacklist` field to `excluded` in memory.
@@ -30,43 +28,29 @@ export class DsRegistry {
     });
   }
 
+  /**
+   * Returns the active package descriptor, or undefined if none is set.
+   */
   getActive(): DsPackage | undefined {
     const name = vscode.workspace.getConfiguration('snapds').get<string>('activePackage');
     if (!name) return undefined;
     return this.list().find((p) => p.name === name);
   }
 
+  /**
+   * Sets the active package in workspace settings.
+   * This is the package whose components are shown in the props panel.
+   */
   async setActive(name: string): Promise<void> {
     await vscode.workspace
       .getConfiguration('snapds')
       .update('activePackage', name, vscode.ConfigurationTarget.Workspace);
   }
 
-  async importInstalledPackage(name: string): Promise<DsPackage> {
-    const root = this.firstWorkspaceFolder();
-    const pkgJsonPath = await this.findInNodeModules(root, name, 'package.json');
-    if (!pkgJsonPath) {
-      throw new Error(`Package "${name}" not found in node_modules of the active workspace.`);
-    }
-    const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8')) as { version: string };
-
-    const tsconfigPath = this.walkUpFor('tsconfig.json', path.dirname(pkgJsonPath), root);
-
-    const entry: DsPackage = {
-      name,
-      version: pkgJson.version,
-      importPath: name,
-      tsconfigPath,
-    };
-
-    const cfg = vscode.workspace.getConfiguration('snapds');
-    const list = (cfg.get<DsPackage[]>('packages') ?? []).filter((p) => p.name !== name);
-    list.push(entry);
-    await cfg.update('packages', list, vscode.ConfigurationTarget.Workspace);
-    await this.setActive(name);
-    return entry;
-  }
-
+  /**
+   * Discovers all packages in the workspace by scanning package.json files.
+   * Returns a sorted array of unique package names.
+   */
   async discoverAllPackagesInWorkspace(): Promise<string[]> {
     const packageJsonUris = await vscode.workspace.findFiles(
       '**/package.json',
@@ -101,53 +85,6 @@ export class DsRegistry {
       .update('packages', list, vscode.ConfigurationTarget.Workspace);
   }
 
-  async updatePackage(
-    name: string,
-    enabled: boolean,
-    excluded?: string[],
-    manual?: string[],
-  ): Promise<void> {
-    const cfg = vscode.workspace.getConfiguration('snapds');
-    let list = this.list();
-
-    if (enabled) {
-      // Add it if it's not there, or update its selection if it is.
-      const existing = list.find((p) => p.name === name);
-      if (!existing) {
-        const root = this.firstWorkspaceFolder();
-        const pkgJsonPath = await this.findInNodeModules(root, name, 'package.json');
-        let version = 'unknown';
-        let tsconfigPath: string | undefined;
-
-        if (pkgJsonPath) {
-          try {
-            const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
-            version = pkgJson.version || 'unknown';
-            tsconfigPath = this.walkUpFor('tsconfig.json', path.dirname(pkgJsonPath), root);
-          } catch {}
-        }
-
-        list.push({
-          name,
-          version,
-          importPath: name,
-          tsconfigPath,
-          excluded: excluded || [],
-          manual: manual || [],
-        });
-      } else {
-        existing.excluded = excluded || [];
-        existing.manual = manual || [];
-        delete (existing as DsPackage & { blacklist?: string[] }).blacklist;
-      }
-    } else {
-      // Remove it
-      list = list.filter((p) => p.name !== name);
-    }
-
-    await cfg.update('packages', list, vscode.ConfigurationTarget.Workspace);
-  }
-
   /**
    * Resolves a package descriptor (version + tsconfig) WITHOUT persisting it to
    * settings. Used to introspect a package for the settings UI before the user
@@ -173,6 +110,10 @@ export class DsRegistry {
     return folder.uri.fsPath;
   }
 
+  /**
+   * Tries to resolve a file inside a package's node_modules using standard Node resolution logic.
+   * Falls back to a workspace-wide search if not found.
+   */
   private async findInNodeModules(
     root: string,
     pkg: string,
@@ -189,7 +130,9 @@ export class DsRegistry {
     }
 
     try {
-      const packageJsonPath = require.resolve(`${pkg}/${file}`, { paths: [root] });
+      const packageJsonPath = require.resolve(`${pkg}/${file}`, {
+        paths: [root],
+      });
       if (fs.existsSync(packageJsonPath)) return packageJsonPath;
     } catch {
       // Ignored
@@ -226,6 +169,10 @@ export class DsRegistry {
     return undefined;
   }
 
+  /**
+   * Walks up from `startDir` looking for `filename`, stopping at `stopAt` (exclusive).
+   * Returns undefined if the file is not found in the path.
+   */
   private walkUpFor(filename: string, startDir: string, stopAt: string): string | undefined {
     let dir = startDir;
     while (true) {

@@ -1,7 +1,6 @@
-import { Control } from '@snapds/webview-shared';
+import { Control, vscode } from '@snapds/webview-shared';
 import { useEffect, useState } from 'react';
 import type { ComponentMeta, ToProps } from './types';
-import { vscode } from './vscodeApi';
 
 type VersionsInfo = {
   pkg: string;

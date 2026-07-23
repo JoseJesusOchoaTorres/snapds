@@ -26,6 +26,7 @@ export function previewImport(
   const packagesUpdated = incomingPkgs
     .filter((p) => {
       if (!currentNames.has(p.name)) return false;
+      // biome-ignore lint/style/noNonNullAssertion: currentNames.has() on line above guarantees find() returns a value
       const cur = current.find((c) => c.name === p.name)!;
       // Packages exported with the new format carry `components` (allowlist) and
       // omit `excluded` when nothing is excluded. Treat that as excluded: [] so
@@ -81,8 +82,6 @@ export async function applyConfig(
 ): Promise<void> {
   const incomingPkgs = (incoming.packages ?? []).map(normalizePackage);
   const currentPkgs = registry.list();
-  const currentNames = new Set(currentPkgs.map((p) => p.name));
-  const incomingNames = new Set(incomingPkgs.map((p) => p.name));
 
   // Build the new package list, preserving machine-local fields (version, tsconfigPath)
   // for packages that already exist.
@@ -101,12 +100,6 @@ export async function applyConfig(
       manual: incoming.manual ?? [],
     };
   });
-
-  // Remove packages that are no longer in the config.
-  const removed = currentPkgs.filter((p) => !incomingNames.has(p.name));
-  const kept = currentPkgs.filter((p) => incomingNames.has(p.name) || !currentNames.has(p.name));
-  void removed;
-  void kept; // used for summary only; newList is authoritative
 
   await registry.saveAll(newList);
 

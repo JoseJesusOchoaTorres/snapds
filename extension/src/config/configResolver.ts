@@ -50,6 +50,7 @@ function mergeConfigs(parent: SnapdsConfig, child: SnapdsConfig): SnapdsConfig {
     merged.packages = [...names].map((name) => {
       const p = parentPkgs.get(name);
       const c = childPkgs.get(name);
+      // biome-ignore lint/style/noNonNullAssertion: names is union of both maps' keys, so if !p then c is guaranteed present
       if (!p) return c!;
       if (!c) return p;
       return {
@@ -73,10 +74,12 @@ function mergeConfigs(parent: SnapdsConfig, child: SnapdsConfig): SnapdsConfig {
 /**
  * Loads a config file and resolves its `extends` chain recursively, returning the
  * fully-merged config. Cycles (A extends B extends A) are broken by tracking visited paths.
+ * When `wsRoot` is provided, `extends` targets that resolve outside it are silently ignored.
  */
 function loadWithExtends(
   filePath: string,
   visited: Set<string> = new Set(),
+  wsRoot?: string,
 ): SnapdsConfig | undefined {
   const resolved = path.resolve(filePath);
   if (visited.has(resolved)) return undefined; // cycle guard
@@ -88,7 +91,16 @@ function loadWithExtends(
   if (!config.extends) return config;
 
   const parentPath = path.resolve(path.dirname(resolved), config.extends);
-  const parent = loadWithExtends(parentPath, visited);
+
+  // Reject extends targets that escape the workspace root to prevent path traversal.
+  if (wsRoot) {
+    const normalizedRoot = path.resolve(wsRoot);
+    if (!parentPath.startsWith(normalizedRoot + path.sep)) {
+      return config;
+    }
+  }
+
+  const parent = loadWithExtends(parentPath, visited, wsRoot);
   if (!parent) return config;
 
   return mergeConfigs(parent, config);
@@ -113,7 +125,7 @@ export function resolveConfig(
   while (true) {
     const configPath = findConfigInDir(dir);
     if (configPath) {
-      const config = loadWithExtends(configPath);
+      const config = loadWithExtends(configPath, new Set(), normalizedRoot);
       if (config) return { config, owningPath: configPath };
     }
 
