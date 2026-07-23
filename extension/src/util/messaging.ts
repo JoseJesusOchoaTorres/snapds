@@ -124,7 +124,9 @@ export type FromSettings =
   | { type: 'confirmImportConfig'; applyOverrides: boolean }
   | { type: 'reloadPackage'; pkg: string };
 
-export type ToGallery = { type: 'componentList'; components: ComponentMeta[] };
+export type ToGallery =
+  | { type: 'componentList'; components: ComponentMeta[] }
+  | { type: 'indexing'; packages: string[] };
 
 export type ToProps =
   | { type: 'componentSchema'; component: ComponentMeta }

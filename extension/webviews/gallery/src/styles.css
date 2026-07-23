@@ -84,6 +84,11 @@ textarea::placeholder {
   flex-direction: column;
 }
 
+.tree-group + .tree-group {
+  border-top: 1px solid
+    var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.2)));
+}
+
 .tree-row {
   display: flex;
   align-items: center;
@@ -182,6 +187,117 @@ textarea::placeholder {
   margin-left: 2px;
 }
 
+/* ─── Indexing / loading state ───────────────────────────────────────────── */
+
+@keyframes snapds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes snapds-pulse {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.38;
+  }
+}
+
+.indexing-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 4px 4px;
+  font-size: 0.82em;
+  color: color-mix(in srgb, var(--vscode-foreground) 60%, transparent);
+}
+
+.indexing-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.indexing-spinner {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: snapds-spin 0.7s linear infinite;
+}
+
+.indexing-pkg-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--vscode-foreground) 80%, transparent);
+}
+
+.indexing-progress {
+  flex-shrink: 0;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.indexing-hint {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 0.92em;
+  line-height: 1.4;
+  opacity: 0.55;
+}
+
+.tree-group-loading .tree-label {
+  opacity: 0.5;
+}
+
+.tree-loading-spinner {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: snapds-spin 0.7s linear infinite;
+  opacity: 0.55;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 4px 0 24px;
+}
+
+.skeleton-bar {
+  height: 8px;
+  border-radius: 3px;
+  background: currentColor;
+  opacity: 0.15;
+  animation: snapds-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indexing-spinner,
+  .tree-loading-spinner {
+    animation: none;
+    opacity: 0.4;
+  }
+
+  .skeleton-bar {
+    animation: none;
+    opacity: 0.15;
+  }
+}
+
+/* ─── Twisty ─────────────────────────────────────────────────────────────── */
+
 /* Rotating twisty mirrors the VS Code explorer expand/collapse affordance. */
 .twisty {
   flex: 0 0 16px;
@@ -204,4 +320,8 @@ textarea::placeholder {
 
 .twisty.open {
   transform: rotate(90deg);
+}
+
+.tree-group-loading .twisty {
+  opacity: 0.25;
 }

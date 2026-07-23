@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
@@ -36,7 +37,7 @@ import { PropsPanelProvider } from './views/propsPanelProvider';
 import { SettingsPanelProvider } from './views/settingsPanelProvider';
 
 const GENERATED_IDS_KEY = 'snapds.skills.generatedIds';
-const CONFIG_NOTIFIED_PREFIX = 'snapds.configNotified.';
+const CONFIG_HASH_PREFIX = 'snapds.configHash.';
 
 // ─── Shared activation context ────────────────────────────────────────────────
 
@@ -564,27 +565,22 @@ function setupSettingsPanel(
 
             const activePackages = ac.registry.list();
 
-            progress.report({
-              message: `Loading ${activePackages.length} package${activePackages.length > 1 ? 's' : ''}…`,
-            });
-
-            const results = await Promise.all(
+            let done = 0;
+            progress.report({ message: `0 / ${activePackages.length}`, increment: 0 });
+            ac.gallery.postIndexing(activePackages.map((p) => p.name));
+            await Promise.all(
               activePackages.map(async (pkg) => {
-                try {
-                  const detected = await ac.introspector.introspect(pkg);
-                  return applyWhitelist(detected, pkg);
-                } catch (e) {
-                  vscode.window.showErrorMessage(
-                    `Failed to introspect ${pkg.name}: ${e instanceof Error ? e.message : String(e)}`,
-                  );
-                  return [] as ComponentMeta[];
-                }
+                await refreshActiveComponents(pkg, ac);
+                done++;
+                progress.report({
+                  message: `${done} / ${activePackages.length} — ${pkg.name}`,
+                  increment: (1 / activePackages.length) * 100,
+                });
               }),
             );
-            const allComponents = results.flat();
+            ac.gallery.postIndexing([]);
 
-            ac.store.setComponents(allComponents);
-            ac.gallery.postComponentList(allComponents);
+            const allComponents = ac.store.listComponents();
             await autoGenerateForNew(allComponents, ac);
           },
         );
@@ -721,20 +717,32 @@ function setupCommands(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
 
 // ─── Startup flow ─────────────────────────────────────────────────────────────
 
+function computeConfigHash(filePath: string): string | undefined {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    return crypto.createHash('sha256').update(content).digest('hex');
+  } catch {
+    return undefined;
+  }
+}
+
 function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
-  // Show a one-time notification when a config file differs from current settings.
+  // Show a notification whenever the config file content has changed since last seen.
   void (async () => {
     const conflict = detectConfigConflict(ac.registry, ctx);
-    if (!conflict.detected || !conflict.hasConflicts) return;
-    const notifKey = `${CONFIG_NOTIFIED_PREFIX}${ac.workspaceRoot ?? 'default'}`;
-    const alreadyShown = ctx.globalState.get<boolean>(notifKey) ?? false;
-    if (alreadyShown) return;
-    await ctx.globalState.update(notifKey, true);
+    if (!conflict.detected || !conflict.hasConflicts || !conflict.configPath) return;
+    const hashKey = `${CONFIG_HASH_PREFIX}${ac.workspaceRoot ?? 'default'}`;
+    const currentHash = computeConfigHash(conflict.configPath);
+    const storedHash = ctx.globalState.get<string>(hashKey);
+    if (!currentHash || currentHash === storedHash) return;
     const action = await vscode.window.showInformationMessage(
       'Snapds: a config file was found that differs from your current settings.',
       'Open Settings',
       'Dismiss',
     );
+    // Update stored hash after the user acknowledges, so a missed notification
+    // (e.g. VS Code closed while the popup was open) will reappear next launch.
+    await ctx.globalState.update(hashKey, currentHash);
     if (action === 'Open Settings') {
       ac.settingsPanel.show();
     }
@@ -762,6 +770,7 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
       async (progress) => {
         let done = 0;
         progress.report({ message: `0 / ${list.length}`, increment: 0 });
+        ac.gallery.postIndexing(list.map((p) => p.name));
         await Promise.all(
           list.map(async (pkg) => {
             await refreshActiveComponents(pkg, ac);
@@ -772,6 +781,7 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
             });
           }),
         );
+        ac.gallery.postIndexing([]);
         ac.settingsPanel.postPackageList(await buildPackageList(ac));
         totalComponents = ac.store.listComponents().length;
       },

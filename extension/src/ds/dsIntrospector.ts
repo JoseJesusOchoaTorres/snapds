@@ -22,10 +22,43 @@ export class DsIntrospector {
   /** Deduplicates concurrent introspect() calls for the same package. */
   private inFlight = new Map<string, Promise<ComponentMeta[]>>();
 
+  /**
+   * In-process memo for resolveConfig(). During a single startup or save
+   * operation the config file doesn't change, so there's no reason to read and
+   * parse it from disk on every getCacheKey() / doIntrospect() call. We check
+   * the owning file's mtime on each access — one statSync instead of a full
+   * JSON read+parse — and re-resolve only when the file actually changed.
+   */
+  private configMemo: {
+    folder: string;
+    owningPath: string | null;
+    mtime: number | undefined;
+    result: ReturnType<typeof resolveConfig>;
+  } | null = null;
+
   constructor(
     private ctx: vscode.ExtensionContext,
     private userOverrides: UserOverridesStore,
   ) {}
+
+  private resolveConfigCached(folder: string): ReturnType<typeof resolveConfig> {
+    if (this.configMemo?.folder !== folder) {
+      this.configMemo = null;
+    }
+
+    if (this.configMemo) {
+      const currentMtime = this.configMemo.owningPath
+        ? getConfigMtime(this.configMemo.owningPath)
+        : undefined;
+      if (currentMtime === this.configMemo.mtime) return this.configMemo.result;
+    }
+
+    const result = resolveConfig(folder);
+    const owningPath = result?.owningPath ?? null;
+    const mtime = owningPath ? getConfigMtime(owningPath) : undefined;
+    this.configMemo = { folder, owningPath, mtime, result };
+    return result;
+  }
 
   /**
    * Applies USER overrides (auto < company < user) as a post-cache transform so
@@ -67,7 +100,7 @@ export class DsIntrospector {
   getCompanyOverride(pkg: string, comp: string): UserOverride | undefined {
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!folder) return undefined;
-    const resolved = resolveConfig(folder);
+    const resolved = this.resolveConfigCached(folder);
     const pkgConfig = resolved?.config.packages?.find((p) => p.name === pkg);
     return pkgConfig?.overrides?.[comp];
   }
@@ -106,7 +139,7 @@ export class DsIntrospector {
     let key = `ds.cache.v${CACHE_SCHEMA_VERSION}.${p.name}@${installedVersion}`;
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (folder) {
-      const resolved = resolveConfig(folder);
+      const resolved = this.resolveConfigCached(folder);
       if (resolved) {
         const mtime = getConfigMtime(resolved.owningPath);
         // Include both the path and mtime so different sub-app configs never
@@ -175,7 +208,7 @@ export class DsIntrospector {
     const parsed = parser.parse(entryFiles);
 
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const resolved = folder ? resolveConfig(folder) : undefined;
+    const resolved = folder ? this.resolveConfigCached(folder) : undefined;
     const pkgConfig: SnapdsConfigPackage | undefined = resolved?.config.packages
       ?.map(normalizePackage)
       .find((pkg) => pkg.name === p.name);
@@ -318,6 +351,7 @@ export class DsIntrospector {
     // Drop in-flight dedup entries so the subsequent re-index starts fresh parses
     // instead of joining the already-running startup warm-up promises.
     this.inFlight.clear();
+    this.configMemo = null;
     const keys = this.ctx.globalState.keys().filter((k) => k.startsWith('ds.cache.'));
     for (const k of keys) {
       await this.ctx.globalState.update(k, undefined);

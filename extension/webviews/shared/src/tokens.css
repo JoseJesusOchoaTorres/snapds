@@ -45,7 +45,7 @@ body {
 
   /* Card / fieldset surfaces that sit above the root background. */
   --snapds-card-bg: rgba(255, 255, 255, 0.06);
-  --snapds-card-border: rgba(255, 255, 255, 0.18);
+  --snapds-card-border: rgba(255, 255, 255, 0.06);
 
   /* Legend / secondary text on the brand background (WCAG AA: 5.5:1 on --snapds-bg). */
   --snapds-legend-color: rgba(255, 255, 255, 0.55);
@@ -65,7 +65,7 @@ body {
   --snapds-overlay-faint: rgba(0, 0, 0, 0.06);
   --snapds-overlay-subtle: rgba(0, 0, 0, 0.03);
   --snapds-chip-border: rgba(0, 0, 0, 0.12);
-  --snapds-card-bg: rgba(0, 0, 0, 0.04);
+  --snapds-card-bg: rgba(0, 0, 0, 0.07);
   --snapds-card-border: rgba(0, 0, 0, 0.15);
   /* 6.6:1 contrast on #deeaf5 */
   --snapds-legend-color: rgba(0, 0, 0, 0.65);
@@ -78,8 +78,8 @@ body {
   --snapds-overlay-faint: rgba(255, 255, 255, 0.15);
   --snapds-overlay-subtle: rgba(255, 255, 255, 0.08);
   --snapds-chip-border: rgba(255, 255, 255, 0.4);
-  --snapds-card-bg: transparent;
-  --snapds-card-border: rgba(255, 255, 255, 0.5);
+  --snapds-card-bg: rgba(255, 255, 255, 0.06);
+  --snapds-card-border: rgba(255, 255, 255, 0.06);
   /* 14.7:1 on #000 */
   --snapds-legend-color: rgba(255, 255, 255, 0.8);
 }

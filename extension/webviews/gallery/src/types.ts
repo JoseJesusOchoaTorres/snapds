@@ -7,4 +7,6 @@ export type FromGallery =
   | { type: 'componentSelected'; componentId: string }
   | { type: 'search'; query: string };
 
-export type ToGallery = { type: 'componentList'; components: ComponentMeta[] };
+export type ToGallery =
+  | { type: 'componentList'; components: ComponentMeta[] }
+  | { type: 'indexing'; packages: string[] };

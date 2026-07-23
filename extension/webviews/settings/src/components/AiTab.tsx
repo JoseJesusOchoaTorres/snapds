@@ -125,7 +125,11 @@ export function AiTab({
               onClick={onToggleShowDir}
               aria-expanded={showSkillsDir}
             >
-              {showSkillsDir ? '▾' : '▸'} Skills directory
+              <span
+                aria-hidden="true"
+                className={`accordion-twisty${showSkillsDir ? ' open' : ''}`}
+              />{' '}
+              Skills directory
             </button>
             <span className="badge">{skillFiles.length}</span>
             {showSkillsDir && (

@@ -12,17 +12,47 @@ export function ConfigDetectedBanner({ configPath, onLoad, onDismiss }: Props) {
   const filename = configPath.split(/[/\\]/).pop() ?? configPath;
   return (
     <div className="config-banner" role="status" aria-live="polite">
-      <span className="config-banner-text">
-        <strong>{filename}</strong> found — load it into your settings?
-      </span>
-      <div className="config-banner-actions">
-        <button type="button" className="btn-small btn-primary" onClick={onLoad}>
+      <div className="config-banner-content">
+        <strong className="config-banner-title">{filename} found</strong>
+        <p className="config-banner-body">
+          This file contains package selections, scope filters, or AI skill settings that differ
+          from your current setup — a teammate may have updated it. A full preview will show exactly
+          what changes before anything is applied.
+        </p>
+      </div>
+      <div className="config-banner-main-action">
+        <button
+          type="button"
+          className="btn-small btn-primary"
+          onClick={onLoad}
+          title="Preview and apply changes from the config file"
+        >
           Load config
         </button>
-        <button type="button" className="btn-small" onClick={onDismiss}>
-          Dismiss
-        </button>
       </div>
+      <button
+        type="button"
+        className="config-banner-dismiss"
+        onClick={onDismiss}
+        title="Dismiss — you can always load the config later from the header"
+        aria-label="Dismiss"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M12 4L4 12M4 4L12 12"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
     </div>
   );
 }
