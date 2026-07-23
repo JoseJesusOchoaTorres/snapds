@@ -5,6 +5,13 @@ All notable changes to the **Snapds** extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.2.0...snapds-v1.3.0) (2026-07-23)
+
+
+### Features
+
+* config hash detection, gallery UX, and settings design fixes ([eb40721](https://github.com/JoseJesusOchoaTorres/snapds/commit/eb407217c828acdbe340083bf410f474652d51ad))
+
 ## [1.2.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.1.0...snapds-v1.2.0) (2026-07-23)
 
 
