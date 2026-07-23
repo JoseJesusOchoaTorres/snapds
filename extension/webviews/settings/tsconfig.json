@@ -1,11 +1,6 @@
 {
-  "extends": "../../../tsconfig.base.json",
+  "extends": "../tsconfig.webview.json",
   "compilerOptions": {
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
-    "moduleResolution": "Bundler",
-    "module": "ESNext",
-    "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {
       "@snapds/webview-shared": ["../shared/src/index.ts"]

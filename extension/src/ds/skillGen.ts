@@ -144,6 +144,7 @@ export function buildComponentSkillMarkdown(
   return parts.join('\n');
 }
 
+/** Builds the main skill file for the given format. */
 export function buildMainSkillMarkdown(
   components: ComponentMeta[],
   format: SkillFormat,

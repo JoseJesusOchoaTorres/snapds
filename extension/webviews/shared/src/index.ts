@@ -6,6 +6,7 @@ export { Control } from './controls/Control';
 export { EnumControl } from './controls/EnumControl';
 export { NumberControl } from './controls/NumberControl';
 export { StringControl } from './controls/StringControl';
+export { mountApp } from './mountApp';
 export type {
   AddedProp,
   ComponentDetail,

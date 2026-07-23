@@ -61,6 +61,8 @@ export interface SkillsConfig {
   autoGenerate: boolean;
   /** Free-text guidance per component id (pkg#Name), injected verbatim. */
   instructions?: Record<string, string>;
+  /** Package names whose components are kept in the gallery but excluded from skill generation. */
+  excludedPackages?: string[];
 }
 
 /** A generated skill file discovered on disk in the configured destination. */

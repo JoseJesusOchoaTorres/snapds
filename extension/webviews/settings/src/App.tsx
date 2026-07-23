@@ -1,3 +1,4 @@
+import { vscode } from '@snapds/webview-shared';
 import { AiTab } from './components/AiTab';
 import { ComponentDetailModal } from './components/ComponentDetailModal';
 import { ComponentsTab } from './components/ComponentsTab';
@@ -8,7 +9,6 @@ import { OverrideEditorModal } from './components/OverrideEditorModal';
 import { PackageDetailModal } from './components/PackageDetailModal';
 import { Tabs } from './components/Tabs';
 import { useSettingsController } from './hooks/useSettingsController';
-import { vscode } from './vscodeApi';
 
 export default function App() {
   const {
@@ -186,6 +186,7 @@ export default function App() {
                 onToggleShowDir={() => setShowSkillsDir((v) => !v)}
                 updateSkills={updateSkills}
                 toggleFormat={toggleFormat}
+                activePackages={packages.filter((p) => p.enabled).map((p) => p.name)}
               />
             ),
             actions: (

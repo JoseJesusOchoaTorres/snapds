@@ -28,18 +28,29 @@ export class DsRegistry {
     });
   }
 
+  /**
+   * Returns the active package descriptor, or undefined if none is set.
+   */
   getActive(): DsPackage | undefined {
     const name = vscode.workspace.getConfiguration('snapds').get<string>('activePackage');
     if (!name) return undefined;
     return this.list().find((p) => p.name === name);
   }
 
+  /**
+   * Sets the active package in workspace settings.
+   * This is the package whose components are shown in the props panel.
+   */
   async setActive(name: string): Promise<void> {
     await vscode.workspace
       .getConfiguration('snapds')
       .update('activePackage', name, vscode.ConfigurationTarget.Workspace);
   }
 
+  /**
+   * Discovers all packages in the workspace by scanning package.json files.
+   * Returns a sorted array of unique package names.
+   */
   async discoverAllPackagesInWorkspace(): Promise<string[]> {
     const packageJsonUris = await vscode.workspace.findFiles(
       '**/package.json',
@@ -99,6 +110,10 @@ export class DsRegistry {
     return folder.uri.fsPath;
   }
 
+  /**
+   * Tries to resolve a file inside a package's node_modules using standard Node resolution logic.
+   * Falls back to a workspace-wide search if not found.
+   */
   private async findInNodeModules(
     root: string,
     pkg: string,
@@ -115,7 +130,9 @@ export class DsRegistry {
     }
 
     try {
-      const packageJsonPath = require.resolve(`${pkg}/${file}`, { paths: [root] });
+      const packageJsonPath = require.resolve(`${pkg}/${file}`, {
+        paths: [root],
+      });
       if (fs.existsSync(packageJsonPath)) return packageJsonPath;
     } catch {
       // Ignored
@@ -152,6 +169,10 @@ export class DsRegistry {
     return undefined;
   }
 
+  /**
+   * Walks up from `startDir` looking for `filename`, stopping at `stopAt` (exclusive).
+   * Returns undefined if the file is not found in the path.
+   */
   private walkUpFor(filename: string, startDir: string, stopAt: string): string | undefined {
     let dir = startDir;
     while (true) {

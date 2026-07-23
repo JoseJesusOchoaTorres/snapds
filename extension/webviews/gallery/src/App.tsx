@@ -1,10 +1,9 @@
-import { DRAG_MIME } from '@snapds/webview-shared';
+import { DRAG_MIME, vscode } from '@snapds/webview-shared';
 import { type DragEvent, useEffect, useMemo, useState } from 'react';
 import { ComponentRow } from './components/ComponentRow';
 import { CollapseAllIcon, ExpandAllIcon, FolderIcon } from './components/icons';
 import { SearchBar } from './components/SearchBar';
 import type { ComponentMeta, ToGallery } from './types';
-import { vscode } from './vscodeApi';
 
 export default function App() {
   const [components, setComponents] = useState<ComponentMeta[]>([]);

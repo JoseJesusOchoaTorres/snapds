@@ -6,7 +6,7 @@
   gap: 8px;
   padding: var(--snapds-pad);
   min-height: 100vh;
-  background: var(--snapds-bg);
+  background: var(--vscode-editor-background);
 }
 
 /* Narrow sidebars / small windows: tighten spacing so nothing overflows. */
@@ -689,7 +689,7 @@ label > .desc {
   gap: 8px;
   margin: 16px calc(-1 * var(--snapds-pad)) 0;
   padding: 12px var(--snapds-pad);
-  background: var(--snapds-bg);
+  background: var(--vscode-editor-background);
   border-top: 1px solid var(--vscode-panel-border);
   z-index: 10;
 }

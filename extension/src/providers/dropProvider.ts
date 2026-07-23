@@ -4,6 +4,13 @@ import type { Store } from '../state/store';
 import { buildImportEdit } from '../util/injectComponent';
 import { DRAG_MIME } from '../util/messaging';
 
+/**
+ * Registers a drop provider that writes JSX for a component at the drop site,
+ * including the correct import statement.
+ *
+ * @param ctx Extension context
+ * @param store Global state store
+ */
 export function registerDropProvider(ctx: vscode.ExtensionContext, store: Store): void {
   const provider: vscode.DocumentDropEditProvider = {
     async provideDocumentDropEdits(document, _position, dataTransfer, _token) {

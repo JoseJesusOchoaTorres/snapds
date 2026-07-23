@@ -3,6 +3,7 @@ import { access, mkdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { ComponentMeta, SkillFileEntry, SkillFormat, SkillsConfig } from '../util/messaging';
+import { splitComponentId } from './codegen';
 import {
   buildArtifacts,
   type ComponentSkillFile,
@@ -36,6 +37,7 @@ export async function setSkillsConfig(config: SkillsConfig): Promise<void> {
     .update(SKILLS_CONFIG_KEY, config, vscode.ConfigurationTarget.Workspace);
 }
 
+/** Resolves the base directory for a given config and format. */
 function resolveBaseDirFromConfig(
   config: SkillsConfig,
   format: SkillFormat,
@@ -68,7 +70,10 @@ function walkMarkdown(dir: string): string[] {
  * Augment files carry YAML-ish frontmatter (`name:`/`description:`); generic files
  * fall back to the first `# ` heading and the first meaningful body line.
  */
-export function parseSkillMeta(full: string): { title?: string; description?: string } {
+export function parseSkillMeta(full: string): {
+  title?: string;
+  description?: string;
+} {
   let text = '';
   try {
     text = fs.readFileSync(full, 'utf8');
@@ -105,7 +110,13 @@ export function listSkillFiles(config: SkillsConfig): SkillFileEntry[] {
     if (seen.has(full)) return;
     seen.add(full);
     const meta = parseSkillMeta(full);
-    out.push({ path: full, label, format, title: meta.title, description: meta.description });
+    out.push({
+      path: full,
+      label,
+      format,
+      title: meta.title,
+      description: meta.description,
+    });
   };
 
   for (const format of config.formats) {
@@ -163,6 +174,15 @@ export function listComponentSkillFiles(
   return out;
 }
 
+function applyPackageExclusion(
+  components: ComponentMeta[],
+  excludedPackages: string[] | undefined,
+): ComponentMeta[] {
+  if (!excludedPackages?.length) return components;
+  const excluded = new Set(excludedPackages);
+  return components.filter((c) => !excluded.has(splitComponentId(c.id).pkg));
+}
+
 /**
  * Generates skills non-interactively from a persisted config. In `full` mode every
  * detail file is (re)written; in `incremental` mode only the index and the detail
@@ -171,15 +191,18 @@ export function listComponentSkillFiles(
 export async function generateSkillsToConfig(
   allComponents: ComponentMeta[],
   config: SkillsConfig,
-  opts: { mode: 'full' | 'incremental'; changedIds?: Set<string> } = { mode: 'full' },
+  opts: { mode: 'full' | 'incremental'; changedIds?: Set<string> } = {
+    mode: 'full',
+  },
 ): Promise<number> {
-  if (!allComponents.length || !config.formats.length) return 0;
+  const skillComponents = applyPackageExclusion(allComponents, config.excludedPackages);
+  if (!skillComponents.length || !config.formats.length) return 0;
   const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   const changedIds = opts.mode === 'incremental' ? opts.changedIds : undefined;
 
   const guidance = resolveGuidance(
     config,
-    allComponents.map((c) => c.id),
+    skillComponents.map((c) => c.id),
   );
 
   let total = 0;
@@ -191,7 +214,7 @@ export async function generateSkillsToConfig(
       );
       continue;
     }
-    const artifacts = buildArtifacts(allComponents, format, changedIds, guidance);
+    const artifacts = buildArtifacts(skillComponents, format, changedIds, guidance);
     // Auto-overwrite: no modal prompt on the automated path.
     const count = await writeArtifacts(base, artifacts, { value: true });
     if (count > 0) total += count;
@@ -291,6 +314,8 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
     return;
   }
 
+  const skillComponents = applyPackageExclusion(components, getSkillsConfig().excludedPackages);
+
   const fmtPick = await vscode.window.showQuickPick(
     [
       {
@@ -313,7 +338,7 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
 
   const guidance = resolveGuidance(
     getSkillsConfig(),
-    components.map((c) => c.id),
+    skillComponents.map((c) => c.id),
   );
 
   const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -324,7 +349,11 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
         detail: wsRoot ?? '(no workspace open)',
         value: 'workspace',
       },
-      { label: 'Custom folder…', detail: 'Pick any folder outside the repo', value: 'custom' },
+      {
+        label: 'Custom folder…',
+        detail: 'Pick any folder outside the repo',
+        value: 'custom',
+      },
     ],
     { placeHolder: 'Choose destination' },
   );
@@ -335,7 +364,10 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
   let aborted = false;
 
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: 'Snapds: Generating skills…' },
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: 'Snapds: Generating skills…',
+    },
     async () => {
       const confirmedOverwrite = { value: false };
       for (const format of formats) {
@@ -344,7 +376,7 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
           aborted = true;
           return;
         }
-        const artifacts = buildArtifacts(components, format, undefined, guidance);
+        const artifacts = buildArtifacts(skillComponents, format, undefined, guidance);
         const count = await writeArtifacts(base, artifacts, confirmedOverwrite);
         if (count < 0) {
           aborted = true;

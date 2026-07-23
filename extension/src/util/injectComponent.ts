@@ -3,6 +3,9 @@ import { computeImportEdit, generateJSX, splitComponentId } from '../ds/codegen'
 import type { Store } from '../state/store';
 import type { ComponentMeta } from './messaging';
 
+/**
+ * Builds a workspace edit to add an import for the component to the given document.
+ */
 export function buildImportEdit(
   edit: vscode.WorkspaceEdit,
   document: vscode.TextDocument,
@@ -22,6 +25,9 @@ export function buildImportEdit(
   }
 }
 
+/**
+ * Injects a component's JSX snippet and its import at the cursor.
+ */
 export async function injectComponent(
   componentId: string,
   store: Store,
