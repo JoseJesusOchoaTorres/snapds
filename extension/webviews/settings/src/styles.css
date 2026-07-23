@@ -372,8 +372,8 @@ label > .desc {
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px;
+  gap: 1rem;
+  padding: 0.75rem;
   text-align: left;
   background: transparent;
   color: inherit;
@@ -382,7 +382,7 @@ label > .desc {
   font: inherit;
 }
 .pkg-card-removable .pkg-card-main {
-  padding-right: 34px;
+  padding-right: 3rem;
 }
 .pkg-card-remove {
   position: absolute;
@@ -754,8 +754,22 @@ label > .desc {
 }
 
 .accordion-twisty {
-  display: inline-block;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.1s ease;
+}
+
+.accordion-twisty::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 5px;
+  border-color: transparent transparent transparent currentColor;
 }
 
 .accordion-twisty.open {
@@ -834,24 +848,66 @@ label > .desc {
 
 .config-banner {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  margin: 1rem 0 0;
   background: var(--vscode-inputValidation-infoBackground);
   border: 1px solid var(--vscode-inputValidation-infoBorder);
   border-radius: 3px;
-  flex-wrap: wrap;
 }
 
-.config-banner-text {
-  font-size: 0.925rem;
-}
-
-.config-banner-actions {
+.config-banner-content {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.config-banner-title {
+  font-size: 0.925rem;
+  font-weight: 600;
+}
+
+.config-banner-body {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  opacity: 0.8;
+}
+
+/* Action button pinned to the right, vertically centered with the content */
+.config-banner-main-action {
   flex-shrink: 0;
+  align-self: center;
+}
+
+.config-banner-dismiss {
+  flex-shrink: 0;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.config-banner-dismiss:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(128, 128, 128, 0.2));
+}
+
+.config-banner-dismiss:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
 }
 
 .modal-footer {

@@ -177,7 +177,7 @@ You can generate or load a `snapds.config.json` directly from the Settings panel
 - **Export config** — saves your current package selections, AI skills config, scope filters, and (optionally) your local component overrides to a `snapds.config.json`. Choose between **Replace** (full overwrite) and **Merge** (only write what changed) when a file already exists.
 - **Load config** — imports a config file into your settings. A summary shows what will change before you commit. Works with any path — defaults to the workspace root config, or browse to pick a file.
 
-When Snapds detects a config file at startup that differs from your current settings, it shows a one-time notification. Afterwards a banner in the Settings panel lets you load it at any time.
+When Snapds detects a config file at startup that differs from your current settings, it shows a notification. The notification reappears whenever the file content changes, so you'll always be prompted when a team member updates the config. A banner in the Settings panel also lets you load or review it at any time.
 
 ## Extension Commands
 

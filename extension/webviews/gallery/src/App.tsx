@@ -10,11 +10,25 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [pendingPackages, setPendingPackages] = useState<Set<string>>(new Set());
+  const [totalIndexing, setTotalIndexing] = useState(0);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent<ToGallery>) => {
       const msg = e.data;
-      if (msg.type === 'componentList') setComponents(msg.components);
+      if (msg.type === 'componentList') {
+        setComponents(msg.components);
+        const loadedPkgs = new Set(msg.components.map((c) => c.id.split('#')[0]));
+        setPendingPackages((prev) => {
+          if (prev.size === 0) return prev;
+          const next = new Set(prev);
+          for (const p of loadedPkgs) next.delete(p);
+          return next;
+        });
+      } else if (msg.type === 'indexing') {
+        setPendingPackages(new Set(msg.packages));
+        if (msg.packages.length > 0) setTotalIndexing(msg.packages.length);
+      }
     };
     window.addEventListener('message', onMessage);
     vscode.postMessage({ type: 'ready' });
@@ -55,7 +69,8 @@ export default function App() {
   }, [components]);
 
   const expandAll = () => setCollapsed({});
-  const collapseAll = () => setCollapsed(Object.fromEntries(allPackages.map((p) => [p, true])));
+  const collapseAll = () =>
+    setCollapsed(Object.fromEntries([...allPackages, ...pendingPackages].map((p) => [p, true])));
 
   const hasQuery = query.trim().length > 0;
 
@@ -64,6 +79,11 @@ export default function App() {
     e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ componentId: id }));
     e.dataTransfer.setData('text/plain', id);
   };
+
+  const isIndexing = pendingPackages.size > 0;
+  // Packages still loading that haven't appeared in the component list yet.
+  const pendingList = [...pendingPackages].filter((p) => !groupedComponents[p]);
+  const showTree = filtered.length > 0 || pendingList.length > 0;
 
   return (
     <div className="root">
@@ -100,13 +120,21 @@ export default function App() {
           </>
         )}
       </div>
-      {filtered.length === 0 ? (
-        <div className="empty">
-          {components.length === 0
-            ? 'Import a Snapds package to see components.'
-            : 'No components match your search.'}
+      {isIndexing && (
+        <div className="indexing-bar" role="status" aria-live="polite">
+          <div className="indexing-row">
+            <span className="indexing-spinner" aria-hidden="true" />
+            <span className="indexing-pkg-name">{[...pendingPackages][0]}</span>
+            <span className="indexing-progress">
+              {totalIndexing - pendingPackages.size} / {totalIndexing}
+            </span>
+          </div>
+          <p className="indexing-hint">
+            First run parses component types — subsequent loads use cache and are instant.
+          </p>
         </div>
-      ) : (
+      )}
+      {showTree ? (
         <div className="tree" role="tree">
           {Object.entries(groupedComponents).map(([pkgName, pkgComponents]) => {
             const isOpen = hasQuery || !collapsed[pkgName];
@@ -154,6 +182,53 @@ export default function App() {
               </div>
             );
           })}
+          {pendingList.map((pkg) => {
+            const isOpen = hasQuery || !collapsed[pkg];
+            return (
+              <div key={`loading-${pkg}`} className="tree-group">
+                <div
+                  className="tree-row tree-group-header tree-group-loading"
+                  role="treeitem"
+                  aria-level={1}
+                  aria-busy="true"
+                  aria-expanded={isOpen}
+                  aria-label={`Loading ${pkg}`}
+                  tabIndex={-1}
+                >
+                  <span className={`twisty${isOpen ? ' open' : ''}`} aria-hidden="true" />
+                  <FolderIcon />
+                  <span className="tree-label">{pkg}</span>
+                  <span className="tree-loading-spinner" aria-hidden="true" />
+                </div>
+                {isOpen && (
+                  // biome-ignore lint/a11y/useSemanticElements: role="group" is the correct ARIA tree subgroup; no HTML element maps to it here.
+                  <div role="group" aria-label={`Loading components for ${pkg}`}>
+                    <div className="skeleton-row">
+                      <div className="skeleton-bar" style={{ width: '55%' }} />
+                    </div>
+                    <div className="skeleton-row">
+                      <div
+                        className="skeleton-bar"
+                        style={{ width: '72%', animationDelay: '0.2s' }}
+                      />
+                    </div>
+                    <div className="skeleton-row">
+                      <div
+                        className="skeleton-bar"
+                        style={{ width: '42%', animationDelay: '0.4s' }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="empty">
+          {components.length === 0
+            ? 'Import a Snapds package to see components.'
+            : 'No components match your search.'}
         </div>
       )}
     </div>

@@ -132,7 +132,7 @@ export function PackageDetailModal({
           onClick={() => setShowManualAdd((v) => !v)}
           aria-expanded={showManualAdd}
         >
-          <span className={`accordion-twisty${showManualAdd ? ' open' : ''}`}>▶</span>
+          <span aria-hidden="true" className={`accordion-twisty${showManualAdd ? ' open' : ''}`} />
           Add component manually
         </button>
         {showManualAdd && (

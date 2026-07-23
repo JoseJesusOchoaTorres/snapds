@@ -4,6 +4,7 @@ dist-test/
 out/
 *.vsix
 .DS_Store
+.vscode/settings.json
 extension/media/gallery/
 extension/media/props/
 extension/media/settings/

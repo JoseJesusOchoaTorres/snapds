@@ -19,9 +19,7 @@ export function Accordion({ title, open, onToggle, children, headerAccessory }: 
             aria-expanded={open}
             onClick={onToggle}
           >
-            <span aria-hidden="true" className={`accordion-twisty${open ? ' open' : ''}`}>
-              ▶
-            </span>
+            <span aria-hidden="true" className={`accordion-twisty${open ? ' open' : ''}`} />
             {title}
           </button>
         </h3>
