@@ -31,10 +31,11 @@ export function previewImport(
       // Packages exported with the new format carry `components` (allowlist) and
       // omit `excluded` when nothing is excluded. Treat that as excluded: [] so
       // the comparison below works correctly.
-      const incomingExcluded = p.excluded ?? (p.components ? [] : undefined);
+      const incomingExcluded = p.excluded ?? (p.components ? [] : (cur.excluded ?? []));
+      const incomingManual = p.manual ?? [];
       return (
-        JSON.stringify(incomingExcluded) !== JSON.stringify(cur.excluded) ||
-        JSON.stringify(p.manual) !== JSON.stringify(cur.manual)
+        JSON.stringify(incomingExcluded) !== JSON.stringify(cur.excluded ?? []) ||
+        JSON.stringify(incomingManual) !== JSON.stringify(cur.manual ?? [])
       );
     })
     .map((p) => p.name);

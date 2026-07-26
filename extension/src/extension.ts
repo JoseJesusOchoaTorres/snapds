@@ -496,13 +496,17 @@ function setupSettingsPanel(
         ac.pendingImport = undefined;
 
         const list = ac.registry.list();
+        ac.gallery.postIndexing(list.map((p) => p.name));
         await Promise.all(list.map((pkg) => refreshActiveComponents(pkg, ac)));
+        ac.gallery.postIndexing([]);
+        ac.gallery.postComponentList(ac.store.listComponents());
         ac.settingsPanel.postPackageList(await buildPackageList(ac));
         ac.settingsPanel.postSkillsConfig(getSkillsConfig());
         ac.settingsPanel.postScopeFilters(
           ctx.workspaceState.get<string[]>('snapds.scopeFilters') ?? [],
         );
         ac.settingsPanel.postConfigStatus(detectConfigConflict(ac.registry, ctx));
+        ac.settingsPanel.postSaved();
         vscode.window.showInformationMessage('Snapds: config loaded successfully.');
       } catch (e) {
         vscode.window.showErrorMessage(
@@ -579,6 +583,7 @@ function setupSettingsPanel(
               }),
             );
             ac.gallery.postIndexing([]);
+            ac.gallery.postComponentList(ac.store.listComponents());
 
             const allComponents = ac.store.listComponents();
             await autoGenerateForNew(allComponents, ac);
@@ -782,6 +787,7 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
           }),
         );
         ac.gallery.postIndexing([]);
+        ac.gallery.postComponentList(ac.store.listComponents());
         ac.settingsPanel.postPackageList(await buildPackageList(ac));
         totalComponents = ac.store.listComponents().length;
       },
@@ -984,6 +990,7 @@ async function clearIntrospectionCache(ac: ActivationCtx): Promise<void> {
       progress.report({
         message: `Re-indexing ${list.length} package${list.length > 1 ? 's' : ''}…`,
       });
+      ac.gallery.postIndexing(list.map((p) => p.name));
       await Promise.all(
         list.map(async (pkg) => {
           await refreshActiveComponents(pkg, ac);
@@ -991,6 +998,8 @@ async function clearIntrospectionCache(ac: ActivationCtx): Promise<void> {
           progress.report({ message: `${pkg.name} (${done}/${list.length})` });
         }),
       );
+      ac.gallery.postIndexing([]);
+      ac.gallery.postComponentList(ac.store.listComponents());
       ac.settingsPanel.postPackageList(await buildPackageList(ac));
     },
   );
