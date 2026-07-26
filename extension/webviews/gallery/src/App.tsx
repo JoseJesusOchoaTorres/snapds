@@ -22,7 +22,7 @@ export default function App() {
         setComponents(msg.components);
         const loadedPkgs = new Set(msg.components.map((c) => c.id.split('#')[0]));
         const justCompleted = [...loadedPkgs].filter((p) => pendingRef.current.has(p));
-        if (justCompleted.length > 0) setLastCompletedPkg(justCompleted.at(-1)!);
+        if (justCompleted.length > 0) setLastCompletedPkg(justCompleted[justCompleted.length - 1]);
         const nextPending = new Set(pendingRef.current);
         for (const p of loadedPkgs) nextPending.delete(p);
         pendingRef.current = nextPending;
