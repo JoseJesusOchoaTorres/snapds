@@ -573,6 +573,17 @@ label > .desc {
   white-space: nowrap;
 }
 
+.select-all-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.select-all-count {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
 .comp-groups {
   display: flex;
   flex-direction: column;

@@ -14,11 +14,22 @@ interface Props {
   onRemovePackage: (name: string) => void;
 }
 
+/**
+ * Synthetic filter bucket for packages without an npm scope (e.g. `lucide-react`,
+ * `cmdk`). Real scopes always start with `@`, so this sentinel can never collide.
+ */
+const UNSCOPED = '(unscoped)';
+
 /** Returns the npm scope of a package name (`@acme/ui` -> `@acme`), else null. */
 function scopeOf(name: string): string | null {
   if (!name.startsWith('@')) return null;
   const slash = name.indexOf('/');
   return slash > 0 ? name.slice(0, slash) : name;
+}
+
+/** Filter key for a package: its npm scope, or the `UNSCOPED` bucket. */
+function filterKeyOf(name: string): string {
+  return scopeOf(name) ?? UNSCOPED;
 }
 
 /** Splits packages into Active (>=1 used component or enabled) vs Available sections. */
@@ -48,11 +59,15 @@ export function ComponentsTab({
 
   const scopes = useMemo(() => {
     const set = new Set<string>();
+    let hasUnscoped = false;
     for (const p of packages) {
       const s = scopeOf(p.name);
       if (s) set.add(s);
+      else hasUnscoped = true;
     }
-    return [...set].sort();
+    const sorted = [...set].sort();
+    // Keep the unscoped bucket last so real scopes read first.
+    return hasUnscoped ? [...sorted, UNSCOPED] : sorted;
   }, [packages]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: isActive/comparator/scopeOf are stable module/derived helpers; re-running only on the listed inputs is intended.
@@ -63,8 +78,7 @@ export function ComponentsTab({
     // Scopes are OR'd among themselves, but the text narrows the result: with
     // @starlight selected and "button" typed, only Starlight buttons match.
     const matched = packages.filter((p) => {
-      const scope = scopeOf(p.name);
-      const scopeMatch = !hasChips || (scope != null && scopeFilters.includes(scope));
+      const scopeMatch = !hasChips || scopeFilters.includes(filterKeyOf(p.name));
       const textMatch = !hasQuery || p.name.toLowerCase().includes(q);
       return scopeMatch && textMatch;
     });

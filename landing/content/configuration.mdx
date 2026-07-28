@@ -102,7 +102,7 @@ it finds. Editing the file invalidates the introspection cache automatically.
     "destination": "workspace",
     "autoGenerate": false
   },
-  "scopeFilters": ["button", "form"]
+  "scopeFilters": ["@acme"]
 }
 ```
 
@@ -122,7 +122,7 @@ it finds. Editing the file invalidates the introspection cache automatically.
 | `…props[prop].description`         | `string`                    | Overrides the prop's description.                   |
 | `…props[prop].hidden`              | `boolean`                   | Hide the prop from the UI and skills.               |
 | `skills`                           | `object`                    | AI skills export config (mirrors `snapds.skills`).  |
-| `scopeFilters`                     | `string[]`                  | Active scope tags pre-applied to all teammates.     |
+| `scopeFilters`                     | `string[]`                  | Active scope chips pre-applied for all teammates — npm scopes like `@acme`, or `(unscoped)` for packages with no scope. |
 
 <Callout type="info">
 **Backward compat:** The older `ignore` field on a package object is still
@@ -159,6 +159,22 @@ Resolution rules:
 - The `extends` chain is followed recursively (cycle-safe).
 - Child values win on deep merge; arrays are **replaced** (not concatenated).
 - Packages are merged per-name — a child package entry overrides only the fields it sets.
+
+## Managing components in the Settings panel
+
+The **Components** tab of the Settings panel is where you pick which components
+each package contributes to the gallery and skills.
+
+- **Scope filters** — chips above the list narrow it to one or more npm scopes
+  (e.g. `@acme`, `@radix-ui`). Packages without a scope (like `lucide-react` or
+  `cmdk`) are grouped under a `(unscoped)` chip, so they stay reachable when a
+  filter is active. Selecting chips ORs them together; typing in the filter box
+  narrows further. Active chips are persisted to
+  [`scopeFilters`](#workspace-config-file-snapdsconfigjson).
+- **Select all / Deselect all** — open a package card and use the toggle at the
+  top of the component list to select or clear every component in one action.
+  The button flips its label to reflect the current state — handy for packages
+  that export hundreds of components.
 
 ## Export & import config
 

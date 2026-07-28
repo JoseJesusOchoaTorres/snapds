@@ -10,6 +10,7 @@ interface Props {
   manualValue: string;
   onManualChange: (v: string) => void;
   onToggle: (comp: string) => void;
+  onSetAllSelected: (components: string[], selected: boolean) => void;
   onAddManual: () => void;
   onOpenEye: (comp: string) => void;
   onOpenGear: (comp: string) => void;
@@ -26,6 +27,7 @@ export function PackageDetailModal({
   manualValue,
   onManualChange,
   onToggle,
+  onSetAllSelected,
   onAddManual,
   onOpenEye,
   onOpenGear,
@@ -42,6 +44,8 @@ export function PackageDetailModal({
   const visible = all.filter((c) => c.toLowerCase().includes(filter.toLowerCase()));
   const used = visible.filter((c) => selected.includes(c));
   const available = visible.filter((c) => !selected.includes(c));
+  // Master toggle reflects the whole package, not the filtered view.
+  const allSelected = all.length > 0 && all.every((c) => selected.includes(c));
 
   const renderRow = (c: string) => {
     const manual = !detected.includes(c);
@@ -79,12 +83,12 @@ export function PackageDetailModal({
   const reloadButton = (
     <button
       type="button"
-      className="modal-close"
+      className="icon-btn"
       onClick={onReload}
       title="Reload components from disk"
       aria-label="Reload components from disk"
     >
-      ↺
+      <Icon name="refresh" />
     </button>
   );
 
@@ -97,6 +101,21 @@ export function PackageDetailModal({
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
+
+      {loaded && all.length > 0 && (
+        <div className="select-all-bar">
+          <span className="select-all-count">
+            {selected.length} / {all.length} selected
+          </span>
+          <button
+            type="button"
+            className="btn-small"
+            onClick={() => onSetAllSelected(all, !allSelected)}
+          >
+            {allSelected ? 'Deselect all' : 'Select all'}
+          </button>
+        </div>
+      )}
 
       {!loaded ? (
         <div className="empty">Loading components…</div>

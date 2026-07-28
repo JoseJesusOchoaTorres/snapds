@@ -34,6 +34,7 @@ export default function App() {
     setDetail,
     setManualInput,
     toggleComponent,
+    setAllComponents,
     addManual,
     removePackage,
     handleSave,
@@ -70,6 +71,7 @@ export default function App() {
         manualValue={manualInputs[name] ?? ''}
         onManualChange={(v) => setManualInput(name, v)}
         onToggle={(comp) => toggleComponent(name, comp)}
+        onSetAllSelected={(comps, selected) => setAllComponents(name, comps, selected)}
         onAddManual={() => addManual(name)}
         onOpenEye={(comp) => openComponentModal('eye', comp)}
         onOpenGear={(comp) => openComponentModal('gear', comp)}
