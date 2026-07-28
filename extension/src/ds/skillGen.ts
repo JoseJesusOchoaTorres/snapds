@@ -137,6 +137,7 @@ function routerLink(format: SkillFormat, slug: string): string {
 export function buildComponentSkillMarkdown(
   meta: ComponentMeta,
   format: SkillFormat,
+  slug: string,
   guidance = '',
 ): string {
   const agent = AGENTS[format];
@@ -148,7 +149,7 @@ export function buildComponentSkillMarkdown(
   const heading = agent.layout !== 'generic';
 
   const parts: string[] = [];
-  const fm = agent.componentFrontmatter?.({ name, pkg, slug: kebab(name), description: desc });
+  const fm = agent.componentFrontmatter?.({ name, pkg, slug, description: desc });
   if (fm) parts.push(fm);
   parts.push(AUTOGEN_HEADER, '', `# ${name}`, '', desc, '');
 
@@ -241,7 +242,8 @@ export function buildMainSkillMarkdown(
       '',
     );
     for (const [pkg, comps] of byPkg) {
-      parts.push(`### ${pkg}`, '', comps.map((c) => splitComponentId(c.id).name).join(', '), '');
+      // biome-ignore lint/style/noNonNullAssertion: comps derives from components, the same array used to build slugs
+      parts.push(`### ${pkg}`, '', comps.map((c) => `snapds-${slugs.get(c.id)!}`).join(', '), '');
     }
     return parts.join('\n');
   }
@@ -291,10 +293,11 @@ export function buildArtifacts(
   if (!agent.componentRelPath) return artifacts;
   for (const meta of components) {
     if (changedIds && !changedIds.has(meta.id)) continue;
+    // biome-ignore lint/style/noNonNullAssertion: meta is from components, the same array used to build slugs
+    const slug = slugs.get(meta.id)!;
     artifacts.push({
-      // biome-ignore lint/style/noNonNullAssertion: meta is from components, the same array used to build slugs
-      relativePath: agent.componentRelPath(slugs.get(meta.id)!),
-      contents: buildComponentSkillMarkdown(meta, format, guidance?.perComponent[meta.id]),
+      relativePath: agent.componentRelPath(slug),
+      contents: buildComponentSkillMarkdown(meta, format, slug, guidance?.perComponent[meta.id]),
     });
   }
   return artifacts;

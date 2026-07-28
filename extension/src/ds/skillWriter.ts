@@ -45,7 +45,11 @@ export function resolveDestinationRootFromConfig(
 ): string | undefined {
   if (config.destination === 'custom') return config.customPath || undefined;
   if (config.destination === 'subfolder') {
-    return wsRoot ? path.join(wsRoot, config.subPath ?? '') : undefined;
+    if (!wsRoot) return undefined;
+    const subPath = config.subPath ?? '';
+    // Allow empty/. (workspace root), but reject absolute paths and .. traversal.
+    if (subPath && (path.isAbsolute(subPath) || subPath.includes('..'))) return undefined;
+    return resolveWithinBase(wsRoot, subPath);
   }
   return wsRoot;
 }
@@ -267,11 +271,16 @@ async function resolveDestinationRoot(
     const sub = await vscode.window.showInputBox({
       prompt: 'Subfolder relative to the workspace root',
       placeHolder: 'apps/web',
-      validateInput: (v) =>
-        path.isAbsolute(v.trim()) ? 'Use a path relative to the workspace root.' : undefined,
+      validateInput: (v) => {
+        const trimmed = v.trim();
+        if (path.isAbsolute(trimmed)) return 'Use a path relative to the workspace root.';
+        if (trimmed.includes('..')) return 'Path cannot contain .. segments.';
+        return undefined;
+      },
     });
     if (sub === undefined) return undefined;
-    return path.join(wsRoot, sub.trim());
+    const trimmed = sub.trim();
+    return resolveWithinBase(wsRoot, trimmed);
   }
 
   const picked = await vscode.window.showOpenDialog({

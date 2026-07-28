@@ -23,7 +23,8 @@ interface Props {
 /** Router first, then alphabetical — matches how the host lists files per agent. */
 function sortForDisplay(files: SkillFileEntry[]): SkillFileEntry[] {
   return [...files].sort(
-    (a, b) => Number(b.isRouter) - Number(a.isRouter) || a.label.localeCompare(b.label),
+    (a, b) =>
+      Number(b.isRouter ?? false) - Number(a.isRouter ?? false) || a.label.localeCompare(b.label),
   );
 }
 

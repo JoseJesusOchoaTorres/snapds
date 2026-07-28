@@ -59,7 +59,7 @@ test('colliding slugs are deduped with a numeric suffix', () => {
 });
 
 test('augment component markdown carries YAML frontmatter and sections', () => {
-  const md = buildComponentSkillMarkdown(comp('Button'), 'augment');
+  const md = buildComponentSkillMarkdown(comp('Button'), 'augment', 'button');
   assert.ok(md.startsWith('---'));
   assert.ok(md.includes('name: snapds-button'));
   assert.ok(md.includes('## Import'));
@@ -68,7 +68,7 @@ test('augment component markdown carries YAML frontmatter and sections', () => {
 });
 
 test('generic component markdown has no YAML frontmatter', () => {
-  const md = buildComponentSkillMarkdown(comp('Button'), 'generic');
+  const md = buildComponentSkillMarkdown(comp('Button'), 'generic', 'button');
   assert.ok(!md.startsWith('---'));
   assert.ok(md.includes('**Import**'));
 });
@@ -87,7 +87,7 @@ test('resolveGuidance omits components without any guidance', () => {
 });
 
 test('component markdown appends an Additional guidance section when provided', () => {
-  const md = buildComponentSkillMarkdown(comp('Button'), 'augment', 'Use inside FormField.');
+  const md = buildComponentSkillMarkdown(comp('Button'), 'augment', 'button', 'Use inside FormField.');
   assert.ok(md.includes('## Additional guidance'));
   assert.ok(md.includes('Use inside FormField.'));
 });
@@ -153,7 +153,7 @@ test('cline build emits a single consolidated file', () => {
 });
 
 test('cursor component rule carries description frontmatter, not a name', () => {
-  const md = buildComponentSkillMarkdown(comp('Button'), 'cursor');
+  const md = buildComponentSkillMarkdown(comp('Button'), 'cursor', 'button');
   assert.ok(md.startsWith('---'));
   assert.ok(md.includes('description:'));
   assert.ok(md.includes('alwaysApply: false'));
@@ -161,7 +161,7 @@ test('cursor component rule carries description frontmatter, not a name', () => 
 });
 
 test('windsurf component rule carries a model_decision trigger', () => {
-  const md = buildComponentSkillMarkdown(comp('Button'), 'windsurf');
+  const md = buildComponentSkillMarkdown(comp('Button'), 'windsurf', 'button');
   assert.ok(md.includes('trigger: model_decision'));
 });
 
@@ -204,6 +204,6 @@ test('compact flag does not affect per-component agents (they keep props)', () =
     props: [{ name: 'variant', type: 'string', raw: 'string', required: true }],
   };
   // A cursor detail file always carries the full table regardless of compact.
-  const md = buildComponentSkillMarkdown(withProps, 'cursor');
+  const md = buildComponentSkillMarkdown(withProps, 'cursor', 'button');
   assert.ok(md.includes('| Prop |'));
 });
