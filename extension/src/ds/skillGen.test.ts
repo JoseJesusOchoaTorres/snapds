@@ -87,7 +87,12 @@ test('resolveGuidance omits components without any guidance', () => {
 });
 
 test('component markdown appends an Additional guidance section when provided', () => {
-  const md = buildComponentSkillMarkdown(comp('Button'), 'augment', 'button', 'Use inside FormField.');
+  const md = buildComponentSkillMarkdown(
+    comp('Button'),
+    'augment',
+    'button',
+    'Use inside FormField.',
+  );
   assert.ok(md.includes('## Additional guidance'));
   assert.ok(md.includes('Use inside FormField.'));
 });
