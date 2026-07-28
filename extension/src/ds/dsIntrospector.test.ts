@@ -48,8 +48,8 @@ function fakeOverrides() {
 // ---------------------------------------------------------------------------
 
 const PKG = { name: '@acme/ui', version: '1.0.0', importPath: '@acme/ui' };
-// CACHE_SCHEMA_VERSION = 4 (from dsIntrospector.ts)
-const CACHE_KEY = 'ds.cache.v4.@acme/ui@1.0.0';
+// CACHE_SCHEMA_VERSION = 5 (from dsIntrospector.ts)
+const CACHE_KEY = 'ds.cache.v5.@acme/ui@1.0.0';
 
 const mkProp = (overrides) => ({ type: 'string', raw: 'string', required: false, ...overrides });
 
@@ -99,7 +99,7 @@ test('invalidate removes the specific cache entry', async () => {
 
 test('invalidate leaves other cache entries untouched', async () => {
   const ctx = fakeCtx();
-  const otherKey = 'ds.cache.v4.@other/lib@2.0.0';
+  const otherKey = 'ds.cache.v5.@other/lib@2.0.0';
   await ctx.globalState.update(CACHE_KEY, [mkComp('Button')]);
   await ctx.globalState.update(otherKey, [mkComp('Card')]);
   const introspector = new DsIntrospector(ctx, fakeOverrides());
@@ -235,7 +235,7 @@ test('introspect returns cached data without re-parsing', async () => {
 test('introspect with a version override resolves from the versioned cache key', async () => {
   const ctx = fakeCtx();
   const comps = [mkComp('Avatar')];
-  const versionedKey = 'ds.cache.v4.@acme/ui@2.0.0';
+  const versionedKey = 'ds.cache.v5.@acme/ui@2.0.0';
   await ctx.globalState.update(versionedKey, comps);
   const introspector = new DsIntrospector(ctx, fakeOverrides());
   assert.deepEqual(await introspector.introspect(PKG, { version: '2.0.0' }), comps);
@@ -331,6 +331,49 @@ test('extractInterfaceProps still drops standard DOM/React attributes', () => {
     // `className`/`onClick` come from @types/react and must remain filtered out.
     assert.ok(!names.includes('className'), 'className should be filtered');
     assert.ok(!names.includes('onClick'), 'onClick should be filtered');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Mimics react-aria's pattern: real props inherited from a public interface,
+ * plus DOM event handlers re-declared in a `@private` interface (GlobalDOMEvents).
+ */
+function makePrivateInterfaceProgram() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'snapds-private-'));
+  const abs = path.join(tmp, 'node_modules/@scope/widget/index.d.ts');
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(
+    abs,
+    [
+      '/** @private */',
+      'export interface PrivateEvents { onClick?: () => void; onScroll?: () => void; }',
+      'export interface PublicMixin { variant?: string; }',
+      'export interface WidgetProps extends PublicMixin, PrivateEvents { label?: string; }',
+      'export declare const Widget: unknown;',
+      '',
+    ].join('\n'),
+  );
+  const program = ts.createProgram([abs], {
+    target: ts.ScriptTarget.ES2020,
+    moduleResolution: ts.ModuleResolutionKind.Node10,
+    skipLibCheck: true,
+    noEmit: true,
+    strict: false,
+  });
+  return { tmp, entry: abs, program };
+}
+
+test('extractInterfaceProps drops props re-declared in a @private interface', () => {
+  const { tmp, entry, program } = makePrivateInterfaceProgram();
+  try {
+    const names = extractInterfaceProps(program, entry, 'WidgetProps')
+      .map((p) => p.name)
+      .sort();
+    // onClick/onScroll live in the @private PrivateEvents interface → dropped;
+    // the component's own `label` and the public `variant` mixin survive.
+    assert.deepEqual(names, ['label', 'variant']);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

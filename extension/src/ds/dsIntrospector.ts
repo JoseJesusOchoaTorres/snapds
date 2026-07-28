@@ -16,7 +16,7 @@ import { buildCompilerOptions, enumerateComponentExports } from './exportsScan';
  * results (e.g. new prop extraction). This is part of the cache key, so bumping
  * it forces a fresh parse for everyone without clearing unrelated globalState.
  */
-const CACHE_SCHEMA_VERSION = 4;
+const CACHE_SCHEMA_VERSION = 5;
 
 export class DsIntrospector {
   /** Deduplicates concurrent introspect() calls for the same package. */
@@ -318,7 +318,15 @@ export class DsIntrospector {
       if (pkgConfig?.excluded?.includes(exp.name)) continue;
       if (exp.description?.includes('@internal')) continue;
       const compOverride = pkgConfig?.overrides?.[exp.name];
-      const props = this.applyCompanyPropOverrides(siblingProps.get(exp.name) ?? [], compOverride);
+      // Backfill props the same way the main pass does: sibling scan first, then
+      // the ${Name}Props interface. react-aria components typed as
+      // `const X: (props) => ReactElement | null` are invisible to both docgen
+      // and the sibling scan, so the interface read is what surfaces their props.
+      let props = siblingProps.get(exp.name) ?? siblingProps.get(`${exp.name}Props`) ?? [];
+      if (props.length === 0 && tsProgram && entry) {
+        props = extractInterfaceProps(tsProgram, entry, `${exp.name}Props`);
+      }
+      props = this.applyCompanyPropOverrides(props, compOverride);
       components.push({
         id: `${p.name}#${exp.name}`,
         name: exp.name,
@@ -496,9 +504,11 @@ export class DsIntrospector {
  * Keeps every first-class prop, including ones a component inherits from sibling
  * packages — libraries like Radix spread a single component's props across
  * several `@radix-ui/*` packages, so restricting to the package's own directory
- * would silently drop most of them. Only standard DOM/React attributes
- * (`@types/react`) and TypeScript's default lib are treated as noise and
- * skipped, mirroring the react-docgen-typescript propFilter on the primary path.
+ * would silently drop most of them. Treated as noise and skipped: standard
+ * DOM/React attributes (`@types/react`), TypeScript's default lib, and props
+ * whose declaring interface is JSDoc-tagged `@private`/`@internal` — react-aria
+ * re-declares ~60 DOM event handlers in private `GlobalDOMEvents`/
+ * `GlobalDOMAttributes` interfaces that would otherwise flood the panel.
  *
  * Accepts an already-created program to avoid the expensive `ts.createProgram`
  * call on every component — callers should create one program per package and
@@ -545,7 +555,9 @@ export function extractInterfaceProps(
       const isNoise = declarations.every((d) => {
         const sf = d.getSourceFile();
         return (
-          /node_modules\/@types\/react/.test(sf.fileName) || program.isSourceFileDefaultLibrary(sf)
+          /node_modules\/@types\/react/.test(sf.fileName) ||
+          program.isSourceFileDefaultLibrary(sf) ||
+          declaredInPrivateInterface(d)
         );
       });
       if (isNoise) continue;
@@ -596,6 +608,20 @@ export function extractInterfaceProps(
   } catch {
     return [];
   }
+}
+
+/**
+ * True when a property's declaring interface is JSDoc-tagged `@private` or
+ * `@internal`. Used to treat library-internal DOM pass-through props as noise —
+ * e.g. react-aria's `GlobalDOMEvents`/`GlobalDOMAttributes` interfaces, which
+ * re-declare dozens of standard DOM events under a private tag.
+ */
+function declaredInPrivateInterface(decl: ts.Declaration): boolean {
+  const container = decl.parent;
+  if (!container) return false;
+  return ts
+    .getJSDocTags(container)
+    .some((tag) => ['private', 'internal'].includes(String(tag.tagName.escapedText)));
 }
 
 function normalizeProp(prop: docgen.PropItem): PropMeta {
