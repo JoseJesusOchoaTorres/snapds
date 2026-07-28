@@ -1,8 +1,12 @@
 // @ts-nocheck
 import assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { test } from 'node:test';
+import * as ts from 'typescript';
 import { UserOverridesStore } from '../state/userOverrides';
-import { DsIntrospector } from './dsIntrospector';
+import { DsIntrospector, extractInterfaceProps } from './dsIntrospector';
 
 // ---------------------------------------------------------------------------
 // Fake contexts
@@ -44,8 +48,8 @@ function fakeOverrides() {
 // ---------------------------------------------------------------------------
 
 const PKG = { name: '@acme/ui', version: '1.0.0', importPath: '@acme/ui' };
-// CACHE_SCHEMA_VERSION = 3 (from dsIntrospector.ts)
-const CACHE_KEY = 'ds.cache.v3.@acme/ui@1.0.0';
+// CACHE_SCHEMA_VERSION = 4 (from dsIntrospector.ts)
+const CACHE_KEY = 'ds.cache.v4.@acme/ui@1.0.0';
 
 const mkProp = (overrides) => ({ type: 'string', raw: 'string', required: false, ...overrides });
 
@@ -95,7 +99,7 @@ test('invalidate removes the specific cache entry', async () => {
 
 test('invalidate leaves other cache entries untouched', async () => {
   const ctx = fakeCtx();
-  const otherKey = 'ds.cache.v3.@other/lib@2.0.0';
+  const otherKey = 'ds.cache.v4.@other/lib@2.0.0';
   await ctx.globalState.update(CACHE_KEY, [mkComp('Button')]);
   await ctx.globalState.update(otherKey, [mkComp('Card')]);
   const introspector = new DsIntrospector(ctx, fakeOverrides());
@@ -231,7 +235,7 @@ test('introspect returns cached data without re-parsing', async () => {
 test('introspect with a version override resolves from the versioned cache key', async () => {
   const ctx = fakeCtx();
   const comps = [mkComp('Avatar')];
-  const versionedKey = 'ds.cache.v3.@acme/ui@2.0.0';
+  const versionedKey = 'ds.cache.v4.@acme/ui@2.0.0';
   await ctx.globalState.update(versionedKey, comps);
   const introspector = new DsIntrospector(ctx, fakeOverrides());
   assert.deepEqual(await introspector.introspect(PKG, { version: '2.0.0' }), comps);
@@ -256,4 +260,78 @@ test('getCompanyOverride returns undefined when no workspace folder is open', ()
   // vscode.workspace.workspaceFolders is undefined in the test stub (see test-utils/vscode.ts)
   const introspector = new DsIntrospector(fakeCtx(), fakeOverrides());
   assert.equal(introspector.getCompanyOverride('@acme/ui', 'Button'), undefined);
+});
+
+// ---------------------------------------------------------------------------
+// extractInterfaceProps — cross-package prop inheritance (Radix-style)
+// ---------------------------------------------------------------------------
+
+/**
+ * Writes a throwaway node_modules layout that mimics how Radix spreads one
+ * component's props across sibling packages, and returns a ready TS program.
+ * `@scope/dialog` (the package under introspection) declares only `asChild`,
+ * inherits `sideOffset` from a sibling `@scope/primitive`, and inherits
+ * `className` from `@types/react`.
+ */
+function makeMultiPackageProgram() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'snapds-introspect-'));
+  const write = (rel: string, src: string) => {
+    const abs = path.join(tmp, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, src);
+    return abs;
+  };
+
+  const reactTypes = write(
+    'node_modules/@types/react/index.d.ts',
+    'export interface DomAttributes { className?: string; onClick?: () => void; }\n',
+  );
+  const primitive = write(
+    'node_modules/@scope/primitive/index.d.ts',
+    'export interface PrimitiveProps { sideOffset?: number; }\n',
+  );
+  const dialog = write(
+    'node_modules/@scope/dialog/index.d.ts',
+    [
+      "import { DomAttributes } from '../../@types/react';",
+      "import { PrimitiveProps } from '../primitive';",
+      'export interface DialogProps extends PrimitiveProps, DomAttributes { asChild?: boolean; }',
+      'export declare const Dialog: unknown;',
+      '',
+    ].join('\n'),
+  );
+
+  const program = ts.createProgram([dialog, primitive, reactTypes], {
+    target: ts.ScriptTarget.ES2020,
+    moduleResolution: ts.ModuleResolutionKind.Node10,
+    skipLibCheck: true,
+    noEmit: true,
+    strict: false,
+  });
+
+  return { tmp, entry: dialog, program };
+}
+
+test('extractInterfaceProps keeps props inherited from sibling packages', () => {
+  const { tmp, entry, program } = makeMultiPackageProgram();
+  try {
+    const props = extractInterfaceProps(program, entry, 'DialogProps');
+    const names = props.map((p) => p.name).sort();
+    // The package's own prop AND the one inherited from @scope/primitive survive.
+    assert.deepEqual(names, ['asChild', 'sideOffset']);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('extractInterfaceProps still drops standard DOM/React attributes', () => {
+  const { tmp, entry, program } = makeMultiPackageProgram();
+  try {
+    const names = extractInterfaceProps(program, entry, 'DialogProps').map((p) => p.name);
+    // `className`/`onClick` come from @types/react and must remain filtered out.
+    assert.ok(!names.includes('className'), 'className should be filtered');
+    assert.ok(!names.includes('onClick'), 'onClick should be filtered');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });

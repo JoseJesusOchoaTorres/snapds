@@ -16,7 +16,7 @@ import { buildCompilerOptions, enumerateComponentExports } from './exportsScan';
  * results (e.g. new prop extraction). This is part of the cache key, so bumping
  * it forces a fresh parse for everyone without clearing unrelated globalState.
  */
-const CACHE_SCHEMA_VERSION = 3;
+const CACHE_SCHEMA_VERSION = 4;
 
 export class DsIntrospector {
   /** Deduplicates concurrent introspect() calls for the same package. */
@@ -291,7 +291,7 @@ export class DsIntrospector {
             // Last resort: react-docgen-typescript can't expand Omit<T,K> on
             // ForwardRefExoticComponent, so we use the TS compiler API to read
             // the ${Name}Props interface directly from the package types.
-            props = extractInterfaceProps(tsProgram, entry, `${c.displayName}Props`, pkgDir);
+            props = extractInterfaceProps(tsProgram, entry, `${c.displayName}Props`);
           }
         }
         props = this.applyCompanyPropOverrides(props, compOverride);
@@ -492,18 +492,22 @@ export class DsIntrospector {
  * interface exported by the package. This handles the case where
  * react-docgen-typescript returns 0 props because the component type is
  * wrapped in `Omit<T, K>` (e.g. `ForwardRefExoticComponent<Omit<ButtonProps, "ref">>`).
- * Only includes props declared within the package directory itself, skipping
- * anything inherited from @types/react or other node_modules.
+ *
+ * Keeps every first-class prop, including ones a component inherits from sibling
+ * packages — libraries like Radix spread a single component's props across
+ * several `@radix-ui/*` packages, so restricting to the package's own directory
+ * would silently drop most of them. Only standard DOM/React attributes
+ * (`@types/react`) and TypeScript's default lib are treated as noise and
+ * skipped, mirroring the react-docgen-typescript propFilter on the primary path.
  *
  * Accepts an already-created program to avoid the expensive `ts.createProgram`
  * call on every component — callers should create one program per package and
  * reuse it across all extractInterfaceProps calls.
  */
-function extractInterfaceProps(
+export function extractInterfaceProps(
   program: ts.Program,
   entry: string,
   interfaceName: string,
-  pkgDir: string,
 ): PropMeta[] {
   try {
     const checker = program.getTypeChecker();
@@ -534,9 +538,17 @@ function extractInterfaceProps(
     for (const prop of props) {
       const declarations = prop.getDeclarations();
       if (!declarations || declarations.length === 0) continue;
-      // Skip props inherited from outside the package (DOM props, @types/react, etc.)
-      const fromPkg = declarations.some((d) => d.getSourceFile().fileName.startsWith(pkgDir));
-      if (!fromPkg) continue;
+      // Drop only standard DOM/React attributes (@types/react) and TypeScript's
+      // default lib — the same noise the primary propFilter removes. Everything
+      // else is kept, including props inherited from sibling packages (e.g. Radix
+      // spreads a single component's props across several @radix-ui/* packages).
+      const isNoise = declarations.every((d) => {
+        const sf = d.getSourceFile();
+        return (
+          /node_modules\/@types\/react/.test(sf.fileName) || program.isSourceFileDefaultLibrary(sf)
+        );
+      });
+      if (isNoise) continue;
 
       const propType = checker.getTypeOfSymbol(prop);
       const raw = checker.typeToString(propType);
