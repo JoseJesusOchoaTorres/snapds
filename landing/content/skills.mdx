@@ -15,57 +15,72 @@ A tiny, always-loaded index lists your components and links to per-component
 detail that is loaded only when needed. Context windows stay small while the
 agent still has the full contract a click away.
 
-## Two formats
+## Supported agents
 
-Pick one or both via `snapds.skills.formats`:
+Select any combination via `snapds.skills.formats`. Each writes to the location
+and file format that agent expects, and each keeps a **main dictionary/router**
+file that snapds sorts into the first card position (badged `router`) in the
+Settings UI.
 
-### `augment` — Augment skills
+| Agent (`format`) | Location | Structure |
+|---|---|---|
+| `claude` — Claude Code | `.claude/skills/` | Router `SKILL.md` + one skill folder per component |
+| `augment` — Augment | `.augment/skills/` | Router `SKILL.md` + one skill folder per component |
+| `cursor` — Cursor | `.cursor/rules/` | Always-on `snapds-index.mdc` + one `.mdc` per component (loaded on demand) |
+| `windsurf` — Windsurf | `.windsurf/rules/` | Always-on `snapds-index.md` + one `.md` per component (loaded on demand) |
+| `copilot` — GitHub Copilot | `.github/instructions/` | Single consolidated `snapds.instructions.md` catalog |
+| `cline` — Cline | `.clinerules/` | Single consolidated `snapds.md` catalog |
+| `generic` — AGENTS.md | repo root | `AGENTS.md` dictionary + flat `snapds-skills/*.md` (also serves Codex, Gemini CLI, Jules) |
 
-An index skill plus one skill folder per component, each with YAML frontmatter
-so the Augment agent can route to them:
+### Context-efficient by design
 
-<FileTree>
-  <FileTree.Folder name=".augment/skills" defaultOpen>
-    <FileTree.Folder name="snapds" defaultOpen>
-      <FileTree.File name="SKILL.md" />
-    </FileTree.Folder>
-    <FileTree.Folder name="snapds-button">
-      <FileTree.File name="SKILL.md" />
-    </FileTree.Folder>
-    <FileTree.Folder name="snapds-card">
-      <FileTree.File name="SKILL.md" />
-    </FileTree.Folder>
-  </FileTree.Folder>
-</FileTree>
+The structure adapts to how each agent loads context:
 
-### `generic` — AGENTS.md
+- **Claude, Augment** load a component's skill only when it's used (folder-based
+  progressive disclosure).
+- **Cursor, Windsurf** keep a tiny always-on router and load each component rule
+  on demand via its `description` / `model_decision` trigger.
+- **Copilot, Cline** have no lazy loading, so snapds writes a single catalog file
+  that inlines every component instead of many separate always-loaded files.
 
-An assistant-agnostic dictionary in a single `AGENTS.md`, with per-component
-detail in a flat folder (no frontmatter):
+Every layout carries each component's **full contract** — description, import,
+usage, and a complete **Props** table — including the consolidated catalogs.
 
-<FileTree>
-  <FileTree.File name="AGENTS.md" />
-  <FileTree.Folder name="snapds-skills" defaultOpen>
-    <FileTree.File name="button.md" />
-    <FileTree.File name="card.md" />
-  </FileTree.Folder>
-</FileTree>
+### Compact consolidated catalogs
 
-Each detail file contains the component's description, **Import**, **Usage**, a
-**Props** table, and any per-component guidance.
+Because Copilot and Cline load their single catalog on **every** request, a large
+design system can make that file heavy. When one of them is selected, the AI tab
+shows a **Compact catalog** toggle (`snapds.skills.compactConsolidated`): enable it
+to drop the prop tables from those catalogs — keeping import + usage only — so the
+always-loaded file stays small. It has no effect on the other agents, whose
+per-component detail is loaded on demand and always keeps the full props table.
 
 ## Destinations
 
-Set `snapds.skills.destination`:
+Set `snapds.skills.destination`. The chosen root is shared by every selected
+agent — each still writes to its own subpath (`.claude/skills`, `.cursor/rules`,
+…) underneath it.
 
-- **`workspace`** — write committable, team-shared skills to the repo root.
-- **`custom`** — write to any folder via `customPath` (paths are validated
-  against traversal).
+- **`workspace`** — the repo root. Committable and team-shared; the right choice
+  for most repos.
+- **`subfolder`** — a path relative to the repo root via `subPath` (e.g.
+  `apps/web`), for **monorepos** where an agent runs from a specific app/package.
+- **`custom`** — any absolute folder via `customPath` — e.g. `~` to write
+  **personal** agent skills (`~/.claude/skills`) shared across all your projects,
+  or an ignored scratch folder to keep generated docs out of git.
+
+<Callout type="warning">
+  **Copilot, Windsurf, and Cline only read their config from the repository
+  root.** With `subfolder` or `custom`, generate those from `workspace` instead —
+  the Settings panel shows a reminder when a root-only agent is paired with a
+  non-root destination. Claude, Augment, Cursor, and AGENTS.md support nested
+  discovery, so they work from a subfolder.
+</Callout>
 
 ## Generating
 
-- **Snapds: Generate Skills** — interactive; prompts for format and destination,
-  then writes the full set for every selected component.
+- **Snapds: Generate Skills** — interactive; lets you pick one or more agents and
+  a destination, then writes the full set for every selected component.
 - **Snapds: Regenerate All Skills** — non-interactive; reuses your saved
   `snapds.skills` config and rewrites the index and all detail files.
 

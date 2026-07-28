@@ -65,33 +65,43 @@ Your selection is stored per-package in `snapds.packages` as `excluded` (chips y
 
 Snapds can export the public contract of your components (props, types, enum values, defaults, import line, and a canonical usage example) as skill documentation for coding agents.
 
-### Output formats
+### Supported agents
 
-Both formats use the same **dictionary + on-demand detail** topology so an agent's context window stays small regardless of which assistant consumes them:
+Pick any combination in Settings → **AI**. Each agent writes to the location and file format it expects, and every layout keeps a **dictionary/router** file that Snapds sorts into the first card position and badges `router` (component cards are badged `skill`). When you select more than one agent, the generated-skills list splits into a **sub-tab per agent**, so you only see one agent's files at a time.
 
-- **Augment skills** — a directory per skill, each with a `SKILL.md` and YAML frontmatter. A tiny `snapds/SKILL.md` acts as the always-loaded **dictionary/router**; one `snapds-<component>/SKILL.md` per component holds the detail and is loaded on demand.
-- **Generic `AGENTS.md`** — an assistant-agnostic **dictionary** file (`AGENTS.md`) that only lists components and links to per-component detail files under `snapds-skills/<component>.md`, which agents open on demand.
+| Agent (`format`) | Location | Structure |
+|---|---|---|
+| `claude` — Claude Code | `.claude/skills/` | Router `SKILL.md` + one skill folder per component |
+| `augment` — Augment | `.augment/skills/` | Router `SKILL.md` + one skill folder per component |
+| `cursor` — Cursor | `.cursor/rules/` | Always-on `snapds-index.mdc` + one `.mdc` per component (loaded on demand) |
+| `windsurf` — Windsurf | `.windsurf/rules/` | Always-on `snapds-index.md` + one `.md` per component (loaded on demand) |
+| `copilot` — GitHub Copilot | `.github/instructions/` | Single consolidated `snapds.instructions.md` catalog |
+| `cline` — Cline | `.clinerules/` | Single consolidated `snapds.md` catalog |
+| `generic` — `AGENTS.md` | repo root | `AGENTS.md` dictionary + flat `snapds-skills/*.md` (also serves Codex, Gemini CLI, Jules) |
 
-In both formats the index is intentionally tiny and never inlines component detail, so unused components never enter the context window.
+The structure adapts to how each agent loads context: Claude/Augment lazy-load a component's folder on use; Cursor/Windsurf keep a tiny always-on router and load each rule on demand via its `description`/`model_decision` trigger; Copilot/Cline have no lazy loading, so Snapds writes a single catalog file that inlines every component's full contract (import, usage, and props) instead of many separate files. Every layout carries the complete props table for each component. Since those consolidated files are loaded on every request, selecting Copilot or Cline reveals a **Compact catalog** toggle (`snapds.skills.compactConsolidated`) that drops the prop tables to keep the always-loaded file small in large design systems.
 
 ### Destinations
 
 You choose where the files are written:
 
-- **Workspace (team-shared)** — committable, at the repo root (`.augment/skills` for Augment skills; root `AGENTS.md` + `snapds-skills/` for generic).
-- **Custom folder** — any folder you pick, for skills you keep outside the repo (e.g. a personal `~/.augment/skills` shared across projects).
+- **Workspace root (team-shared)** — committable, at the repo root; each agent writes to its own conventional location (e.g. `.claude/skills`, `.cursor/rules`, `.github/instructions`, root `AGENTS.md`).
+- **Workspace subfolder** — a path relative to the repo root (e.g. `apps/web`) for **monorepos** where an agent runs from a specific app/package.
+- **Custom folder** — any absolute folder (e.g. `~` for **personal** agent skills shared across projects, or an ignored scratch folder). The same per-agent subpaths are created under whichever root you choose.
+
+> **Monorepo note:** GitHub Copilot, Windsurf, and Cline only read their config from the **repository root**, so generate those with the *Workspace root* destination. Claude, Augment, Cursor, and AGENTS.md support nested discovery and work from a subfolder. The Settings panel flags this when a root-only agent is paired with a non-root destination.
 
 ### Enabling & auto-generation
 
-The **Agent Skills** section in Settings is hidden until you flip its **Enable** toggle. Once enabled you can pick the format(s) and destination and turn on **Auto-generate**, which regenerates skills *incrementally* (index + only the new detail files) whenever components are added. These choices persist in `snapds.skills`, so regeneration is one click.
+The **Agent Skills** section in Settings is hidden until you flip its **Enable** toggle. Once enabled you can pick the agent(s) and destination and turn on **Auto-generate**, which regenerates skills *incrementally* (router + only the new detail files) whenever components are added. These choices persist in `snapds.skills`, so regeneration is one click.
 
 ### How to trigger
 
 - Toggle **Auto-generate** on and let Snapds keep skills in sync as your selection changes, or
 - Click **Regenerate skills** in the Settings action bar (or run **`Snapds: Regenerate All Skills`**) to rewrite every file from your saved settings, or
-- Run **`Snapds: Generate Skills`** for a one-off run that prompts for a format and destination (workspace or a folder you pick).
+- Run **`Snapds: Generate Skills`** for a one-off run that lets you pick one or more agents and a destination (workspace or a folder you pick).
 
-Point your agent/assistant at the generated dictionary file (`snapds/SKILL.md` or `AGENTS.md`) so it loads component detail on demand.
+Point your agent/assistant at the generated dictionary/router file for that agent (e.g. `.claude/skills/snapds/SKILL.md`, `.cursor/rules/snapds-index.mdc`, or root `AGENTS.md`) so it loads component detail on demand.
 
 > Generated files begin with an auto-generated header warning. Regenerate them after your components change rather than hand-editing.
 
@@ -142,7 +152,7 @@ Create a `snapds.config.json` at the workspace root (or in a sub-directory for m
   ],
   "skills": {
     "enabled": true,
-    "formats": ["augment"],
+    "formats": ["claude", "cursor"],
     "destination": "workspace",
     "autoGenerate": false
   },
@@ -186,7 +196,7 @@ Snapds provides the following commands via the Command Palette (`Cmd+Shift+P` or
 - **`Snapds: Quick Component Search`** (`snapds.quickSearch`): Opens a spotlight-style Quick Pick populated with every indexed component. Start typing to filter, press `Enter` to inject the selected component's JSX snippet and import at the cursor — same result as drag & drop. Default shortcut: `⌃⌥⌘K` on macOS, `Ctrl+Shift+Alt+K` on Windows/Linux. Reassign via **Preferences: Open Keyboard Shortcuts**.
 - **`Snapds: Open Settings`**: Opens the package management and configuration panel.
 - **`Snapds: Open Props Panel`**: Opens a dedicated panel for editing component properties.
-- **`Snapds: Generate Skills`**: Generates agent-consumable skill docs from your components with an interactive format/destination prompt (see [Generate Skills](#generate-skills)).
+- **`Snapds: Generate Skills`**: Generates agent-consumable skill docs from your components with an interactive agent (multi-select) and destination prompt (see [Generate Skills](#generate-skills)).
 - **`Snapds: Regenerate All Skills`**: Rewrites every skill doc from your current component selection using the saved *Agent Skills* settings.
 - **`Snapds: Clear Introspection Cache`** (`snapds.clearCache`): Clears all cached component introspection results and re-parses configured packages. Use this if the gallery or props panel is showing stale/outdated props.
 - **`Snapds: Reindex Packages`** (`snapds.reindex`): Re-triggers background parsing for all registered packages without clearing the cache first — already-cached packages are served instantly while only uncached ones are re-parsed. Useful after updating a package without reloading VS Code.

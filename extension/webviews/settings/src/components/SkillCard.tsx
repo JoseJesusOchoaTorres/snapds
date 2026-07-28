@@ -5,7 +5,11 @@ interface Props {
   onOpen: (path: string) => void;
 }
 
-/** AI-tab card for a generated skill file, using parsed frontmatter metadata. */
+/**
+ * AI-tab card for a generated skill file. Cards are already segmented by agent
+ * (sub-tabs), so the badge just reads `skill` — or `router` for the agent's main
+ * dictionary file, which the list sorts into the first grid position.
+ */
 export function SkillCard({ file, onOpen }: Props) {
   const title = file.title?.trim() || file.label;
   return (
@@ -17,7 +21,7 @@ export function SkillCard({ file, onOpen }: Props) {
     >
       <div className="skill-card-head">
         <span className="skill-card-title">{title}</span>
-        <span className="badge">{file.format}</span>
+        <span className="badge">{file.isRouter ? 'router' : 'skill'}</span>
       </div>
       {file.description && <span className="skill-card-desc">{file.description}</span>}
     </button>

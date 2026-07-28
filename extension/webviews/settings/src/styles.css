@@ -416,6 +416,43 @@ label > .desc {
   opacity: 0.8;
 }
 
+/* Short path hint next to an agent name in the picker. */
+.agent-hint {
+  font-size: 0.8em;
+  opacity: 0.65;
+}
+
+/* A checkbox option with an explanatory help line beneath it. */
+.option-with-help {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0;
+}
+.option-help {
+  margin: 0 0 0 22px;
+  font-size: 0.85em;
+  line-height: 1.5;
+  opacity: 0.7;
+}
+
+/* Contextual warning when a root-only agent is paired with a non-root destination. */
+.dest-warning {
+  margin: 4px 0 0;
+  font-size: 0.85em;
+  color: var(--vscode-editorWarning-foreground, var(--vscode-foreground));
+  opacity: 0.9;
+}
+
+/* Nested per-agent sub-tabs: lighter than the top-level tablist. */
+.agent-subtabs .tablist {
+  margin: 0.25rem 0 0.5rem;
+}
+.agent-subtabs .tab {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9em;
+}
+
 /* ---- Modal -------------------------------------------------------------- */
 
 .modal-backdrop {

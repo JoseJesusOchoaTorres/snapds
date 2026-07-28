@@ -136,12 +136,13 @@ export function useSettingsController() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  // Refresh the skills directory listing whenever it's visible and the
-  // destination/formats change, so the list reflects what's on disk.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: destination/customPath/formats are intentional triggers even though not read in the effect body.
+  // Refresh the skills directory listing whenever the AI tab is active (so the
+  // header count is correct before expanding) and whenever the destination/formats
+  // change, so the list reflects what's on disk.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: destination/customPath/subPath/formats are intentional triggers even though not read in the effect body.
   useEffect(() => {
-    if (activeTab === 'ai' && showSkillsDir) vscode.postMessage({ type: 'listSkills' });
-  }, [activeTab, showSkillsDir, skills.destination, skills.customPath, skills.formats]);
+    if (activeTab === 'ai') vscode.postMessage({ type: 'listSkills' });
+  }, [activeTab, skills.destination, skills.customPath, skills.subPath, skills.formats]);
 
   const requestComponents = (name: string) => {
     if (requestedRef.current.has(name)) return;

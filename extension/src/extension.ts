@@ -67,7 +67,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   const registry = new DsRegistry();
   const userOverrides = new UserOverridesStore(ctx);
   const introspector = new DsIntrospector(ctx, userOverrides);
-  const store = new Store(ctx);
+  const store = new Store();
 
   const ac = {
     vsctx: ctx,
@@ -881,7 +881,10 @@ async function preIndexAllVersions(ac: ActivationCtx): Promise<void> {
       tasks.push(
         ac.introspector
           .introspect(descriptor, { dir: installation.dir, version: installation.version })
-          .catch(() => {}),
+          .then(
+            () => {},
+            () => {},
+          ),
       );
     }
   }

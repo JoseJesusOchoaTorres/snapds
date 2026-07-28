@@ -51,13 +51,25 @@ export type FromProps =
   | { type: 'switchVersion'; pkg: string; version: string }
   | { type: 'addToPackageJson'; pkg: string; version: string };
 
-export type SkillFormat = 'augment' | 'generic';
+export type SkillFormat =
+  | 'augment'
+  | 'generic'
+  | 'claude'
+  | 'cursor'
+  | 'copilot'
+  | 'windsurf'
+  | 'cline';
 
 export interface SkillsConfig {
   enabled: boolean;
   formats: SkillFormat[];
-  destination: 'workspace' | 'custom';
+  /** `workspace` = repo root; `subfolder` = repo-relative `subPath`; `custom` = absolute `customPath`. */
+  destination: 'workspace' | 'subfolder' | 'custom';
   customPath?: string;
+  /** Workspace-relative folder used when `destination` is `subfolder`. */
+  subPath?: string;
+  /** When true, consolidated agents (Copilot/Cline) omit prop tables from their catalog. */
+  compactConsolidated?: boolean;
   autoGenerate: boolean;
   /** Free-text guidance per component id (pkg#Name), injected verbatim. */
   instructions?: Record<string, string>;
@@ -76,6 +88,8 @@ export interface SkillFileEntry {
   title?: string;
   /** Description parsed from the skill's frontmatter/first line, if available. */
   description?: string;
+  /** True for the agent's main dictionary/router file (rendered first + distinct). */
+  isRouter?: boolean;
 }
 
 /** Merged detail for a single component, used by the settings EYE/GEAR modals. */

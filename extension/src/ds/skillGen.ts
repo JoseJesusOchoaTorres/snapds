@@ -1,5 +1,7 @@
+import * as path from 'node:path';
 import type { ComponentMeta, PropMeta, SkillFormat, SkillsConfig } from '../util/messaging';
 import { generateExampleJSX, generateImport, splitComponentId } from './codegen';
+import { AGENTS } from './skillAgents';
 
 export type { SkillFormat };
 
@@ -74,20 +76,22 @@ function resolveSlugs(components: ComponentMeta[]): Map<string, string> {
 }
 
 /**
- * Returns the destination-relative skill file paths snapds would write for the
- * component `id`. `components` MUST be the full set so the deduped slug matches
- * exactly what `buildArtifacts` emits.
+ * Returns the destination-root-relative skill file path snapds would write for
+ * the component `id` under `format`, or undefined when the agent has no
+ * per-component file (consolidated agents). `components` MUST be the full set so
+ * the deduped slug matches exactly what `buildArtifacts` emits.
  */
-export function expectedSkillRelPaths(
+export function expectedSkillRelPath(
   components: ComponentMeta[],
   id: string,
-): { augment: string; generic: string } {
-  // biome-ignore lint/style/noNonNullAssertion: id comes from the same components array used to build the slug map
-  const slug = resolveSlugs(components).get(id)!;
-  return {
-    augment: `.augment/skills/snapds-${slug}/SKILL.md`,
-    generic: `snapds-skills/${slug}.md`,
-  };
+  format: SkillFormat,
+): string | undefined {
+  const agent = AGENTS[format];
+  if (!agent.componentRelPath) return undefined;
+  const slug = resolveSlugs(components).get(id);
+  if (!slug) return undefined;
+  const rel = agent.componentRelPath(slug);
+  return agent.baseDir ? path.posix.join(agent.baseDir, rel) : rel;
 }
 
 function propsTable(props: PropMeta[]): string {
@@ -106,29 +110,49 @@ function propsTable(props: PropMeta[]): string {
   return [header, ...rows].join('\n');
 }
 
+/** Groups components by package, preserving first-seen order. */
+function groupByPackage(components: ComponentMeta[]): Map<string, ComponentMeta[]> {
+  const byPkg = new Map<string, ComponentMeta[]>();
+  for (const c of components) {
+    const key = splitComponentId(c.id).pkg || '(local)';
+    const list = byPkg.get(key);
+    if (list) list.push(c);
+    else byPkg.set(key, [c]);
+  }
+  return byPkg;
+}
+
+/** Markdown link from the router to a component detail file, computed per agent. */
+function routerLink(format: SkillFormat, slug: string): string {
+  const agent = AGENTS[format];
+  if (!agent.componentRelPath) return slug;
+  const from = path.posix.dirname(agent.routerRelPath);
+  const target =
+    path.posix.relative(from, agent.componentRelPath(slug)) || agent.componentRelPath(slug);
+  const href = target.startsWith('.') ? target : `./${target}`;
+  return `[snapds-${slug}](${href})`;
+}
+
+/** Full per-component detail: heading/bold sections + a complete props table. */
 export function buildComponentSkillMarkdown(
   meta: ComponentMeta,
   format: SkillFormat,
   guidance = '',
 ): string {
+  const agent = AGENTS[format];
   const { pkg, name } = splitComponentId(meta.id);
   const desc = componentDescription(meta);
   const importLine = generateImport(meta);
   const example = generateExampleJSX(meta);
   const table = propsTable(meta.props);
+  const heading = agent.layout !== 'generic';
 
   const parts: string[] = [];
-  if (format === 'augment') {
-    parts.push(
-      '---',
-      `name: snapds-${kebab(name)}`,
-      `description: How to use ${name}${pkg ? ` from ${pkg}` : ''}. Use when adding or modifying ${name} in JSX/TSX.`,
-      '---',
-    );
-  }
+  const fm = agent.componentFrontmatter?.({ name, pkg, slug: kebab(name), description: desc });
+  if (fm) parts.push(fm);
   parts.push(AUTOGEN_HEADER, '', `# ${name}`, '', desc, '');
 
-  if (format === 'augment') {
+  if (heading) {
     parts.push('## Import', '', '```ts', importLine, '```', '');
     parts.push('## Usage', '', '```tsx', example, '```', '');
     parts.push('## Props', '', table, '');
@@ -138,134 +162,140 @@ export function buildComponentSkillMarkdown(
     parts.push(table, '');
   }
   if (guidance.trim()) {
-    parts.push(format === 'augment' ? '## Additional guidance' : '**Additional guidance**', '');
+    parts.push(heading ? '## Additional guidance' : '**Additional guidance**', '');
     parts.push(guidance.trim(), '');
   }
   return parts.join('\n');
 }
 
-/** Builds the main skill file for the given format. */
+/**
+ * Catalog entry for consolidated agents: description, import, usage, and — unless
+ * `compact` — the full props table. Inlined into the single catalog file so the
+ * agent still gets each component's contract (compact drops props to save tokens).
+ */
+function buildCatalogEntry(meta: ComponentMeta, guidance = '', compact = false): string {
+  const { name } = splitComponentId(meta.id);
+  const parts = [
+    `### ${name}`,
+    '',
+    componentDescription(meta),
+    '',
+    '```tsx',
+    generateImport(meta),
+    '',
+    generateExampleJSX(meta),
+    '```',
+    '',
+  ];
+  if (!compact) parts.push(propsTable(meta.props), '');
+  if (guidance.trim()) parts.push(guidance.trim(), '');
+  return parts.join('\n');
+}
+
+/**
+ * Builds the router/main file. Its shape adapts to the agent's layout so that
+ * always-loaded routers (flat-lazy, consolidated) stay token-cheap:
+ * - folder/generic: full component table linking to each detail file.
+ * - flat-lazy: minimal — names only; details load on demand.
+ * - flat-consolidated: the single catalog file (all components inline, with props).
+ */
 export function buildMainSkillMarkdown(
   components: ComponentMeta[],
   format: SkillFormat,
   slugs: Map<string, string>,
+  guidance?: ResolvedGuidance,
+  compact = false,
 ): string {
+  const agent = AGENTS[format];
   const pkgs = Array.from(
     new Set(components.map((c) => splitComponentId(c.id).pkg).filter(Boolean)),
   );
 
   const parts: string[] = [];
-  if (format === 'augment') {
-    parts.push(
-      '---',
-      'name: snapds',
-      'description: Index/router for the Snapds design system; load a component sub-skill on demand.',
-      '---',
-    );
-  }
+  const fm = agent.routerFrontmatter?.();
+  if (fm) parts.push(fm);
   parts.push(AUTOGEN_HEADER, '', '# Snapds Design System', '');
   parts.push('## Conventions', '');
   parts.push(
     `- Import components from their package${pkgs.length ? ` (${pkgs.join(', ')})` : ''}; see each component's Import section.`,
     '- Prefer these components over raw HTML equivalents.',
     '- Always supply required props; optional props fall back to documented defaults.',
-    "- Open a component's detail file only when you actually use that component.",
-    '',
   );
-  parts.push('## Components', '');
 
-  const byPkg = new Map<string, ComponentMeta[]>();
-  for (const c of components) {
-    const key = splitComponentId(c.id).pkg || '(local)';
-    // biome-ignore lint/style/noNonNullAssertion: Map.set() is called immediately before .get(), so the key is guaranteed to exist
-    (byPkg.get(key) ?? byPkg.set(key, []).get(key)!).push(c);
+  const byPkg = groupByPackage(components);
+
+  if (agent.layout === 'flat-consolidated') {
+    parts.push('', '## Components', '');
+    for (const c of components) {
+      parts.push(buildCatalogEntry(c, guidance?.perComponent[c.id], compact));
+    }
+    return parts.join('\n');
   }
 
+  if (agent.layout === 'flat-lazy') {
+    // Always-on router stays tiny: name-only discovery; details load on demand.
+    parts.push(
+      '- Component rules live beside this file; load `snapds-<component>` on demand when you use it.',
+      '',
+      '## Components',
+      '',
+    );
+    for (const [pkg, comps] of byPkg) {
+      parts.push(`### ${pkg}`, '', comps.map((c) => splitComponentId(c.id).name).join(', '), '');
+    }
+    return parts.join('\n');
+  }
+
+  // folder + generic: full table with links to each detail file.
+  parts.push(
+    "- Open a component's detail file only when you actually use that component.",
+    '',
+    '## Components',
+    '',
+  );
   for (const [pkg, comps] of byPkg) {
-    parts.push(`### ${pkg}`, '');
-    if (format === 'augment') {
-      parts.push('| Component | Skill |', '|-----------|-------|');
-      for (const c of comps) {
-        // biome-ignore lint/style/noNonNullAssertion: comps derives from components, the same array used to build slugs
-        const slug = slugs.get(c.id)!;
-        parts.push(
-          `| ${splitComponentId(c.id).name} | [snapds-${slug}](../snapds-${slug}/SKILL.md) |`,
-        );
-      }
-    } else {
-      parts.push('| Component | Detail file |', '|-----------|-------------|');
-      for (const c of comps) {
-        // biome-ignore lint/style/noNonNullAssertion: comps derives from components, the same array used to build slugs
-        const slug = slugs.get(c.id)!;
-        parts.push(
-          `| ${splitComponentId(c.id).name} | [./snapds-skills/${slug}.md](./snapds-skills/${slug}.md) |`,
-        );
-      }
+    parts.push(`### ${pkg}`, '', '| Component | Skill |', '|-----------|-------|');
+    for (const c of comps) {
+      // biome-ignore lint/style/noNonNullAssertion: comps derives from components, the same array used to build slugs
+      const slug = slugs.get(c.id)!;
+      parts.push(`| ${splitComponentId(c.id).name} | ${routerLink(format, slug)} |`);
     }
     parts.push('');
   }
   return parts.join('\n');
 }
 
-export function buildAugmentSkillArtifacts(
-  components: ComponentMeta[],
-  changedIds?: Set<string>,
-  guidance?: ResolvedGuidance,
-): SkillArtifact[] {
-  const slugs = resolveSlugs(components);
-  // The index always reflects the full component set so routing stays correct.
-  const artifacts: SkillArtifact[] = [
-    {
-      relativePath: 'snapds/SKILL.md',
-      contents: buildMainSkillMarkdown(components, 'augment', slugs),
-    },
-  ];
-  for (const meta of components) {
-    if (changedIds && !changedIds.has(meta.id)) continue;
-    artifacts.push({
-      // biome-ignore lint/style/noNonNullAssertion: meta is from components, the same array used to build slugs
-      relativePath: `snapds-${slugs.get(meta.id)!}/SKILL.md`,
-      contents: buildComponentSkillMarkdown(meta, 'augment', guidance?.perComponent[meta.id]),
-    });
-  }
-  return artifacts;
-}
-
-export function buildGenericArtifacts(
-  components: ComponentMeta[],
-  changedIds?: Set<string>,
-  guidance?: ResolvedGuidance,
-): SkillArtifact[] {
-  const slugs = resolveSlugs(components);
-  const artifacts: SkillArtifact[] = [
-    {
-      relativePath: 'AGENTS.md',
-      contents: buildMainSkillMarkdown(components, 'generic', slugs),
-    },
-  ];
-  for (const meta of components) {
-    if (changedIds && !changedIds.has(meta.id)) continue;
-    artifacts.push({
-      // biome-ignore lint/style/noNonNullAssertion: meta is from components, the same array used to build slugs
-      relativePath: `snapds-skills/${slugs.get(meta.id)!}.md`,
-      contents: buildComponentSkillMarkdown(meta, 'generic', guidance?.perComponent[meta.id]),
-    });
-  }
-  return artifacts;
-}
-
 /**
- * Builds skill artifacts for `components`. When `changedIds` is provided, only the
- * index plus detail files for those component ids are emitted (incremental mode);
- * otherwise every detail file is emitted (full mode).
+ * Builds skill artifacts for `components` under `format`. When `changedIds` is
+ * provided, only the router plus detail files for those component ids are emitted
+ * (incremental mode); otherwise every detail file is emitted (full mode).
+ * Consolidated agents emit only their single always-rewritten catalog file;
+ * `compact` drops the prop tables from that catalog.
  */
 export function buildArtifacts(
   components: ComponentMeta[],
   format: SkillFormat,
   changedIds?: Set<string>,
   guidance?: ResolvedGuidance,
+  compact = false,
 ): SkillArtifact[] {
-  return format === 'augment'
-    ? buildAugmentSkillArtifacts(components, changedIds, guidance)
-    : buildGenericArtifacts(components, changedIds, guidance);
+  const agent = AGENTS[format];
+  const slugs = resolveSlugs(components);
+  // The router always reflects the full component set so routing stays correct.
+  const artifacts: SkillArtifact[] = [
+    {
+      relativePath: agent.routerRelPath,
+      contents: buildMainSkillMarkdown(components, format, slugs, guidance, compact),
+    },
+  ];
+  if (!agent.componentRelPath) return artifacts;
+  for (const meta of components) {
+    if (changedIds && !changedIds.has(meta.id)) continue;
+    artifacts.push({
+      // biome-ignore lint/style/noNonNullAssertion: meta is from components, the same array used to build slugs
+      relativePath: agent.componentRelPath(slugs.get(meta.id)!),
+      contents: buildComponentSkillMarkdown(meta, format, guidance?.perComponent[meta.id]),
+    });
+  }
+  return artifacts;
 }
