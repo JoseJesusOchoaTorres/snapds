@@ -5,6 +5,20 @@ All notable changes to the **Snapds** extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.3.0...snapds-v1.4.0) (2026-07-28)
+
+
+### Features
+
+* **skills:** generate skills for multiple coding agents ([0e37ad2](https://github.com/JoseJesusOchoaTorres/snapds/commit/0e37ad2c2e74bee991bf71c2bbe2daba4176fff1))
+
+
+### Bug Fixes
+
+* apply CodeRabbit auto-fixes ([29dc726](https://github.com/JoseJesusOchoaTorres/snapds/commit/29dc72608ff6588eab67a90e33966314aff92d9f))
+* gallery indexing state and loading group interactivity ([f60b742](https://github.com/JoseJesusOchoaTorres/snapds/commit/f60b7425b6970161d84989c76ac408e88c14ec6d))
+* replace non-null assertion with index access in App.tsx ([3f0a570](https://github.com/JoseJesusOchoaTorres/snapds/commit/3f0a57033a4416bd4a53fa0971fc273e0e607545))
+
 ## [1.3.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.2.0...snapds-v1.3.0) (2026-07-23)
 
 
