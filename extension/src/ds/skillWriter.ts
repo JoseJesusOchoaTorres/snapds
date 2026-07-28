@@ -4,15 +4,16 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { ComponentMeta, SkillFileEntry, SkillFormat, SkillsConfig } from '../util/messaging';
 import { splitComponentId } from './codegen';
+import { AGENT_ORDER, AGENTS } from './skillAgents';
 import {
   buildArtifacts,
   type ComponentSkillFile,
-  expectedSkillRelPaths,
+  expectedSkillRelPath,
   resolveGuidance,
   type SkillArtifact,
 } from './skillGen';
 
-type Destination = 'workspace' | 'custom';
+type Destination = 'workspace' | 'subfolder' | 'custom';
 
 const SKILLS_CONFIG_KEY = 'skills';
 const DEFAULT_SKILLS_CONFIG: SkillsConfig = {
@@ -37,18 +38,35 @@ export async function setSkillsConfig(config: SkillsConfig): Promise<void> {
     .update(SKILLS_CONFIG_KEY, config, vscode.ConfigurationTarget.Workspace);
 }
 
+/** Resolves the destination root for a config (before the agent's baseDir is appended). */
+export function resolveDestinationRootFromConfig(
+  config: SkillsConfig,
+  wsRoot: string | undefined,
+): string | undefined {
+  if (config.destination === 'custom') return config.customPath || undefined;
+  if (config.destination === 'subfolder') {
+    if (!wsRoot) return undefined;
+    const subPath = config.subPath ?? '';
+    // Allow empty/. (workspace root), but reject absolute paths and .. traversal.
+    if (subPath && (path.isAbsolute(subPath) || subPath.includes('..'))) return undefined;
+    return resolveWithinBase(wsRoot, subPath);
+  }
+  return wsRoot;
+}
+
 /** Resolves the base directory for a given config and format. */
-function resolveBaseDirFromConfig(
+export function resolveBaseDirFromConfig(
   config: SkillsConfig,
   format: SkillFormat,
   wsRoot: string | undefined,
 ): string | undefined {
-  const root = config.destination === 'custom' ? config.customPath : wsRoot;
+  const root = resolveDestinationRootFromConfig(config, wsRoot);
   if (!root) return undefined;
-  return format === 'augment' ? path.join(root, '.augment', 'skills') : root;
+  const { baseDir } = AGENTS[format];
+  return baseDir ? path.join(root, baseDir) : root;
 }
 
-/** Recursively collects `.md` files under `dir`, returning absolute paths. */
+/** Recursively collects `.md`/`.mdc` files under `dir`, returning absolute paths. */
 function walkMarkdown(dir: string): string[] {
   const out: string[] = [];
   let entries: fs.Dirent[];
@@ -60,7 +78,7 @@ function walkMarkdown(dir: string): string[] {
   for (const e of entries) {
     const full = path.join(dir, e.name);
     if (e.isDirectory()) out.push(...walkMarkdown(full));
-    else if (e.name.toLowerCase().endsWith('.md')) out.push(full);
+    else if (/\.mdc?$/i.test(e.name)) out.push(full);
   }
   return out;
 }
@@ -106,42 +124,39 @@ export function listSkillFiles(config: SkillsConfig): SkillFileEntry[] {
   const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   const out: SkillFileEntry[] = [];
   const seen = new Set<string>();
-  const push = (full: string, format: SkillFormat, label: string) => {
-    if (seen.has(full)) return;
-    seen.add(full);
-    const meta = parseSkillMeta(full);
-    out.push({
-      path: full,
-      label,
-      format,
-      title: meta.title,
-      description: meta.description,
-    });
-  };
 
   for (const format of config.formats) {
+    const agent = AGENTS[format];
+    if (!agent) continue;
     const base = resolveBaseDirFromConfig(config, format, wsRoot);
     if (!base) continue;
-    if (format === 'augment') {
-      // .augment/skills/<skill>/SKILL.md — label with the skill folder name.
-      for (const full of walkMarkdown(base)) {
-        const rel = path.relative(base, full);
-        const dir = path.dirname(rel);
-        const label = /SKILL\.md$/i.test(rel) && dir !== '.' ? dir : rel.replace(/\.md$/i, '');
-        push(full, format, label);
-      }
-    } else {
-      // Generic: AGENTS.md index at the root + per-component snapds-skills/*.md.
-      const agents = path.join(base, 'AGENTS.md');
-      if (fs.existsSync(agents)) push(agents, format, 'AGENTS.md');
-      const skillsDir = path.join(base, 'snapds-skills');
-      for (const full of walkMarkdown(skillsDir)) {
-        push(full, format, path.relative(skillsDir, full).replace(/\.md$/i, ''));
-      }
+    for (const full of walkMarkdown(base)) {
+      if (seen.has(full)) continue;
+      const relPosix = path.relative(base, full).split(path.sep).join('/');
+      // Keep listing scoped to files snapds owns (skip the user's other rules).
+      if (!agent.owns(relPosix)) continue;
+      seen.add(full);
+      const isRouter = relPosix === agent.routerRelPath;
+      const dir = path.posix.dirname(relPosix);
+      // Folder-per-skill agents read best labeled by their folder name.
+      const label =
+        /SKILL\.md$/i.test(relPosix) && dir !== '.'
+          ? dir
+          : path.posix.basename(relPosix).replace(/\.mdc?$/i, '');
+      const meta = parseSkillMeta(full);
+      out.push({
+        path: full,
+        label,
+        format,
+        title: meta.title,
+        description: meta.description,
+        isRouter,
+      });
     }
   }
 
-  out.sort((a, b) => a.label.localeCompare(b.label));
+  // Routers first, then alphabetical; the UI regroups per agent.
+  out.sort((a, b) => Number(b.isRouter) - Number(a.isRouter) || a.label.localeCompare(b.label));
   return out;
 }
 
@@ -157,12 +172,14 @@ export function listComponentSkillFiles(
 ): ComponentSkillFile[] {
   if (!meta) return [];
   const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  const rel = expectedSkillRelPaths(all, meta.id);
+  const root = resolveDestinationRootFromConfig(config, wsRoot);
   const out: ComponentSkillFile[] = [];
+  if (!root) return out;
   for (const format of config.formats) {
-    const root = config.destination === 'custom' ? config.customPath : wsRoot;
-    if (!root) continue;
-    const full = format === 'augment' ? path.join(root, rel.augment) : path.join(root, rel.generic);
+    // Consolidated agents (copilot/cline) have no per-component file → skip.
+    const rel = expectedSkillRelPath(all, meta.id, format);
+    if (!rel) continue;
+    const full = path.join(root, rel);
     if (fs.existsSync(full)) {
       out.push({
         path: full,
@@ -214,7 +231,13 @@ export async function generateSkillsToConfig(
       );
       continue;
     }
-    const artifacts = buildArtifacts(skillComponents, format, changedIds, guidance);
+    const artifacts = buildArtifacts(
+      skillComponents,
+      format,
+      changedIds,
+      guidance,
+      config.compactConsolidated,
+    );
     // Auto-overwrite: no modal prompt on the automated path.
     const count = await writeArtifacts(base, artifacts, { value: true });
     if (count > 0) total += count;
@@ -222,9 +245,12 @@ export async function generateSkillsToConfig(
   return total;
 }
 
-async function resolveBaseDir(
+/**
+ * Resolves the destination root interactively (once per run, not per agent) so a
+ * multi-agent generation prompts for a folder/subpath a single time.
+ */
+async function resolveDestinationRoot(
   kind: Destination,
-  format: SkillFormat,
   wsRoot: string | undefined,
 ): Promise<string | undefined> {
   if (kind === 'workspace') {
@@ -234,7 +260,27 @@ async function resolveBaseDir(
       );
       return undefined;
     }
-    return format === 'augment' ? path.join(wsRoot, '.augment', 'skills') : wsRoot;
+    return wsRoot;
+  }
+
+  if (kind === 'subfolder') {
+    if (!wsRoot) {
+      vscode.window.showWarningMessage('Snapds: open a workspace folder to use a subfolder.');
+      return undefined;
+    }
+    const sub = await vscode.window.showInputBox({
+      prompt: 'Subfolder relative to the workspace root',
+      placeHolder: 'apps/web',
+      validateInput: (v) => {
+        const trimmed = v.trim();
+        if (path.isAbsolute(trimmed)) return 'Use a path relative to the workspace root.';
+        if (trimmed.includes('..')) return 'Path cannot contain .. segments.';
+        return undefined;
+      },
+    });
+    if (sub === undefined) return undefined;
+    const trimmed = sub.trim();
+    return resolveWithinBase(wsRoot, trimmed);
   }
 
   const picked = await vscode.window.showOpenDialog({
@@ -244,10 +290,7 @@ async function resolveBaseDir(
     openLabel: 'Select destination folder',
   });
   if (!picked?.length) return undefined;
-  const chosen = picked[0].fsPath;
-  const base = format === 'augment' ? path.join(chosen, '.augment', 'skills') : chosen;
-  vscode.window.showInformationMessage(`Snapds: writing ${format} skills to ${base}`);
-  return base;
+  return picked[0].fsPath;
 }
 
 async function exists(p: string): Promise<boolean> {
@@ -316,25 +359,17 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
 
   const skillComponents = applyPackageExclusion(components, getSkillsConfig().excludedPackages);
 
-  const fmtPick = await vscode.window.showQuickPick(
-    [
-      {
-        label: 'Augment skills',
-        detail: 'Directory per skill with SKILL.md + frontmatter',
-        value: 'augment',
-      },
-      {
-        label: 'Generic AGENTS.md',
-        detail: 'Assistant-agnostic index + per-component files',
-        value: 'generic',
-      },
-      { label: 'Both', detail: 'Generate both formats', value: 'both' },
-    ],
-    { placeHolder: 'Choose skill output format' },
+  const agentPicks = await vscode.window.showQuickPick(
+    AGENT_ORDER.map((id) => ({
+      label: AGENTS[id].label,
+      detail: AGENTS[id].hint,
+      value: id,
+      picked: id === 'augment',
+    })),
+    { placeHolder: 'Choose agents to generate skills for', canPickMany: true },
   );
-  if (!fmtPick) return;
-  const formats: SkillFormat[] =
-    fmtPick.value === 'both' ? ['augment', 'generic'] : [fmtPick.value as SkillFormat];
+  if (!agentPicks?.length) return;
+  const formats: SkillFormat[] = agentPicks.map((p) => p.value);
 
   const guidance = resolveGuidance(
     getSkillsConfig(),
@@ -350,14 +385,23 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
         value: 'workspace',
       },
       {
+        label: 'Workspace subfolder…',
+        detail: 'A path relative to the repo root, e.g. apps/web (monorepos)',
+        value: 'subfolder',
+      },
+      {
         label: 'Custom folder…',
-        detail: 'Pick any folder outside the repo',
+        detail: 'Pick any absolute folder, e.g. ~ for personal agent skills',
         value: 'custom',
       },
     ],
     { placeHolder: 'Choose destination' },
   );
   if (!destPick) return;
+
+  // Resolve the root once so multi-agent runs prompt for a folder/subpath a single time.
+  const root = await resolveDestinationRoot(destPick.value as Destination, wsRoot);
+  if (!root) return;
 
   let totalWritten = 0;
   let revealDir: string | undefined;
@@ -371,19 +415,22 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
     async () => {
       const confirmedOverwrite = { value: false };
       for (const format of formats) {
-        const base = await resolveBaseDir(destPick.value as Destination, format, wsRoot);
-        if (!base) {
-          aborted = true;
-          return;
-        }
-        const artifacts = buildArtifacts(skillComponents, format, undefined, guidance);
+        const { baseDir } = AGENTS[format];
+        const base = baseDir ? path.join(root, baseDir) : root;
+        const artifacts = buildArtifacts(
+          skillComponents,
+          format,
+          undefined,
+          guidance,
+          getSkillsConfig().compactConsolidated,
+        );
         const count = await writeArtifacts(base, artifacts, confirmedOverwrite);
         if (count < 0) {
           aborted = true;
           return;
         }
         totalWritten += count;
-        revealDir = base;
+        revealDir = root;
       }
     },
   );

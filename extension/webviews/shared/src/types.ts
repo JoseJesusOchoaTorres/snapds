@@ -49,15 +49,47 @@ export interface UserOverride {
 
 // ─── Skills ──────────────────────────────────────────────────────────────────
 
-export type SkillFormat = 'augment' | 'generic';
+/**
+ * Coding agent a skill can be generated for. Historically named "format" and
+ * persisted under `snapds.skills.formats`; the key is kept for backward
+ * compatibility while the UI presents these as selectable agents.
+ */
+export type SkillFormat =
+  | 'augment'
+  | 'generic'
+  | 'claude'
+  | 'cursor'
+  | 'copilot'
+  | 'windsurf'
+  | 'cline';
 
 export interface SkillsConfig {
   enabled: boolean;
   formats: SkillFormat[];
-  destination: 'workspace' | 'custom';
+  /**
+   * Where skills are written:
+   * - `workspace`  — the repository root.
+   * - `subfolder`  — a path relative to the repo root (`subPath`), e.g. a
+   *                  monorepo app/package.
+   * - `custom`     — any absolute folder (`customPath`), e.g. `~` for personal
+   *                  agent skills shared across projects.
+   */
+  destination: 'workspace' | 'subfolder' | 'custom';
+  /** Absolute folder used when `destination` is `custom`. */
   customPath?: string;
+  /** Workspace-relative folder used when `destination` is `subfolder`. */
+  subPath?: string;
+  /**
+   * When true, consolidated agents (Copilot, Cline) omit per-component prop tables
+   * from their single catalog file, keeping it small for the always-loaded case.
+   * Default (false) inlines the full props contract, like every other agent.
+   */
+  compactConsolidated?: boolean;
   autoGenerate: boolean;
+  /** Free-text guidance per component id (pkg#Name), injected verbatim. */
   instructions?: Record<string, string>;
+  /** Package names kept in the gallery but excluded from skill generation. */
+  excludedPackages?: string[];
 }
 
 export interface SkillFileEntry {
@@ -66,6 +98,8 @@ export interface SkillFileEntry {
   format: SkillFormat;
   title?: string;
   description?: string;
+  /** True for the agent's main dictionary/router file (rendered first + distinct). */
+  isRouter?: boolean;
 }
 
 // ─── Component detail (settings modals) ─────────────────────────────────────

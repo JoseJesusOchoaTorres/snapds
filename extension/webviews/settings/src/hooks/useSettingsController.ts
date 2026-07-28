@@ -55,6 +55,10 @@ export function useSettingsController() {
   // even when counts were seeded from cache.
   const requestedRef = useRef<Set<string>>(new Set());
 
+  // Track whether the AI tab was active on the previous render, so we can
+  // distinguish "tab just became active" from "already active, deps changed".
+  const wasAiTabActiveRef = useRef(false);
+
   useEffect(() => {
     const onMessage = (e: MessageEvent<ToSettings>) => {
       const msg = e.data;
@@ -136,12 +140,28 @@ export function useSettingsController() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  // Refresh the skills directory listing whenever it's visible and the
-  // destination/formats change, so the list reflects what's on disk.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: destination/customPath/formats are intentional triggers even though not read in the effect body.
+  // Refresh the skills directory listing whenever the AI tab is active (so the
+  // header count is correct before expanding) and whenever the destination/formats
+  // change, so the list reflects what's on disk.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: destination/customPath/subPath/formats are intentional triggers even though not read in the effect body.
   useEffect(() => {
-    if (activeTab === 'ai' && showSkillsDir) vscode.postMessage({ type: 'listSkills' });
-  }, [activeTab, showSkillsDir, skills.destination, skills.customPath, skills.formats]);
+    if (activeTab !== 'ai') {
+      wasAiTabActiveRef.current = false;
+      return;
+    }
+    // Immediate refresh only when the AI tab first becomes active.
+    const justBecameActive = !wasAiTabActiveRef.current;
+    wasAiTabActiveRef.current = true;
+    if (justBecameActive) {
+      vscode.postMessage({ type: 'listSkills' });
+      return;
+    }
+    // Debounce refreshes triggered by path/format changes while already on the AI tab.
+    const timer = setTimeout(() => {
+      vscode.postMessage({ type: 'listSkills' });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [activeTab, skills.destination, skills.customPath, skills.subPath, skills.formats]);
 
   const requestComponents = (name: string) => {
     if (requestedRef.current.has(name)) return;

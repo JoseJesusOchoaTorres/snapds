@@ -3,7 +3,13 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { test } from 'node:test';
-import { parseSkillMeta, resolveWithinBase } from './skillWriter';
+import type { SkillsConfig } from '../util/messaging';
+import {
+  parseSkillMeta,
+  resolveBaseDirFromConfig,
+  resolveDestinationRootFromConfig,
+  resolveWithinBase,
+} from './skillWriter';
 
 const BASE = path.resolve(os.tmpdir(), 'snapds-skills-base');
 
@@ -68,4 +74,56 @@ test('parseSkillMeta skips comments when choosing the description', () => {
 
 test('parseSkillMeta returns an empty object for a missing file', () => {
   assert.deepEqual(parseSkillMeta(path.join(os.tmpdir(), 'does-not-exist-xyz.md')), {});
+});
+
+const WS = path.resolve('/repo');
+const cfg = (partial: Partial<SkillsConfig>): SkillsConfig => ({
+  enabled: true,
+  formats: ['claude'],
+  destination: 'workspace',
+  autoGenerate: true,
+  ...partial,
+});
+
+test('resolveDestinationRootFromConfig: workspace uses the repo root', () => {
+  assert.equal(resolveDestinationRootFromConfig(cfg({ destination: 'workspace' }), WS), WS);
+});
+
+test('resolveDestinationRootFromConfig: subfolder joins repo root + subPath', () => {
+  const root = resolveDestinationRootFromConfig(
+    cfg({ destination: 'subfolder', subPath: 'apps/web' }),
+    WS,
+  );
+  assert.equal(root, path.join(WS, 'apps/web'));
+});
+
+test('resolveDestinationRootFromConfig: subfolder needs a workspace', () => {
+  assert.equal(
+    resolveDestinationRootFromConfig(
+      cfg({ destination: 'subfolder', subPath: 'apps/web' }),
+      undefined,
+    ),
+    undefined,
+  );
+});
+
+test('resolveDestinationRootFromConfig: custom uses the absolute customPath', () => {
+  const abs = path.resolve('/somewhere/else');
+  assert.equal(
+    resolveDestinationRootFromConfig(cfg({ destination: 'custom', customPath: abs }), WS),
+    abs,
+  );
+});
+
+test('resolveBaseDirFromConfig appends the agent baseDir under the resolved root', () => {
+  // subfolder + claude → <repo>/apps/web/.claude/skills
+  assert.equal(
+    resolveBaseDirFromConfig(cfg({ destination: 'subfolder', subPath: 'apps/web' }), 'claude', WS),
+    path.join(WS, 'apps/web', '.claude', 'skills'),
+  );
+  // generic has no baseDir → root itself
+  assert.equal(
+    resolveBaseDirFromConfig(cfg({ destination: 'subfolder', subPath: 'apps/web' }), 'generic', WS),
+    path.join(WS, 'apps/web'),
+  );
 });

@@ -1,5 +1,7 @@
 /** Public surface of the shared webview package. */
 
+export type { AgentMeta } from './agents';
+export { AGENT_LABEL, AGENT_META, CONSOLIDATED_AGENTS, ROOT_ONLY_AGENTS } from './agents';
 export { BooleanControl } from './controls/BooleanControl';
 export { ChildrenControl } from './controls/ChildrenControl';
 export { Control } from './controls/Control';

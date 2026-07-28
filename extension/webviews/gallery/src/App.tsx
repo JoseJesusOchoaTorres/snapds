@@ -1,5 +1,5 @@
 import { DRAG_MIME, vscode } from '@snapds/webview-shared';
-import { type DragEvent, useEffect, useMemo, useState } from 'react';
+import { type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ComponentRow } from './components/ComponentRow';
 import { CollapseAllIcon, ExpandAllIcon, FolderIcon } from './components/icons';
 import { SearchBar } from './components/SearchBar';
@@ -12,6 +12,8 @@ export default function App() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [pendingPackages, setPendingPackages] = useState<Set<string>>(new Set());
   const [totalIndexing, setTotalIndexing] = useState(0);
+  const pendingRef = useRef<Set<string>>(new Set());
+  const [lastCompletedPkg, setLastCompletedPkg] = useState('');
 
   useEffect(() => {
     const onMessage = (e: MessageEvent<ToGallery>) => {
@@ -19,13 +21,15 @@ export default function App() {
       if (msg.type === 'componentList') {
         setComponents(msg.components);
         const loadedPkgs = new Set(msg.components.map((c) => c.id.split('#')[0]));
-        setPendingPackages((prev) => {
-          if (prev.size === 0) return prev;
-          const next = new Set(prev);
-          for (const p of loadedPkgs) next.delete(p);
-          return next;
-        });
+        const justCompleted = [...loadedPkgs].filter((p) => pendingRef.current.has(p));
+        if (justCompleted.length > 0) setLastCompletedPkg(justCompleted[justCompleted.length - 1]);
+        const nextPending = new Set(pendingRef.current);
+        for (const p of loadedPkgs) nextPending.delete(p);
+        pendingRef.current = nextPending;
+        setPendingPackages(nextPending);
       } else if (msg.type === 'indexing') {
+        pendingRef.current = new Set(msg.packages);
+        setLastCompletedPkg('');
         setPendingPackages(new Set(msg.packages));
         if (msg.packages.length > 0) setTotalIndexing(msg.packages.length);
       }
@@ -124,7 +128,7 @@ export default function App() {
         <div className="indexing-bar" role="status" aria-live="polite">
           <div className="indexing-row">
             <span className="indexing-spinner" aria-hidden="true" />
-            <span className="indexing-pkg-name">{[...pendingPackages][0]}</span>
+            <span className="indexing-pkg-name">{lastCompletedPkg || [...pendingPackages][0]}</span>
             <span className="indexing-progress">
               {totalIndexing - pendingPackages.size} / {totalIndexing}
             </span>
@@ -193,7 +197,20 @@ export default function App() {
                   aria-busy="true"
                   aria-expanded={isOpen}
                   aria-label={`Loading ${pkg}`}
-                  tabIndex={-1}
+                  tabIndex={0}
+                  onClick={() => toggleGroup(pkg)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleGroup(pkg);
+                    } else if (e.key === 'ArrowRight' && !isOpen) {
+                      e.preventDefault();
+                      toggleGroup(pkg);
+                    } else if (e.key === 'ArrowLeft' && isOpen) {
+                      e.preventDefault();
+                      toggleGroup(pkg);
+                    }
+                  }}
                 >
                   <span className={`twisty${isOpen ? ' open' : ''}`} aria-hidden="true" />
                   <FolderIcon />

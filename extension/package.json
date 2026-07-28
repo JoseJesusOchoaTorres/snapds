@@ -175,23 +175,37 @@
               "items": {
                 "type": "string",
                 "enum": [
+                  "claude",
                   "augment",
+                  "cursor",
+                  "copilot",
+                  "windsurf",
+                  "cline",
                   "generic"
                 ]
               },
-              "description": "Skill formats to generate"
+              "description": "Coding agents to generate skills for"
             },
             "destination": {
               "type": "string",
               "enum": [
                 "workspace",
+                "subfolder",
                 "custom"
               ],
-              "description": "Where to write skills"
+              "description": "Where to write skills: 'workspace' (repo root), 'subfolder' (repo-relative subPath), or 'custom' (absolute customPath)"
             },
             "customPath": {
               "type": "string",
-              "description": "Destination folder when destination is 'custom'"
+              "description": "Absolute destination folder when destination is 'custom'"
+            },
+            "subPath": {
+              "type": "string",
+              "description": "Workspace-relative folder (e.g. 'apps/web') when destination is 'subfolder'"
+            },
+            "compactConsolidated": {
+              "type": "boolean",
+              "description": "Omit prop tables from consolidated agent catalogs (Copilot, Cline) to keep the always-loaded file small"
             },
             "autoGenerate": {
               "type": "boolean",

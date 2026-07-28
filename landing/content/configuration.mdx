@@ -61,9 +61,11 @@ An object controlling agent-skill export (see [Skills for agents](/docs/skills))
 | Field         | Type                       | Default        | Purpose                                        |
 | ------------- | -------------------------- | -------------- | ---------------------------------------------- |
 | `enabled`     | `boolean`                  | `false`        | Show the skills section in Settings.           |
-| `formats`     | `('augment' \| 'generic')[]` | `['augment']`  | Which skill formats to write.                  |
-| `destination` | `'workspace' \| 'custom'`  | `'workspace'`  | Where skills are written.                      |
-| `customPath`  | `string`                   | —              | Folder used when `destination` is `'custom'`.  |
+| `formats`     | `('claude' \| 'augment' \| 'cursor' \| 'copilot' \| 'windsurf' \| 'cline' \| 'generic')[]` | `['augment']`  | Which agents to write skills for. |
+| `destination` | `'workspace' \| 'subfolder' \| 'custom'`  | `'workspace'`  | Root skills are written to (each agent's subpath is appended). |
+| `customPath`  | `string`                   | —              | Absolute folder used when `destination` is `'custom'`. |
+| `subPath`     | `string`                   | —              | Workspace-relative folder (e.g. `apps/web`) when `destination` is `'subfolder'`. |
+| `compactConsolidated` | `boolean`          | `false`        | Drop prop tables from consolidated catalogs (Copilot, Cline) to keep the always-loaded file small. |
 | `autoGenerate`| `boolean`                  | `true`         | Regenerate incrementally as your selection changes. |
 | `instructions`| `Record<string, string>`   | —              | Free-text guidance per component id (`pkg#Name`). |
 
@@ -96,7 +98,7 @@ it finds. Editing the file invalidates the introspection cache automatically.
   ],
   "skills": {
     "enabled": true,
-    "formats": ["augment"],
+    "formats": ["claude", "cursor"],
     "destination": "workspace",
     "autoGenerate": false
   },
