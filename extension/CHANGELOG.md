@@ -5,6 +5,20 @@ All notable changes to the **Snapds** extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.4.0...snapds-v1.5.0) (2026-07-29)
+
+
+### Features
+
+* **gallery:** clearable search and sticky package headers ([4358cd6](https://github.com/JoseJesusOchoaTorres/snapds/commit/4358cd62f7be968dedc7b4765eea178fb874fcf4))
+* **settings:** improve package modal and scope filters ([27f636c](https://github.com/JoseJesusOchoaTorres/snapds/commit/27f636c600ecf9e31ea003f2e6b9e017a6d2899d))
+
+
+### Bug Fixes
+
+* **introspect:** keep props inherited from sibling packages ([3128286](https://github.com/JoseJesusOchoaTorres/snapds/commit/3128286e86bef0e976ddffe887a6ffe7e16989ae))
+* **introspect:** surface props for react-aria-style components ([67ad404](https://github.com/JoseJesusOchoaTorres/snapds/commit/67ad4042fd3af7f0ede4e94fb8d96d1f7178f633))
+
 ## [1.4.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.3.0...snapds-v1.4.0) (2026-07-28)
 
 
