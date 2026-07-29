@@ -4,7 +4,12 @@ import * as ts from 'typescript';
 import { aliasToDir, fileToSpecifier, parseAliasMappings } from './aliasResolver';
 import type { DsPackage } from './dsRegistry';
 
-/** Recursively finds every `components.json` under `root`, skipping node_modules/dot dirs. */
+// Directories never worth walking for a components.json — dependencies, build
+// outputs, and dot-dirs. Keeps the monorepo scan fast and avoids stray matches
+// inside compiled output.
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'out', 'coverage']);
+
+/** Recursively finds every `components.json` under `root`, skipping deps/build/dot dirs. */
 function findComponentsJson(root: string): string[] {
   const out: string[] = [];
   const walk = (dir: string) => {
@@ -15,7 +20,7 @@ function findComponentsJson(root: string): string[] {
       return;
     }
     for (const e of entries) {
-      if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+      if (SKIP_DIRS.has(e.name) || e.name.startsWith('.')) continue;
       const full = path.join(dir, e.name);
       if (e.isDirectory()) walk(full);
       else if (e.name === 'components.json') out.push(full);

@@ -53,6 +53,55 @@ test('buildLocalSource prefers a tsconfig that sets jsx', () => {
   }
 });
 
+test('detectLocalSources handles a monorepo: multiple components.json, same alias, distinct apps', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'snapds-monorepo-'));
+  const write = (rel: string, body: string) => {
+    const abs = path.join(root, rel);
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, body);
+  };
+  try {
+    for (const app of ['apps/web', 'apps/docs']) {
+      write(`${app}/components.json`, JSON.stringify({ aliases: { ui: '@/components/ui' } }));
+      write(
+        `${app}/tsconfig.json`,
+        JSON.stringify({ compilerOptions: { jsx: 'react-jsx', paths: { '@/*': ['./src/*'] } } }),
+      );
+      fs.mkdirSync(path.join(root, app, 'src/components/ui'), { recursive: true });
+    }
+    const sources = detectLocalSources(root).sort((a, b) => a.name.localeCompare(b.name));
+    assert.equal(sources.length, 2);
+    // Same alias resolves to a DIFFERENT folder per app; names stay unique.
+    assert.deepEqual(
+      sources.map((s) => s.name),
+      ['apps/docs/src/components/ui', 'apps/web/src/components/ui'],
+    );
+    assert.ok(sources.every((s) => s.importAlias === '@/components/ui'));
+    assert.equal(sources[0].rootDir, path.join(root, 'apps/docs/src/components/ui'));
+    assert.equal(sources[1].rootDir, path.join(root, 'apps/web/src/components/ui'));
+    assert.notEqual(sources[0].tsconfigPath, sources[1].tsconfigPath);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('detectLocalSources skips components.json inside build-output dirs', () => {
+  const root = makeProject(); // valid source at src/components/ui
+  try {
+    // A stray components.json in a build output must not be picked up.
+    fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'dist/components.json'),
+      JSON.stringify({ aliases: { ui: '@/components/ui' } }),
+    );
+    const sources = detectLocalSources(root);
+    assert.equal(sources.length, 1);
+    assert.equal(sources[0].name, 'src/components/ui');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('buildLocalSourceFromFolder derives the alias from tsconfig paths', () => {
   const root = makeProject();
   try {
