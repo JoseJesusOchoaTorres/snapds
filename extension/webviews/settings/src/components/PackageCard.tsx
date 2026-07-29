@@ -10,6 +10,8 @@ interface Props {
   showCount?: boolean;
   showEmptyPreview?: boolean;
   isActive?: boolean;
+  /** In-repo local source (shadcn / design system folder) — shows a "Local" badge. */
+  local?: boolean;
 }
 
 const PREVIEW_LIMIT = 3;
@@ -25,6 +27,7 @@ export function PackageCard({
   showCount = true,
   showEmptyPreview = true,
   isActive = false,
+  local = false,
 }: Props) {
   const shown = preview.slice(0, PREVIEW_LIMIT);
   const extra = preview.length - shown.length;
@@ -35,6 +38,11 @@ export function PackageCard({
       <button type="button" className="pkg-card-main" onClick={onOpen} title={`Configure ${name}`}>
         <div className="pkg-card-head">
           <span className="pkg-card-name">{name}</span>
+          {local && (
+            <span className="pkg-card-badge-local" title="In-repo local source">
+              Local
+            </span>
+          )}
           {showCount && (
             <span className="badge">
               {selectedCount}/{totalCount}

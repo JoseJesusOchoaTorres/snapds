@@ -13,6 +13,7 @@ import {
 } from './config/configSerializer';
 import { DsIntrospector } from './ds/dsIntrospector';
 import { applyWhitelist, type DsPackage, DsRegistry } from './ds/dsRegistry';
+import { detectLocalSources } from './ds/localSources';
 import {
   generateSkillsToConfig,
   getSkillsConfig,
@@ -281,8 +282,7 @@ function setupSettingsPanel(
       ac.settingsPanel.postConfigStatus(detectConfigConflict(ac.registry, ctx));
     },
     onRequestComponents: async (pkgName) => {
-      const existing = ac.registry.list().find((p) => p.name === pkgName);
-      const descriptor = existing ?? (await ac.registry.resolveDescriptor(pkgName));
+      const descriptor = await resolvePackageByName(pkgName, ac);
       if (!descriptor) {
         vscode.window.showWarningMessage(`Snapds: could not locate "${pkgName}" in node_modules.`);
         ac.settingsPanel.postComponentNames(pkgName, []);
@@ -317,8 +317,7 @@ function setupSettingsPanel(
       }
     },
     onReloadPackage: async (pkgName) => {
-      const existing = ac.registry.list().find((p) => p.name === pkgName);
-      const descriptor = existing ?? (await ac.registry.resolveDescriptor(pkgName));
+      const descriptor = await resolvePackageByName(pkgName, ac);
       if (!descriptor) {
         ac.settingsPanel.postComponentNames(pkgName, []);
         return;
@@ -374,8 +373,7 @@ function setupSettingsPanel(
       }
     },
     onRequestComponentDetail: async ({ pkg, component }) => {
-      const existing = ac.registry.list().find((p) => p.name === pkg);
-      const descriptor = existing ?? (await ac.registry.resolveDescriptor(pkg));
+      const descriptor = await resolvePackageByName(pkg, ac);
       if (!descriptor) {
         ac.settingsPanel.postComponentDetail({ pkg, component, props: [], skillFiles: [] });
         return;
@@ -534,17 +532,20 @@ function setupSettingsPanel(
             const resolved = await Promise.all(
               packages.map(async (pkg) => {
                 const existing = oldByName.get(pkg.name);
-                let version = existing?.version ?? 'unknown';
-                const importPath = existing?.importPath ?? pkg.name;
-                let tsconfigPath = existing?.tsconfigPath;
-
-                if (!existing) {
-                  const descriptor = await ac.registry.resolveDescriptor(pkg.name);
-                  if (descriptor) {
-                    version = descriptor.version;
-                    tsconfigPath = descriptor.tsconfigPath;
-                  }
-                }
+                const descriptor = existing ?? (await resolvePackageByName(pkg.name, ac));
+                const version = descriptor?.version ?? 'unknown';
+                const importPath = descriptor?.importPath ?? pkg.name;
+                const tsconfigPath = descriptor?.tsconfigPath;
+                // Preserve local-source identity so a registered shadcn folder
+                // round-trips — kind/rootDir/importAlias drive introspection + imports.
+                const localFields =
+                  descriptor?.kind === 'local'
+                    ? {
+                        kind: 'local' as const,
+                        rootDir: descriptor.rootDir,
+                        importAlias: descriptor.importAlias,
+                      }
+                    : {};
 
                 if (pkg.components === undefined) {
                   return {
@@ -552,6 +553,7 @@ function setupSettingsPanel(
                     version,
                     importPath,
                     tsconfigPath,
+                    ...localFields,
                     excluded: existing?.excluded ?? [],
                     manual: existing?.manual ?? [],
                   };
@@ -560,7 +562,15 @@ function setupSettingsPanel(
                 const selected = pkg.selected ?? [];
                 const excluded = pkg.components.filter((c) => !selected.includes(c));
                 const manual = selected.filter((c) => !pkg.components?.includes(c));
-                return { name: pkg.name, version, importPath, tsconfigPath, excluded, manual };
+                return {
+                  name: pkg.name,
+                  version,
+                  importPath,
+                  tsconfigPath,
+                  ...localFields,
+                  excluded,
+                  manual,
+                };
               }),
             );
 
@@ -901,10 +911,29 @@ async function afterDiscovery(ac: ActivationCtx): Promise<void> {
   void preIndexAllVersions(ac);
 }
 
+/**
+ * Resolves a package name to its descriptor: a registered package (npm or
+ * local) first, then a shadcn local source detected on disk, then an npm
+ * package resolved from node_modules. Local sources carry kind/rootDir/alias.
+ */
+async function resolvePackageByName(
+  name: string,
+  ac: ActivationCtx,
+): Promise<DsPackage | undefined> {
+  const registered = ac.registry.list().find((p) => p.name === name);
+  if (registered) return registered;
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (root) {
+    const local = detectLocalSources(root).find((s) => s.name === name);
+    if (local) return local;
+  }
+  return ac.registry.resolveDescriptor(name);
+}
+
 async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
   const allPkgs = await ac.registry.discoverAllPackagesInWorkspace();
   const currentList = ac.registry.list();
-  return allPkgs.map((name) => {
+  const npm: PackageMeta[] = allPkgs.map((name) => {
     const pkg = currentList.find((p) => p.name === name);
     const cached = pkg ? ac.introspector.getCached(pkg) : undefined;
     return {
@@ -915,6 +944,27 @@ async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
       manual: pkg?.manual ?? [],
     };
   });
+
+  // Local component sources (shadcn / in-repo design systems): detected on disk
+  // from components.json, merged with any that are already registered. A source
+  // is "enabled" once registered (has a kind:'local' entry in snapds.packages).
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const local: PackageMeta[] = (root ? detectLocalSources(root) : []).map((src) => {
+    const registered = currentList.find((p) => p.name === src.name && p.kind === 'local');
+    const cached = ac.introspector.getCached(registered ?? src);
+    return {
+      name: src.name,
+      kind: 'local',
+      rootDir: src.rootDir,
+      importAlias: src.importAlias,
+      enabled: !!registered,
+      components: cached?.map((c) => c.name),
+      excluded: registered?.excluded ?? [],
+      manual: registered?.manual ?? [],
+    };
+  });
+
+  return [...npm, ...local];
 }
 
 async function collectWhitelistedComponents(ac: ActivationCtx): Promise<ComponentMeta[]> {
@@ -1028,8 +1078,7 @@ async function regenerateAll(ac: ActivationCtx): Promise<void> {
  * and refreshes the live props preview when relevant.
  */
 async function reintrospectAndBroadcast(pkgName: string, ac: ActivationCtx): Promise<void> {
-  const existing = ac.registry.list().find((p) => p.name === pkgName);
-  const descriptor = existing ?? (await ac.registry.resolveDescriptor(pkgName));
+  const descriptor = await resolvePackageByName(pkgName, ac);
   if (!descriptor) return;
   await refreshActiveComponents(descriptor, ac);
   const sel = ac.store.getSelected();

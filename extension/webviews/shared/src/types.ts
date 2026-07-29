@@ -131,6 +131,12 @@ export interface PackageMeta {
   components?: string[];
   excluded?: string[];
   manual?: string[];
+  /** `'local'` = an in-repo component source (shadcn / design system folder). */
+  kind?: 'npm' | 'local';
+  /** Local only: absolute source folder. */
+  rootDir?: string;
+  /** Local only: import-specifier base, e.g. `@/components/ui`. */
+  importAlias?: string;
 }
 
 export interface ConfigStatusPayload {

@@ -348,6 +348,18 @@ label > .desc {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.pkg-card-badge-local {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: var(--vscode-badge-foreground);
+  background: var(--vscode-badge-background);
+  opacity: 0.85;
+}
 .pkg-card-chips {
   display: flex;
   flex-wrap: wrap;

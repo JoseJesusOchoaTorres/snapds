@@ -64,7 +64,11 @@ export function buildLocalSource(
     const read = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
     if (read.error || !read.config) continue;
     const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, dir);
-    const mappings = parseAliasMappings(parsed.options.paths, parsed.options.pathsBasePath || dir);
+    // `pathsBasePath` resolves via CompilerOptions' index signature (a broad
+    // union), so narrow to string before use.
+    const base =
+      typeof parsed.options.pathsBasePath === 'string' ? parsed.options.pathsBasePath : dir;
+    const mappings = parseAliasMappings(parsed.options.paths, base);
     const rootDir = aliasToDir(importAlias, mappings);
     if (!rootDir) continue;
     try {
