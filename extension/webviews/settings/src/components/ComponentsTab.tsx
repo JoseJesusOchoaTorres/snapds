@@ -88,11 +88,15 @@ export function ComponentsTab({
   const { active, available } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const hasQuery = q.length > 0;
-    const hasChips = scopeFilters.length > 0;
+    // Only honor filters that correspond to a chip currently on screen. This
+    // ignores stale/renamed persisted values (e.g. an old "(unscoped)" after the
+    // bucket was renamed) that would otherwise match nothing and hide everything.
+    const activeChips = scopeFilters.filter((s) => scopes.includes(s));
+    const hasChips = activeChips.length > 0;
     // Scopes are OR'd among themselves, but the text narrows the result: with
     // @starlight selected and "button" typed, only Starlight buttons match.
     const matched = packages.filter((p) => {
-      const scopeMatch = !hasChips || scopeFilters.includes(filterKeyOf(p));
+      const scopeMatch = !hasChips || activeChips.includes(filterKeyOf(p));
       const textMatch = !hasQuery || p.name.toLowerCase().includes(q);
       return scopeMatch && textMatch;
     });
@@ -100,7 +104,7 @@ export function ComponentsTab({
       active: matched.filter(isActive).sort(comparator),
       available: matched.filter((p) => !isActive(p)).sort(comparator),
     };
-  }, [packages, selectedByPkg, query, scopeFilters]);
+  }, [packages, selectedByPkg, query, scopeFilters, scopes]);
 
   const renderCard = (p: PackageMeta, available = false) => {
     const detected = componentsByPkg[p.name] ?? [];

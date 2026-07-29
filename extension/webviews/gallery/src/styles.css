@@ -166,6 +166,20 @@ textarea::placeholder {
   outline-offset: -1px;
 }
 
+/* The sticky package header must stay opaque on hover: `list-hoverBackground` is
+   often translucent, so REPLACING the background would let scrolling content
+   show through the pinned header. Composite the hover color over the solid
+   sidebar background instead. (Placed after `.tree-row:hover` to win on equal
+   specificity.) */
+.tree-group-header:hover,
+.tree-group-header:focus-visible {
+  background-color: var(--vscode-sideBar-background, var(--vscode-editor-background, #1e1e1e));
+  background-image: linear-gradient(
+    var(--vscode-list-hoverBackground),
+    var(--vscode-list-hoverBackground)
+  );
+}
+
 .tree-label {
   flex: 1;
   min-width: 0;

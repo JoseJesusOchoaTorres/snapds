@@ -209,6 +209,9 @@ label > .desc {
   font: inherit;
 }
 .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   color: var(--vscode-foreground);
   border: none;
