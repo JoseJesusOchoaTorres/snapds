@@ -48,8 +48,8 @@ function fakeOverrides() {
 // ---------------------------------------------------------------------------
 
 const PKG = { name: '@acme/ui', version: '1.0.0', importPath: '@acme/ui' };
-// CACHE_SCHEMA_VERSION = 6 (from dsIntrospector.ts)
-const CACHE_KEY = 'ds.cache.v6.@acme/ui@1.0.0';
+// CACHE_SCHEMA_VERSION = 7 (from dsIntrospector.ts)
+const CACHE_KEY = 'ds.cache.v7.@acme/ui@1.0.0';
 
 const mkProp = (overrides) => ({ type: 'string', raw: 'string', required: false, ...overrides });
 
@@ -99,7 +99,7 @@ test('invalidate removes the specific cache entry', async () => {
 
 test('invalidate leaves other cache entries untouched', async () => {
   const ctx = fakeCtx();
-  const otherKey = 'ds.cache.v6.@other/lib@2.0.0';
+  const otherKey = 'ds.cache.v7.@other/lib@2.0.0';
   await ctx.globalState.update(CACHE_KEY, [mkComp('Button')]);
   await ctx.globalState.update(otherKey, [mkComp('Card')]);
   const introspector = new DsIntrospector(ctx, fakeOverrides());
@@ -235,7 +235,7 @@ test('introspect returns cached data without re-parsing', async () => {
 test('introspect with a version override resolves from the versioned cache key', async () => {
   const ctx = fakeCtx();
   const comps = [mkComp('Avatar')];
-  const versionedKey = 'ds.cache.v6.@acme/ui@2.0.0';
+  const versionedKey = 'ds.cache.v7.@acme/ui@2.0.0';
   await ctx.globalState.update(versionedKey, comps);
   const introspector = new DsIntrospector(ctx, fakeOverrides());
   assert.deepEqual(await introspector.introspect(PKG, { version: '2.0.0' }), comps);

@@ -17,7 +17,7 @@ import { buildCompilerOptions, enumerateComponentExports } from './exportsScan';
  * results (e.g. new prop extraction). This is part of the cache key, so bumping
  * it forces a fresh parse for everyone without clearing unrelated globalState.
  */
-const CACHE_SCHEMA_VERSION = 6;
+const CACHE_SCHEMA_VERSION = 7;
 
 export class DsIntrospector {
   /** Deduplicates concurrent introspect() calls for the same package. */
