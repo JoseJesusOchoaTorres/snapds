@@ -70,7 +70,8 @@ plus the TypeScript compiler API. For each component it extracts:
   `ForwardRefExoticComponent<Omit<Props, "ref">>` (common in libraries like
   Radix UI), a compiler pass reads the `Props` interface directly. Props a
   component inherits from sibling packages are kept — only standard DOM/React
-  attributes are filtered out as noise.
+  attributes, and props declared in interfaces JSDoc-tagged `@private`/
+  `@internal`, are filtered out as noise.
 
 Components are filtered to those whose display name starts with an uppercase
 letter and are not tagged `@internal` or listed in your config's `ignore`.
