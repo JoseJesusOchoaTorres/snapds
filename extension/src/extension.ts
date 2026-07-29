@@ -13,7 +13,11 @@ import {
 } from './config/configSerializer';
 import { DsIntrospector } from './ds/dsIntrospector';
 import { applyWhitelist, type DsPackage, DsRegistry } from './ds/dsRegistry';
-import { buildLocalSourceFromFolder, detectLocalSources } from './ds/localSources';
+import {
+  buildLocalSourceFromFolder,
+  detectLocalSources,
+  mergeLocalSources,
+} from './ds/localSources';
 import {
   generateSkillsToConfig,
   getSkillsConfig,
@@ -1003,11 +1007,13 @@ async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
     };
   });
 
-  // Local component sources (shadcn / in-repo design systems): detected on disk
-  // from components.json, merged with any that are already registered. A source
-  // is "enabled" once registered (has a kind:'local' entry in snapds.packages).
+  // Local component sources (shadcn / in-repo design systems): auto-detected from
+  // components.json AND any registered manually via "+ Local folder" (which have
+  // no components.json). A source is "enabled" once registered.
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  const local: PackageMeta[] = (root ? detectLocalSources(root) : []).map((src) => {
+  const detected = root ? detectLocalSources(root) : [];
+  const registeredLocal = currentList.filter((p) => p.kind === 'local');
+  const local: PackageMeta[] = mergeLocalSources(detected, registeredLocal).map((src) => {
     const registered = currentList.find((p) => p.name === src.name && p.kind === 'local');
     const cached = ac.introspector.getCached(registered ?? src);
     return {

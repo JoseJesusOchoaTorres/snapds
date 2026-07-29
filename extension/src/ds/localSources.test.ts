@@ -3,7 +3,22 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { test } from 'node:test';
-import { buildLocalSource, buildLocalSourceFromFolder, detectLocalSources } from './localSources';
+import {
+  buildLocalSource,
+  buildLocalSourceFromFolder,
+  detectLocalSources,
+  mergeLocalSources,
+} from './localSources';
+
+const localPkg = (name: string, extra = {}) => ({
+  name,
+  version: '0.0.0-local',
+  importPath: `@/${name}`,
+  importAlias: `@/${name}`,
+  rootDir: `/r/${name}`,
+  kind: 'local' as const,
+  ...extra,
+});
 
 /** Builds a throwaway shadcn-style project: components.json + tsconfig + ui folder. */
 function makeProject(opts: { withJsxTsconfig?: boolean; uiAlias?: string } = {}) {
@@ -51,6 +66,18 @@ test('buildLocalSource prefers a tsconfig that sets jsx', () => {
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('mergeLocalSources surfaces manually-registered sources missing from detection', () => {
+  const detected = [localPkg('src/components/ui')];
+  const registered = [
+    localPkg('src/components/ui', { excluded: ['Card'] }), // also detected
+    localPkg('src/components/ui-v2'), // manual only — no components.json
+  ];
+  const merged = mergeLocalSources(detected, registered);
+  assert.deepEqual(merged.map((s) => s.name).sort(), ['src/components/ui', 'src/components/ui-v2']);
+  // Registered wins for the overlapping name (carries the persisted selection).
+  assert.deepEqual(merged.find((s) => s.name === 'src/components/ui')?.excluded, ['Card']);
 });
 
 test('detectLocalSources handles a monorepo: multiple components.json, same alias, distinct apps', () => {

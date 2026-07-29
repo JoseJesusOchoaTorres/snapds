@@ -157,6 +157,20 @@ export function buildLocalSourceFromFolder(folderPath: string, workspaceRoot: st
 }
 
 /**
+ * Unions auto-detected local sources (`components.json`) with ones the user
+ * registered manually (kind:'local' in settings), deduped by name. Registered
+ * entries win — they carry the persisted excluded/manual selection. This is what
+ * lets a manually-added folder (no components.json) still appear in the package
+ * list alongside detected shadcn sources.
+ */
+export function mergeLocalSources(detected: DsPackage[], registered: DsPackage[]): DsPackage[] {
+  const byName = new Map<string, DsPackage>();
+  for (const s of detected) byName.set(s.name, s);
+  for (const r of registered) byName.set(r.name, r);
+  return [...byName.values()];
+}
+
+/**
  * Detects shadcn-style local component sources under `workspaceRoot` by scanning
  * for `components.json`. Each becomes a local `DsPackage` pointing at its
  * `aliases.ui` folder. Deduped by resolved rootDir.
