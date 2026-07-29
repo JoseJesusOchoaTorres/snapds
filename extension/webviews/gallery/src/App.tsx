@@ -14,6 +14,23 @@ export default function App() {
   const [totalIndexing, setTotalIndexing] = useState(0);
   const pendingRef = useRef<Set<string>>(new Set());
   const [lastCompletedPkg, setLastCompletedPkg] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
+  // Publish the sticky toolbar's height as a CSS var so package headers can
+  // stick right below it (they use `top: var(--snapds-toolbar-h)`). Re-measures
+  // on resize; guarded for jsdom where ResizeObserver is absent.
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    const root = rootRef.current;
+    if (!toolbar || !root) return;
+    const setVar = () => root.style.setProperty('--snapds-toolbar-h', `${toolbar.offsetHeight}px`);
+    setVar();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(setVar);
+    ro.observe(toolbar);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent<ToGallery>) => {
@@ -90,8 +107,8 @@ export default function App() {
   const showTree = filtered.length > 0 || pendingList.length > 0;
 
   return (
-    <div className="root">
-      <div className="toolbar-row">
+    <div className="root" ref={rootRef}>
+      <div className="toolbar-row" ref={toolbarRef}>
         <SearchBar value={query} onChange={setQuery} />
         {components.length > 0 && (
           <>

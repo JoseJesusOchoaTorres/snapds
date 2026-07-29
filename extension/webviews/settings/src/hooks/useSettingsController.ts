@@ -177,6 +177,13 @@ export function useSettingsController() {
     });
   };
 
+  // Bulk select/deselect every component of a package in one shot (the modal's
+  // "Select all" / "Deselect all" toggle). Selecting writes the full list;
+  // deselecting clears it, which also moves the card back to Available.
+  const setAllComponents = (pkg: string, components: string[], selected: boolean) => {
+    setSelectedByPkg((prev) => ({ ...prev, [pkg]: selected ? [...components] : [] }));
+  };
+
   // Deactivate a package entirely: clearing its selection moves the card to
   // Available. Persisting on the next save disables it (all components excluded).
   const removePackage = (pkg: string) => {
@@ -335,6 +342,7 @@ export function useSettingsController() {
     setDetail,
     setManualInput,
     toggleComponent,
+    setAllComponents,
     addManual,
     removePackage,
     handleSave,

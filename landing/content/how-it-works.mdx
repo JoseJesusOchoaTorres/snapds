@@ -66,6 +66,12 @@ plus the TypeScript compiler API. For each component it extracts:
 - **Enum values** — so the props panel can render selects instead of free text.
 - **Polymorphic components** — a compiler pass enumerates exported value
   components that docgen alone misses (e.g. `as`-style components).
+- **`forwardRef` components** — for components typed as
+  `ForwardRefExoticComponent<Omit<Props, "ref">>` (common in libraries like
+  Radix UI), a compiler pass reads the `Props` interface directly. Props a
+  component inherits from sibling packages are kept — only standard DOM/React
+  attributes, and props declared in interfaces JSDoc-tagged `@private`/
+  `@internal`, are filtered out as noise.
 
 Components are filtered to those whose display name starts with an uppercase
 letter and are not tagged `@internal` or listed in your config's `ignore`.
