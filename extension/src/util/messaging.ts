@@ -149,7 +149,8 @@ export type FromSettings =
   | { type: 'requestConfigStatus' }
   | { type: 'confirmImportConfig'; applyOverrides: boolean }
   | { type: 'reloadPackage'; pkg: string }
-  | { type: 'addLocalSource' };
+  | { type: 'addLocalSource' }
+  | { type: 'enableLocalSource'; name: string };
 
 export type ToGallery =
   | { type: 'componentList'; components: ComponentMeta[] }

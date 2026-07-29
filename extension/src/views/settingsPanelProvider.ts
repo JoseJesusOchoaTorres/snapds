@@ -45,6 +45,7 @@ export interface SettingsHandlers {
   onConfirmImportConfig?: (applyOverrides: boolean) => void | Promise<void>;
   onReloadPackage?: (pkg: string) => void | Promise<void>;
   onAddLocalSource?: () => void | Promise<void>;
+  onEnableLocalSource?: (name: string) => void | Promise<void>;
 }
 
 export class SettingsPanelProvider {
@@ -146,6 +147,9 @@ export class SettingsPanelProvider {
           break;
         case 'addLocalSource':
           void this.handlers.onAddLocalSource?.();
+          break;
+        case 'enableLocalSource':
+          void this.handlers.onEnableLocalSource?.(msg.name);
           break;
       }
     });

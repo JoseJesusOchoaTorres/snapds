@@ -359,6 +359,20 @@ function setupSettingsPanel(
       ac.settingsPanel.postPackageList(await buildPackageList(ac));
       setupLocalWatchers(ac);
     },
+    onEnableLocalSource: async (name) => {
+      // Register a source that was auto-detected (components.json) but not yet
+      // enabled — the banner's one-click "Add".
+      const src = await resolvePackageByName(name, ac);
+      if (!src || src.kind !== 'local') return;
+      const list = ac.registry.list();
+      if (!list.some((p) => p.name === name)) {
+        await ac.registry.saveAll([...list, { ...src, excluded: [], manual: [] }]);
+      }
+      const registered = ac.registry.list().find((p) => p.name === name);
+      if (registered) await refreshActiveComponents(registered, ac);
+      ac.settingsPanel.postPackageList(await buildPackageList(ac));
+      setupLocalWatchers(ac);
+    },
     onReloadPackage: async (pkgName) => {
       const descriptor = await resolvePackageByName(pkgName, ac);
       if (!descriptor) {

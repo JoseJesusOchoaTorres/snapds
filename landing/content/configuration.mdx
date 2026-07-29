@@ -176,6 +176,15 @@ each package contributes to the gallery and skills.
   top of the component list to select or clear every component in one action.
   The button flips its label to reflect the current state — handy for packages
   that export hundreds of components.
+- **Local component sources** — in-repo design systems (shadcn or your own
+  folder) are supported alongside npm packages. A `components.json` is
+  auto-detected and offered via a one-click banner; you can also register any
+  folder with **+ Local folder** (Snapds derives the import alias from your
+  tsconfig `paths`, or asks for it). Local sources show a **LOCAL** badge, group
+  under the **LOCAL** filter chip, inject imports from their path alias
+  (e.g. `@/components/ui/button`), and re-index live as you edit their files.
+- **Discard changes** — reverts unsaved component selections to the last saved
+  state without closing the panel.
 
 ## Export & import config
 

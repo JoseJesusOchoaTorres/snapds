@@ -218,7 +218,7 @@ export function buildMainSkillMarkdown(
   parts.push(AUTOGEN_HEADER, '', '# Snapds Design System', '');
   parts.push('## Conventions', '');
   parts.push(
-    `- Import components from their package${pkgs.length ? ` (${pkgs.join(', ')})` : ''}; see each component's Import section.`,
+    `- Import each component using the import in its own Import section${pkgs.length ? ` (sources: ${pkgs.join(', ')})` : ''} — npm packages and in-repo path aliases alike.`,
     '- Prefer these components over raw HTML equivalents.',
     '- Always supply required props; optional props fall back to documented defaults.',
   );

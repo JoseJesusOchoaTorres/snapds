@@ -5,6 +5,7 @@ import { ComponentsTab } from './components/ComponentsTab';
 import { ConfigDetectedBanner } from './components/ConfigDetectedBanner';
 import { ExportConfigModal } from './components/ExportConfigModal';
 import { ImportPreviewModal } from './components/ImportPreviewModal';
+import { LocalSourceBanner } from './components/LocalSourceBanner';
 import { OverrideEditorModal } from './components/OverrideEditorModal';
 import { PackageDetailModal } from './components/PackageDetailModal';
 import { Tabs } from './components/Tabs';
@@ -45,12 +46,15 @@ export default function App() {
     toggleScope,
     openPackage,
     addLocalSource,
+    enableLocalSource,
     reloadPackage,
     openComponentModal,
     saveOverride,
     resetOverride,
     configStatus,
     configBannerDismissed,
+    localBannerDismissed,
+    dismissLocalBanner,
     importPreview,
     showExportModal,
     setShowExportModal,
@@ -132,6 +136,9 @@ export default function App() {
   );
 
   const showBanner = configStatus?.detected && configStatus.hasConflicts && !configBannerDismissed;
+  const detectedLocalSources = packages
+    .filter((p) => p.kind === 'local' && !p.enabled)
+    .map((p) => p.name);
 
   return (
     <div className="root">
@@ -164,6 +171,16 @@ export default function App() {
           configPath={configStatus.configPath}
           onLoad={() => openImportConfig()}
           onDismiss={dismissConfigBanner}
+        />
+      )}
+
+      {detectedLocalSources.length > 0 && !localBannerDismissed && (
+        <LocalSourceBanner
+          sources={detectedLocalSources}
+          onAdd={() => {
+            for (const name of detectedLocalSources) enableLocalSource(name);
+          }}
+          onDismiss={dismissLocalBanner}
         />
       )}
 

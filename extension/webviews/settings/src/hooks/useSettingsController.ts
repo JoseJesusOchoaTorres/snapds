@@ -45,6 +45,7 @@ export function useSettingsController() {
   const [componentDetail, setComponentDetail] = useState<ComponentDetail | null>(null);
   const [configStatus, setConfigStatus] = useState<ConfigStatusPayload | null>(null);
   const [configBannerDismissed, setConfigBannerDismissed] = useState(false);
+  const [localBannerDismissed, setLocalBannerDismissed] = useState(false);
   const [importPreview, setImportPreview] = useState<ConfigImportPreviewPayload | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
 
@@ -267,6 +268,8 @@ export function useSettingsController() {
   };
 
   const addLocalSource = () => vscode.postMessage({ type: 'addLocalSource' });
+  const enableLocalSource = (name: string) =>
+    vscode.postMessage({ type: 'enableLocalSource', name });
 
   const reloadPackage = (name: string) => {
     setComponentsByPkg((prev) => {
@@ -339,6 +342,7 @@ export function useSettingsController() {
   };
 
   const dismissConfigBanner = () => setConfigBannerDismissed(true);
+  const dismissLocalBanner = () => setLocalBannerDismissed(true);
   const clearImportPreview = () => setImportPreview(null);
 
   return {
@@ -375,12 +379,15 @@ export function useSettingsController() {
     toggleScope,
     openPackage,
     addLocalSource,
+    enableLocalSource,
     reloadPackage,
     openComponentModal,
     saveOverride,
     resetOverride,
     configStatus,
     configBannerDismissed,
+    localBannerDismissed,
+    dismissLocalBanner,
     importPreview,
     showExportModal,
     setShowExportModal,
