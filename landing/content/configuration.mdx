@@ -180,9 +180,13 @@ each package contributes to the gallery and skills.
   folder) are supported alongside npm packages. A `components.json` is
   auto-detected and offered via a one-click banner; you can also register any
   folder with **+ Local folder** (Snapds derives the import alias from your
-  tsconfig `paths`, or asks for it). Local sources show a **LOCAL** badge, group
-  under the **LOCAL** filter chip, inject imports from their path alias
-  (e.g. `@/components/ui/button`), and re-index live as you edit their files.
+  tsconfig `paths`, or asks for it). Local sources show a **LOCAL** badge with
+  their import alias printed under the name (e.g. `→ @/components/ui`), group
+  under the **LOCAL** filter chip, inject imports from that path alias
+  (e.g. `@/components/ui/button`), and re-index live as you edit their files. The
+  Components tab carries a short hint — and, when nothing is selected yet, a
+  guided empty state — spelling out the difference between npm packages
+  (`node_modules`) and local folders (path alias) so the two paradigms are clear.
 - **Discard changes** — reverts unsaved component selections to the last saved
   state without closing the panel.
 

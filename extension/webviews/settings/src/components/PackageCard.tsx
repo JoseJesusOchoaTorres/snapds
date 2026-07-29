@@ -12,6 +12,8 @@ interface Props {
   isActive?: boolean;
   /** In-repo local source (shadcn / design system folder) — shows a "Local" badge. */
   local?: boolean;
+  /** Local only: the path-alias base its components import from (e.g. `@/components/ui`). */
+  importAlias?: string;
 }
 
 const PREVIEW_LIMIT = 3;
@@ -28,6 +30,7 @@ export function PackageCard({
   showEmptyPreview = true,
   isActive = false,
   local = false,
+  importAlias,
 }: Props) {
   const shown = preview.slice(0, PREVIEW_LIMIT);
   const extra = preview.length - shown.length;
@@ -39,7 +42,10 @@ export function PackageCard({
         <div className="pkg-card-head">
           <span className="pkg-card-name">{name}</span>
           {local && (
-            <span className="pkg-card-badge-local" title="In-repo local source">
+            <span
+              className="pkg-card-badge-local"
+              title="In-repo component source — imported via a path alias, not from node_modules"
+            >
               Local
             </span>
           )}
@@ -49,6 +55,11 @@ export function PackageCard({
             </span>
           )}
         </div>
+        {local && importAlias && (
+          <span className="pkg-card-alias mono" title="Components here import from this path alias">
+            → {importAlias}
+          </span>
+        )}
         {shown.length > 0 ? (
           <div className="pkg-card-chips">
             {shown.map((c) => (

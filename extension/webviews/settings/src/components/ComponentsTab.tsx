@@ -123,6 +123,7 @@ export function ComponentsTab({
         showEmptyPreview={!available}
         isActive={!available}
         local={p.kind === 'local'}
+        importAlias={p.importAlias}
       />
     );
   };
@@ -147,17 +148,32 @@ export function ComponentsTab({
         </button>
       </div>
 
+      <p className="tab-hint">
+        Components come from your <strong>npm packages</strong> and <strong>local folders</strong>{' '}
+        in this repo (shadcn or your own design system). Use <strong>+ Local folder</strong> to
+        register an in-repo folder — a{' '}
+        <span className="scope-chip scope-chip-meta scope-chip-inline">LOCAL</span> source injects
+        from a path alias like <code>@/components/ui</code> instead of <code>node_modules</code>.
+      </p>
+
       {scopes.length > 0 && (
         <div className="scope-filters">
           {scopes.map((s) => {
             const active = scopeFilters.includes(s);
             const meta = s === LOCAL || s === UNSCOPED;
+            const title =
+              s === LOCAL
+                ? 'In-repo component sources (shadcn or your own design system)'
+                : s === UNSCOPED
+                  ? 'npm packages published without an @scope (e.g. lucide-react, cmdk)'
+                  : `Show only ${s} packages`;
             return (
               <button
                 key={s}
                 type="button"
                 className={`scope-chip${meta ? ' scope-chip-meta' : ''}${active ? ' scope-chip-active' : ''}`}
                 aria-pressed={active}
+                title={title}
                 onClick={() => onToggleScope(s)}
               >
                 {s}
@@ -177,7 +193,23 @@ export function ComponentsTab({
           {active.length ? (
             <div className="pkg-card-grid">{active.map((p) => renderCard(p))}</div>
           ) : (
-            <div className="empty">No active packages yet.</div>
+            <div className="empty empty-guide">
+              <p>Nothing selected yet. Components can come from two kinds of source:</p>
+              <ul>
+                <li>
+                  <strong>npm packages</strong> — installed in <code>node_modules</code>, imported
+                  by their package name.
+                </li>
+                <li>
+                  <strong>local folders</strong> — in-repo components (shadcn or your own design
+                  system), imported from a path alias.
+                </li>
+              </ul>
+              <p>
+                Open a package under <strong>Available</strong> and pick its components, or add an
+                in-repo folder with <strong>+ Local folder</strong>.
+              </p>
+            </div>
           )}
 
           <h3 className="section-title">

@@ -367,7 +367,7 @@ function setupSettingsPanel(
       // Register a source that was auto-detected (components.json) but not yet
       // enabled — the banner's one-click "Add".
       const src = await resolvePackageByName(name, ac);
-      if (!src || src.kind !== 'local') return;
+      if (src?.kind !== 'local') return;
       const list = ac.registry.list();
       if (!list.some((p) => p.name === name)) {
         await ac.registry.saveAll([...list, { ...src, excluded: [], manual: [] }]);
