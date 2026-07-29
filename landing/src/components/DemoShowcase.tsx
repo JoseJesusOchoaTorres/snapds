@@ -394,6 +394,9 @@ function SearchDemo() {
 const SKILL_COMPONENTS: ComponentName[] = ['Button', 'Badge', 'Avatar'];
 type SkillStep = 'selecting' | 'ready' | 'generating' | 'done';
 
+/**
+ * Demonstrates selecting components and generating a component skill file.
+ */
 function SkillDemo() {
   const [step, setStep] = useState<SkillStep>('selecting');
   const [checked, setChecked] = useState<ComponentName[]>([]);
@@ -530,6 +533,9 @@ const DEMO_VIDEOS = [
 // aspect ratio so the poster and player never letterbox or cause layout shift.
 const VIDEO_ASPECT = '1920 / 986';
 
+/**
+ * Displays a video poster that loads and plays the video after user interaction.
+ */
 function VideoCard({ src, poster, title, caption }: (typeof DEMO_VIDEOS)[number]) {
   // Nothing loads until the user clicks: the poster is a ~60 KB JPG and the
   // <video> element (and its bytes) only mount on play.
@@ -593,6 +599,9 @@ const TABS = [
   { id: 'demos', label: 'Demos', icon: 'film' as const },
 ];
 
+/**
+ * Renders the interactive workflow showcase with component demos and video demonstrations.
+ */
 export function DemoShowcase() {
   const [active, setActive] = useState('browse');
 

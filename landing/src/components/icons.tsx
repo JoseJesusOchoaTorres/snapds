@@ -134,6 +134,12 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
 };
 
+/**
+ * Renders a predefined icon by name.
+ *
+ * @param name - The identifier of the icon to render
+ * @returns The selected icon rendered as an SVG
+ */
 export function Icon({ name, ...rest }: IconProps & { name: IconName }) {
   return <Svg {...rest}>{PATHS[name]}</Svg>;
 }
