@@ -36,6 +36,16 @@ test('generateImport builds a named import from the package', () => {
   assert.equal(generateImport(comp('Button')), "import { Button } from '@acme/ui';");
 });
 
+test('generateImport uses an explicit importSpecifier (local source alias)', () => {
+  const meta: ComponentMeta = {
+    id: 'src/components/ui#Button',
+    name: 'Button',
+    props: [],
+    importSpecifier: '@/components/ui/button',
+  };
+  assert.equal(generateImport(meta), "import { Button } from '@/components/ui/button';");
+});
+
 test('computeImportEdit inserts after a trailing multi-line import (no mid-block split)', () => {
   const src = `import {
   AuditLogContainer,
@@ -83,6 +93,23 @@ test('computeImportEdit is a no-op when the name is already imported', () => {
 
 test('computeImportEdit inserts at the top when the file has no imports', () => {
   assert.equal(applyEdit('const x = 1;\n', 'a', 'A'), "import { A } from 'a';\nconst x = 1;\n");
+});
+
+test('computeImportEdit merges components that share a local file specifier', () => {
+  // shadcn's dialog.tsx exports Dialog + DialogTrigger — both import from the same alias.
+  const src = "import { Dialog } from '@/components/ui/dialog';\n";
+  assert.equal(
+    applyEdit(src, '@/components/ui/dialog', 'DialogTrigger'),
+    "import { Dialog, DialogTrigger } from '@/components/ui/dialog';\n",
+  );
+});
+
+test('computeImportEdit does not merge across different local file specifiers', () => {
+  const src = "import { Dialog } from '@/components/ui/dialog';\n";
+  assert.equal(
+    applyEdit(src, '@/components/ui/button', 'Button'),
+    "import { Dialog } from '@/components/ui/dialog';\nimport { Button } from '@/components/ui/button';\n",
+  );
 });
 
 test('generateExampleJSX renders only required props without defaults', () => {

@@ -15,6 +15,18 @@ export interface ComponentMeta {
   props: PropMeta[];
   snippet?: string;
   /**
+   * Import specifier to emit when injecting this component — e.g. a local design
+   * system's path alias `@/components/ui/button`. When absent, injection falls
+   * back to the component id's package prefix (the npm-package behavior).
+   */
+  importSpecifier?: string;
+  /**
+   * Absolute path of the source file this component was introspected from. Set
+   * for local sources; used to derive `importSpecifier` and to scope the
+   * file-watcher. Host-only (webviews don't consume it).
+   */
+  sourceFile?: string;
+  /**
    * True when the component exposes no custom props and only accepts standard
    * DOM/SVG attributes (e.g. an icon typed `React.SVGProps<SVGSVGElement>`).
    * Lets the UI show an explanatory label instead of "no documented props".

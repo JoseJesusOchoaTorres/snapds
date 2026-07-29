@@ -9,6 +9,16 @@ export interface DsPackage {
   version: string;
   importPath: string;
   tsconfigPath?: string;
+  /**
+   * Source kind. `'local'` = a component-source folder inside the repo (shadcn
+   * or an in-repo design system), introspected from source and imported via a
+   * path alias. Absent/`'npm'` = a package resolved from node_modules.
+   */
+  kind?: 'npm' | 'local';
+  /** Local only: absolute directory scanned for component source files. */
+  rootDir?: string;
+  /** Local only: import-specifier base for `rootDir`, e.g. `@/components/ui`. */
+  importAlias?: string;
   /** Component names the user explicitly de-selected. Anything not listed is auto-included. */
   excluded?: string[];
   /** Component names the user added manually that introspection did not detect. */

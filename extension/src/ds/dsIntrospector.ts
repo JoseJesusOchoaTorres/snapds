@@ -7,6 +7,7 @@ import { getConfigMtime, normalizePackage, resolveConfig } from '../config/confi
 import type { ConfigComponentOverride, SnapdsConfigPackage } from '../config/configSchema';
 import type { UserOverridesStore } from '../state/userOverrides';
 import type { ComponentMeta, PropMeta, UserOverride } from '../util/messaging';
+import { specifierForFile } from './aliasResolver';
 import type { DsPackage } from './dsRegistry';
 import { buildCompilerOptions, enumerateComponentExports } from './exportsScan';
 
@@ -16,7 +17,7 @@ import { buildCompilerOptions, enumerateComponentExports } from './exportsScan';
  * results (e.g. new prop extraction). This is part of the cache key, so bumping
  * it forces a fresh parse for everyone without clearing unrelated globalState.
  */
-const CACHE_SCHEMA_VERSION = 5;
+const CACHE_SCHEMA_VERSION = 6;
 
 export class DsIntrospector {
   /** Deduplicates concurrent introspect() calls for the same package. */
@@ -134,7 +135,32 @@ export class DsIntrospector {
     return p.version;
   }
 
+  /**
+   * Content signature for a local source: `<fileCount>:<summed mtimeMs>`. Changes
+   * on any add / delete / edit under the folder, so it doubles as the cache-busting
+   * component of a local source's key (local sources have no npm version to key on).
+   */
+  private localCacheSig(rootDir: string): string {
+    try {
+      const files = this.collectComponentFiles(rootDir);
+      let sum = 0;
+      for (const f of files) {
+        try {
+          sum += fs.statSync(f).mtimeMs;
+        } catch {}
+      }
+      return `${files.length}:${Math.round(sum)}`;
+    } catch {
+      return '0:0';
+    }
+  }
+
   private getCacheKey(p: DsPackage, versionOverride?: string): string {
+    // Local sources have no npm version — key on the folder + a content signature
+    // so editing a component file invalidates the entry (an npm version never would).
+    if (p.kind === 'local' && p.rootDir) {
+      return `ds.cache.v${CACHE_SCHEMA_VERSION}.local:${p.rootDir}@${this.localCacheSig(p.rootDir)}`;
+    }
     const installedVersion = versionOverride ?? this.resolveInstalledVersion(p);
     let key = `ds.cache.v${CACHE_SCHEMA_VERSION}.${p.name}@${installedVersion}`;
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -193,16 +219,26 @@ export class DsIntrospector {
   ): Promise<ComponentMeta[]> {
     const cacheKey = this.getCacheKey(p, opts.version);
 
-    const pkgDir = opts.dir ?? (await this.resolvePackageDir(p));
-    const entry = this.resolveTypingsEntry(pkgDir);
+    const isLocal = p.kind === 'local';
+    const pkgDir = opts.dir ?? (isLocal ? (p.rootDir as string) : await this.resolvePackageDir(p));
+    // Local sources have no typings entry — resolveTypingsEntry would throw on a
+    // folder with no package.json — so parse the folder's source files directly.
+    const entry = isLocal ? undefined : this.resolveTypingsEntry(pkgDir);
 
     // Component names whose only props were standard DOM/SVG attributes from
     // `@types/react` (all stripped by the prop filter). Populated as a side
     // effect of parsing so we can label them instead of showing "no props".
     const domOnly = new Set<string>();
-    const parser = p.tsconfigPath
-      ? docgen.withCustomConfig(p.tsconfigPath, this.parserOptions(domOnly))
-      : docgen.withDefaultConfig(this.parserOptions(domOnly));
+    const parser = isLocal
+      ? docgen.withCompilerOptions(
+          // Resolve the project's `paths`/jsx but relax strict null-checks, which
+          // otherwise collapse cva `VariantProps` enums into a valueless union.
+          { ...buildCompilerOptions(p.tsconfigPath), strict: false, strictNullChecks: false },
+          this.parserOptions(domOnly),
+        )
+      : p.tsconfigPath
+        ? docgen.withCustomConfig(p.tsconfigPath, this.parserOptions(domOnly))
+        : docgen.withDefaultConfig(this.parserOptions(domOnly));
 
     const entryFiles = entry ? [entry] : this.collectComponentFiles(pkgDir);
     const parsed = parser.parse(entryFiles);
@@ -306,6 +342,13 @@ export class DsIntrospector {
           // end up with zero props after filtering; flag them so the UI shows a
           // clear label instead of the generic "no documented props" message.
           standardPropsOnly: props.length === 0 && domOnly.has(c.displayName),
+          // Local sources inject from a per-file path alias, not a package name.
+          ...(isLocal && p.importAlias && c.filePath
+            ? {
+                sourceFile: c.filePath,
+                importSpecifier: specifierForFile(pkgDir, p.importAlias, c.filePath),
+              }
+            : {}),
         };
       });
 
