@@ -507,6 +507,82 @@ function SkillDemo() {
   );
 }
 
+/* ─── Tab 5: Real demo videos ─────────────────────────────────── */
+
+const DEMO_VIDEOS = [
+  {
+    src: '/videos/import-demo.mp4',
+    poster: '/videos/import-demo-poster.jpg',
+    title: 'Drop a component, imports handled',
+    caption:
+      'Pull a component from the gallery into your file — Snapds writes the JSX and merges the import automatically.',
+  },
+  {
+    src: '/videos/ai-demo.mp4',
+    poster: '/videos/ai-demo-poster.jpg',
+    title: 'Export an agent-ready skill',
+    caption:
+      'Turn a component package into a skill your AI agent can use, straight from the editor.',
+  },
+] as const;
+
+// Native intrinsic size of the transcoded clips (1920×986) — pins the frame's
+// aspect ratio so the poster and player never letterbox or cause layout shift.
+const VIDEO_ASPECT = '1920 / 986';
+
+function VideoCard({ src, poster, title, caption }: (typeof DEMO_VIDEOS)[number]) {
+  // Nothing loads until the user clicks: the poster is a ~60 KB JPG and the
+  // <video> element (and its bytes) only mount on play.
+  const [playing, setPlaying] = useState(false);
+
+  return (
+    <figure className="demo-video">
+      <div className="demo-video__frame" style={{ aspectRatio: VIDEO_ASPECT }}>
+        {playing ? (
+          // biome-ignore lint/a11y/useMediaCaption: silent UI screencast, no spoken audio track
+          <video
+            className="demo-video__player"
+            src={src}
+            poster={poster}
+            controls
+            autoPlay
+            playsInline
+            preload="auto"
+          >
+            <a href={src}>Download the {title} video</a>
+          </video>
+        ) : (
+          <button
+            type="button"
+            className="demo-video__poster"
+            style={{ backgroundImage: `url(${poster})` }}
+            onClick={() => setPlaying(true)}
+            aria-label={`Play video: ${title}`}
+          >
+            <span className="demo-video__play">
+              <Icon name="play" size={26} />
+            </span>
+          </button>
+        )}
+      </div>
+      <figcaption className="demo-video__cap">
+        <span className="demo-video__title">{title}</span>
+        <span className="demo-video__desc">{caption}</span>
+      </figcaption>
+    </figure>
+  );
+}
+
+function VideosDemo() {
+  return (
+    <div className="demo-videos">
+      {DEMO_VIDEOS.map((v) => (
+        <VideoCard key={v.src} {...v} />
+      ))}
+    </div>
+  );
+}
+
 /* ─── Tabs wrapper ────────────────────────────────────────────── */
 
 const TABS = [
@@ -514,6 +590,7 @@ const TABS = [
   { id: 'drop', label: 'Drop to Code', icon: 'cursor' as const },
   { id: 'search', label: 'Quick Search', icon: 'bolt' as const },
   { id: 'skill', label: 'Generate Skill', icon: 'sparkles' as const },
+  { id: 'demos', label: 'Demos', icon: 'film' as const },
 ];
 
 export function DemoShowcase() {
@@ -545,17 +622,20 @@ export function DemoShowcase() {
           ))}
         </div>
 
-        <div className="demo-panel glass">
-          <div className="demo-panel__bar" aria-hidden="true">
-            <span className="editor__dot" style={{ background: '#ff5f57' }} />
-            <span className="editor__dot" style={{ background: '#febc2e' }} />
-            <span className="editor__dot" style={{ background: '#28c840' }} />
-            <span className="demo-panel__title">Snapds — VS Code</span>
-          </div>
+        <div className={active === 'demos' ? 'demo-panel demo-panel--bare' : 'demo-panel glass'}>
+          {active !== 'demos' && (
+            <div className="demo-panel__bar" aria-hidden="true">
+              <span className="editor__dot" style={{ background: '#ff5f57' }} />
+              <span className="editor__dot" style={{ background: '#febc2e' }} />
+              <span className="editor__dot" style={{ background: '#28c840' }} />
+              <span className="demo-panel__title">Snapds — VS Code</span>
+            </div>
+          )}
           {active === 'browse' && <BrowseDemo />}
           {active === 'drop' && <DropDemo />}
           {active === 'search' && <SearchDemo />}
           {active === 'skill' && <SkillDemo />}
+          {active === 'demos' && <VideosDemo />}
         </div>
       </div>
     </section>

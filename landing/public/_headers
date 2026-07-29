@@ -15,3 +15,9 @@
 # Pagefind search index (content-hashed), safe to cache forever.
 /_pagefind/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Demo videos + posters. Filenames aren't content-hashed, so cache for a day
+# and revalidate — long enough to help repeat views, short enough that a
+# re-recorded clip propagates quickly.
+/videos/*
+  Cache-Control: public, max-age=86400, must-revalidate

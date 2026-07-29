@@ -1711,3 +1711,111 @@ html.light .demo-props__type {
     display: none;
   }
 }
+
+/* ── Demo videos ───────────────────────────────────────────── */
+
+/* The videos already show a real VS Code window, so the demo panel drops its
+   fake editor chrome (title bar + border) for this tab and lets the clips
+   stand on their own. */
+.demo-panel--bare {
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.demo-videos {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.demo-video {
+  margin: 0;
+}
+
+.demo-video__frame {
+  position: relative;
+  /* Lift the clip above the global grain overlay (html::after, z-index 0).
+     The organic noise reads as dirt over a crisp screen recording, so the
+     video sits on its own layer while the rest of the page keeps its texture. */
+  z-index: 1;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #05060a;
+}
+
+.demo-video__player,
+.demo-video__poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.demo-video__player {
+  object-fit: contain;
+  background: #05060a;
+}
+
+.demo-video__poster {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  background-color: #05060a;
+  background-size: cover;
+  background-position: center;
+  transition: filter 0.2s;
+}
+
+.demo-video__poster:hover {
+  filter: brightness(1.06);
+}
+
+.demo-video__poster:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.demo-video__play {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  padding-left: 0.2rem; /* optically centres the triangle */
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(8, 9, 13, 0.55);
+  color: #fff;
+  backdrop-filter: blur(4px);
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+
+.demo-video__poster:hover .demo-video__play {
+  transform: scale(1.06);
+  background: rgba(8, 9, 13, 0.72);
+}
+
+.demo-video__cap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.65rem;
+}
+
+.demo-video__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.demo-video__desc {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
