@@ -44,6 +44,7 @@ export interface SettingsHandlers {
   onRequestConfigStatus?: () => void | Promise<void>;
   onConfirmImportConfig?: (applyOverrides: boolean) => void | Promise<void>;
   onReloadPackage?: (pkg: string) => void | Promise<void>;
+  onAddLocalSource?: () => void | Promise<void>;
 }
 
 export class SettingsPanelProvider {
@@ -142,6 +143,9 @@ export class SettingsPanelProvider {
           break;
         case 'reloadPackage':
           void this.handlers.onReloadPackage?.(msg.pkg);
+          break;
+        case 'addLocalSource':
+          void this.handlers.onAddLocalSource?.();
           break;
       }
     });

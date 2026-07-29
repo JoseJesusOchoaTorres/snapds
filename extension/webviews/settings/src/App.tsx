@@ -44,6 +44,7 @@ export default function App() {
     toggleFormat,
     toggleScope,
     openPackage,
+    addLocalSource,
     reloadPackage,
     openComponentModal,
     saveOverride,
@@ -185,6 +186,7 @@ export default function App() {
                 onToggleScope={toggleScope}
                 onOpenPackage={openPackage}
                 onRemovePackage={removePackage}
+                onAddLocalSource={addLocalSource}
               />
             ),
             actions: (

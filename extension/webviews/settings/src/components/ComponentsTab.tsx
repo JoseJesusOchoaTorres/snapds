@@ -12,6 +12,7 @@ interface Props {
   onToggleScope: (scope: string) => void;
   onOpenPackage: (name: string) => void;
   onRemovePackage: (name: string) => void;
+  onAddLocalSource: () => void;
 }
 
 /**
@@ -47,6 +48,7 @@ export function ComponentsTab({
   onToggleScope,
   onOpenPackage,
   onRemovePackage,
+  onAddLocalSource,
 }: Props) {
   const comparator = (a: PackageMeta, b: PackageMeta) => {
     if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
@@ -123,13 +125,23 @@ export function ComponentsTab({
 
   return (
     <div className="tab-content">
-      <input
-        type="text"
-        className="filter-input"
-        placeholder="Filter packages…"
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-      />
+      <div className="components-toolbar">
+        <input
+          type="text"
+          className="filter-input"
+          placeholder="Filter packages…"
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+        />
+        <button
+          type="button"
+          className="btn-small add-local-source"
+          onClick={onAddLocalSource}
+          title="Register an in-repo component folder (shadcn or your own design system)"
+        >
+          + Local folder
+        </button>
+      </div>
 
       {scopes.length > 0 && (
         <div className="scope-filters">

@@ -266,6 +266,8 @@ export function useSettingsController() {
     requestComponents(name);
   };
 
+  const addLocalSource = () => vscode.postMessage({ type: 'addLocalSource' });
+
   const reloadPackage = (name: string) => {
     setComponentsByPkg((prev) => {
       const next = { ...prev };
@@ -372,6 +374,7 @@ export function useSettingsController() {
     toggleFormat,
     toggleScope,
     openPackage,
+    addLocalSource,
     reloadPackage,
     openComponentModal,
     saveOverride,

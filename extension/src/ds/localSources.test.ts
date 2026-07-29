@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { test } from 'node:test';
-import { buildLocalSource, detectLocalSources } from './localSources';
+import { buildLocalSource, buildLocalSourceFromFolder, detectLocalSources } from './localSources';
 
 /** Builds a throwaway shadcn-style project: components.json + tsconfig + ui folder. */
 function makeProject(opts: { withJsxTsconfig?: boolean; uiAlias?: string } = {}) {
@@ -48,6 +48,32 @@ test('buildLocalSource prefers a tsconfig that sets jsx', () => {
     const s = buildLocalSource(path.join(root, 'components.json'), root);
     assert.ok(s);
     assert.equal(s.tsconfigPath, path.join(root, 'tsconfig.app.json'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('buildLocalSourceFromFolder derives the alias from tsconfig paths', () => {
+  const root = makeProject();
+  try {
+    const src = buildLocalSourceFromFolder(path.join(root, 'src/components/ui'), root);
+    assert.equal(src.kind, 'local');
+    assert.equal(src.name, 'src/components/ui');
+    assert.equal(src.importAlias, '@/components/ui');
+    assert.equal(src.rootDir, path.join(root, 'src/components/ui'));
+    assert.ok(src.tsconfigPath);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('buildLocalSourceFromFolder leaves importAlias empty for an unaliased folder', () => {
+  const root = makeProject();
+  try {
+    fs.mkdirSync(path.join(root, 'packages/ds'), { recursive: true });
+    const src = buildLocalSourceFromFolder(path.join(root, 'packages/ds'), root);
+    assert.equal(src.importAlias, ''); // not under @/* -> caller must prompt
+    assert.equal(src.name, 'packages/ds');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

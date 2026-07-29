@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as ts from 'typescript';
-import { aliasToDir, parseAliasMappings } from './aliasResolver';
+import { aliasToDir, fileToSpecifier, parseAliasMappings } from './aliasResolver';
 import type { DsPackage } from './dsRegistry';
 
 /** Recursively finds every `components.json` under `root`, skipping node_modules/dot dirs. */
@@ -91,6 +91,63 @@ export function buildLocalSource(
     rootDir: best.rootDir,
     kind: 'local',
     tsconfigPath: best.tsconfigPath,
+  };
+}
+
+/**
+ * Builds a local-source `DsPackage` for an arbitrary folder the user picked
+ * manually (a design system with no `components.json`). Walks up from the folder
+ * to the nearest `tsconfig*.json` (preferring one that both resolves the folder
+ * to an alias and sets `jsx`) to derive `importAlias` + `tsconfigPath`. When no
+ * alias can be derived, `importAlias`/`importPath` are left empty for the caller
+ * to fill (e.g. by prompting the user).
+ */
+export function buildLocalSourceFromFolder(folderPath: string, workspaceRoot: string): DsPackage {
+  let dir = folderPath;
+  const ancestors: string[] = [];
+  while (true) {
+    ancestors.push(dir);
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  let derived:
+    | { importAlias?: string; tsconfigPath: string; hasJsx: boolean; hasAlias: boolean }
+    | undefined;
+  for (const d of ancestors) {
+    for (const tsconfigPath of tsconfigsIn(d)) {
+      const read = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
+      if (read.error || !read.config) continue;
+      const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, d);
+      const base =
+        typeof parsed.options.pathsBasePath === 'string' ? parsed.options.pathsBasePath : d;
+      const mappings = parseAliasMappings(parsed.options.paths, base);
+      const importAlias = fileToSpecifier(folderPath, mappings) ?? undefined;
+      const hasJsx = parsed.options.jsx !== undefined;
+      const hasAlias = !!importAlias;
+      // Prefer a tsconfig that resolves an alias AND sets jsx; else keep the best so far.
+      const better =
+        !derived ||
+        (hasAlias && !derived.hasAlias) ||
+        (hasAlias === derived.hasAlias && hasJsx && !derived.hasJsx);
+      if (better) derived = { importAlias, tsconfigPath, hasJsx, hasAlias };
+    }
+    // Stop at the nearest ancestor that yields an alias.
+    if (derived?.hasAlias) break;
+  }
+
+  const importAlias = derived?.importAlias ?? '';
+  return {
+    name:
+      path.relative(workspaceRoot, folderPath).split(path.sep).join('/') ||
+      path.basename(folderPath),
+    version: '0.0.0-local',
+    importPath: importAlias,
+    importAlias,
+    rootDir: folderPath,
+    kind: 'local',
+    tsconfigPath: derived?.tsconfigPath,
   };
 }
 

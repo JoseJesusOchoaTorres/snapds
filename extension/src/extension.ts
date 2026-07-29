@@ -13,7 +13,7 @@ import {
 } from './config/configSerializer';
 import { DsIntrospector } from './ds/dsIntrospector';
 import { applyWhitelist, type DsPackage, DsRegistry } from './ds/dsRegistry';
-import { detectLocalSources } from './ds/localSources';
+import { buildLocalSourceFromFolder, detectLocalSources } from './ds/localSources';
 import {
   generateSkillsToConfig,
   getSkillsConfig,
@@ -315,6 +315,49 @@ function setupSettingsPanel(
         );
         ac.settingsPanel.postComponentNames(pkgName, []);
       }
+    },
+    onAddLocalSource: async () => {
+      const root = ac.workspaceRoot;
+      if (!root) {
+        vscode.window.showWarningMessage('Snapds: open a workspace folder first.');
+        return;
+      }
+      const picked = await vscode.window.showOpenDialog({
+        canSelectFolders: true,
+        canSelectFiles: false,
+        canSelectMany: false,
+        openLabel: 'Select component source folder',
+        defaultUri: vscode.Uri.file(root),
+      });
+      if (!picked?.length) return;
+      const folder = picked[0].fsPath;
+      const rel = path.relative(root, folder);
+      if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        vscode.window.showWarningMessage('Snapds: the folder must be inside the workspace.');
+        return;
+      }
+      const src = buildLocalSourceFromFolder(folder, root);
+      if (!src.importAlias) {
+        const alias = await vscode.window.showInputBox({
+          title: 'Import alias for this component folder',
+          prompt: 'The specifier used in generated imports, e.g. @/components/ui',
+          placeHolder: '@/components/ui',
+          ignoreFocusOut: true,
+        });
+        if (!alias?.trim()) return;
+        src.importAlias = alias.trim();
+        src.importPath = alias.trim();
+      }
+      const list = ac.registry.list();
+      if (list.some((p) => p.name === src.name)) {
+        vscode.window.showInformationMessage(`Snapds: "${src.name}" is already registered.`);
+      } else {
+        await ac.registry.saveAll([...list, { ...src, excluded: [], manual: [] }]);
+      }
+      const registered = ac.registry.list().find((p) => p.name === src.name);
+      if (registered) await refreshActiveComponents(registered, ac);
+      ac.settingsPanel.postPackageList(await buildPackageList(ac));
+      setupLocalWatchers(ac);
     },
     onReloadPackage: async (pkgName) => {
       const descriptor = await resolvePackageByName(pkgName, ac);
@@ -909,6 +952,7 @@ async function afterDiscovery(ac: ActivationCtx): Promise<void> {
   await discoverAllInstallations(ac);
   notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath, ac);
   void preIndexAllVersions(ac);
+  setupLocalWatchers(ac);
 }
 
 /**
@@ -965,6 +1009,35 @@ async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
   });
 
   return [...npm, ...local];
+}
+
+let localWatchers: vscode.Disposable[] = [];
+
+/**
+ * (Re)registers a file watcher per registered local source folder so editing a
+ * component re-introspects and refreshes the gallery live. Local cache keys are
+ * content-signature (mtime) based, so a changed file naturally busts the cache;
+ * the watcher just triggers the re-scan + broadcast.
+ */
+function setupLocalWatchers(ac: ActivationCtx): void {
+  for (const d of localWatchers) d.dispose();
+  localWatchers = [];
+  for (const p of ac.registry.list()) {
+    if (p.kind !== 'local' || !p.rootDir) continue;
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(p.rootDir, '**/*.{ts,tsx}'),
+    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onChange = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void reintrospectAndBroadcast(p.name, ac), 300);
+    };
+    watcher.onDidChange(onChange);
+    watcher.onDidCreate(onChange);
+    watcher.onDidDelete(onChange);
+    localWatchers.push(watcher);
+  }
+  ac.vsctx.subscriptions.push(...localWatchers);
 }
 
 async function collectWhitelistedComponents(ac: ActivationCtx): Promise<ComponentMeta[]> {
