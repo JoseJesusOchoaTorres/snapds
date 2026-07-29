@@ -36,6 +36,7 @@ Snapds is a powerful VS Code extension designed for React monorepos. It introspe
 - 📦 **Smart Import Management**: Automatically injects new imports without duplicating existing ones. It correctly handles multi-line Prettier-formatted imports and updates them seamlessly.
 - ⚡ **Performance Optimized**: Uses advanced caching based on package version and config file mtime so re-opening the gallery is instant. Each package version is cached independently, so switching between versions in the props panel requires no re-parse after startup.
 - 🗂️ **Monorepo multi-version support**: In a monorepo with apps using different versions of the same package, Snapds auto-detects the right version from the file currently open in your editor and shows the matching props. A version selector in the props panel lets you override this manually, and an "Add to this app" button injects the dependency into the nearest `package.json` when the package isn't listed there yet.
+- 🎨 **Local component sources**: Point Snapds at an in-repo design system, not just npm packages. A shadcn `components.json` is auto-detected, or register any folder with **+ Local folder**. Local components inject from their path alias (e.g. `@/components/ui/button`) instead of `node_modules`, are badged **LOCAL**, and re-index live as you edit them.
 - 🤖 **Generate Skills**: Turn your component metadata into agent-consumable skill docs so coding agents can use your design system without re-reading source or `.d.ts` files (saving tokens).
 
 ## Managing Packages & Components
@@ -60,6 +61,16 @@ When the same package is installed at different versions across apps in a monore
 Your selection is stored per-package in `snapds.packages` as `excluded` (chips you turned off) and `manual` (names you added) — the extension never persists a full allow-list, so new upstream components always surface.
 
 > **Note on detection:** Snapds combines `react-docgen-typescript` with a TypeScript Compiler API pass that enumerates every exported value component. This catches polymorphic / `as`-style components (declared as generic call signatures) that docgen alone misses; such components appear as chips with no introspected props until you add overrides.
+
+### Local component sources
+
+Snapds works with **in-repo design systems** (shadcn or your own folder), not just packages installed in `node_modules`. The Settings **Components** tab spells the two paradigms out inline — a short hint above the list and, when nothing is selected yet, a guided empty state contrasting npm packages with local folders.
+
+- **Auto-detection.** A shadcn `components.json` anywhere in the workspace (including per-app in a monorepo) is detected and offered via a one-click banner. Snapds resolves its `aliases.ui` entry to a folder through your tsconfig `paths`, preferring a tsconfig that also sets `jsx` for better prop extraction.
+- **Manual folders.** Register any component folder with **+ Local folder**. Snapds derives the import alias from your tsconfig `paths`, or prompts you for it when the folder isn't aliased — so a design system with no `components.json` still works.
+- **Alias-based injection.** Local components inject from their path alias (e.g. `import { Button } from '@/components/ui/button'`) instead of a package name. Exports that share a source file are merged into a single import statement.
+- **Identity & filtering.** Each source is labelled by its workspace-relative folder (e.g. `src/components/ui`), badged **LOCAL** with its alias printed beneath the name, and grouped under a dedicated **LOCAL** filter chip. (npm packages published without an `@scope`, like `lucide-react`, group under **UNSCOPED**.)
+- **Live re-index.** A file watcher re-introspects a local source as you add or edit its component files, so new components surface without a manual refresh.
 
 ## Generate Skills
 
