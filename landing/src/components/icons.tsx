@@ -12,7 +12,9 @@ export type IconName =
   | 'refresh'
   | 'check'
   | 'component'
-  | 'grip';
+  | 'grip'
+  | 'play'
+  | 'film';
 
 type IconProps = { size?: number; className?: string };
 
@@ -123,8 +125,21 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="15" cy="16" r="1.2" fill="currentColor" stroke="none" />
     </>
   ),
+  play: <path d="M7 4.5l13 7.5-13 7.5z" fill="currentColor" stroke="none" />,
+  film: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4" />
+    </>
+  ),
 };
 
+/**
+ * Renders a predefined icon by name.
+ *
+ * @param name - The identifier of the icon to render
+ * @returns The selected icon rendered as an SVG
+ */
 export function Icon({ name, ...rest }: IconProps & { name: IconName }) {
   return <Svg {...rest}>{PATHS[name]}</Svg>;
 }
