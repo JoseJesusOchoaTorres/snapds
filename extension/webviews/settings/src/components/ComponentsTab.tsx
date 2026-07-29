@@ -18,10 +18,10 @@ interface Props {
  * Synthetic filter bucket for packages without an npm scope (e.g. `lucide-react`,
  * `cmdk`). Real scopes always start with `@`, so this sentinel can never collide.
  */
-const UNSCOPED = '(unscoped)';
+const UNSCOPED = 'UNSCOPED';
 
 /** Dedicated filter bucket for in-repo local sources (shadcn / design systems). */
-const LOCAL = 'Local';
+const LOCAL = 'LOCAL';
 
 /** Returns the npm scope of a package name (`@acme/ui` -> `@acme`), else null. */
 function scopeOf(name: string): string | null {
@@ -74,11 +74,12 @@ export function ComponentsTab({
       if (s) set.add(s);
       else hasUnscoped = true;
     }
-    // Real scopes first, then the unscoped bucket, then Local (in-repo sources).
-    const sorted = [...set].sort();
-    if (hasUnscoped) sorted.push(UNSCOPED);
-    if (hasLocal) sorted.push(LOCAL);
-    return sorted;
+    // Synthetic buckets (uppercase) lead so they read as distinct meta-filters,
+    // then the real npm scopes (e.g. @radix-ui) sorted after them.
+    const special: string[] = [];
+    if (hasLocal) special.push(LOCAL);
+    if (hasUnscoped) special.push(UNSCOPED);
+    return [...special, ...[...set].sort()];
   }, [packages]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: isActive/comparator/scopeOf are stable module/derived helpers; re-running only on the listed inputs is intended.
@@ -134,11 +135,12 @@ export function ComponentsTab({
         <div className="scope-filters">
           {scopes.map((s) => {
             const active = scopeFilters.includes(s);
+            const meta = s === LOCAL || s === UNSCOPED;
             return (
               <button
                 key={s}
                 type="button"
-                className={`scope-chip${active ? ' scope-chip-active' : ''}`}
+                className={`scope-chip${meta ? ' scope-chip-meta' : ''}${active ? ' scope-chip-active' : ''}`}
                 aria-pressed={active}
                 onClick={() => onToggleScope(s)}
               >

@@ -122,7 +122,7 @@ it finds. Editing the file invalidates the introspection cache automatically.
 | `…props[prop].description`         | `string`                    | Overrides the prop's description.                   |
 | `…props[prop].hidden`              | `boolean`                   | Hide the prop from the UI and skills.               |
 | `skills`                           | `object`                    | AI skills export config (mirrors `snapds.skills`).  |
-| `scopeFilters`                     | `string[]`                  | Active scope chips pre-applied for all teammates — npm scopes like `@acme`, or `(unscoped)` for packages with no scope. |
+| `scopeFilters`                     | `string[]`                  | Active scope chips pre-applied for all teammates — npm scopes like `@acme`, or the meta-buckets `LOCAL` / `UNSCOPED`. |
 
 <Callout type="info">
 **Backward compat:** The older `ignore` field on a package object is still
@@ -166,10 +166,11 @@ The **Components** tab of the Settings panel is where you pick which components
 each package contributes to the gallery and skills.
 
 - **Scope filters** — chips above the list narrow it to one or more npm scopes
-  (e.g. `@acme`, `@radix-ui`). Packages without a scope (like `lucide-react` or
-  `cmdk`) are grouped under a `(unscoped)` chip, so they stay reachable when a
-  filter is active. Selecting chips ORs them together; typing in the filter box
-  narrows further. Active chips are persisted to
+  (e.g. `@acme`, `@radix-ui`). Two uppercase meta-buckets lead the row: `LOCAL`
+  (in-repo component sources — see below) and `UNSCOPED` (packages with no npm
+  scope, like `lucide-react` or `cmdk`), so both stay reachable when a filter is
+  active. Selecting chips ORs them together; typing in the filter box narrows
+  further. Active chips are persisted to
   [`scopeFilters`](#workspace-config-file-snapdsconfigjson).
 - **Select all / Deselect all** — open a package card and use the toggle at the
   top of the component list to select or clear every component in one action.

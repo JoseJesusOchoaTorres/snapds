@@ -205,6 +205,26 @@ export function useSettingsController() {
     vscode.postMessage({ type: 'regenerateAllSkills' });
   };
 
+  // Revert unsaved component selections to the last-saved baseline, recomputed
+  // from the persisted package list (enabled + excluded/manual) — same rule the
+  // packageList seeding uses. Lets the user discard edits without reopening the view.
+  const discardChanges = () => {
+    const next: Record<string, string[]> = {};
+    for (const p of packages) {
+      if (!p.enabled) {
+        next[p.name] = [];
+        continue;
+      }
+      const detected = componentsByPkg[p.name] ?? p.components ?? [];
+      const excluded = new Set(p.excluded ?? []);
+      const sel = detected.filter((c) => !excluded.has(c));
+      for (const m of p.manual ?? []) if (!sel.includes(m)) sel.push(m);
+      next[p.name] = sel;
+    }
+    setSelectedByPkg(next);
+    setManualInputs({});
+  };
+
   const handleSave = () => {
     setIsSaving(true);
     vscode.postMessage({
@@ -346,6 +366,7 @@ export function useSettingsController() {
     addManual,
     removePackage,
     handleSave,
+    discardChanges,
     handleRegenerate,
     updateSkills,
     toggleFormat,

@@ -298,6 +298,13 @@ label > .desc {
 .scope-chip-active:hover {
   color: var(--vscode-foreground);
 }
+/* Synthetic buckets (LOCAL / UNSCOPED): a dashed border + tracking marks them
+   as meta-filters distinct from the real npm scope chips. */
+.scope-chip-meta {
+  border-style: dashed;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
 .section-title {
   display: flex;
   align-items: center;
@@ -499,10 +506,14 @@ label > .desc {
 .modal-title {
   margin: 0;
   font-size: 1.15rem;
-  flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .modal-close {
+  /* Pushed to the far right; header actions (e.g. reload) sit next to the title. */
+  margin-left: auto;
   background: transparent;
   border: none;
   color: var(--vscode-foreground);

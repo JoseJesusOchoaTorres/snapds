@@ -38,6 +38,7 @@ export default function App() {
     addManual,
     removePackage,
     handleSave,
+    discardChanges,
     handleRegenerate,
     updateSkills,
     toggleFormat,
@@ -95,6 +96,18 @@ export default function App() {
       ) : (
         'Save Preferences'
       )}
+    </button>
+  );
+
+  const discardAction = (
+    <button
+      type="button"
+      className="btn-secondary"
+      onClick={discardChanges}
+      disabled={busy}
+      title="Discard unsaved component selection changes"
+    >
+      Discard changes
     </button>
   );
 
@@ -174,7 +187,12 @@ export default function App() {
                 onRemovePackage={removePackage}
               />
             ),
-            actions: saveAction,
+            actions: (
+              <>
+                {discardAction}
+                {saveAction}
+              </>
+            ),
           },
           {
             id: 'ai',

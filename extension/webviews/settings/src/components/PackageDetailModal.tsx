@@ -85,8 +85,8 @@ export function PackageDetailModal({
       type="button"
       className="icon-btn"
       onClick={onReload}
-      title="Reload components from disk"
-      aria-label="Reload components from disk"
+      title="Rescan this package's components from disk (clears its cache — use after installing a new version or editing local component files)"
+      aria-label="Rescan components from disk"
     >
       <Icon name="refresh" />
     </button>
