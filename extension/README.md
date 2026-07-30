@@ -2,8 +2,24 @@
 
 Snapds is a powerful VS Code extension designed for React monorepos. It introspects your packages, extracts component metadata using `react-docgen-typescript`, and provides a seamless webview gallery for visually exploring and drag-and-dropping JSX components directly into your code.
 
+## See it in action
+
+<!--
+  The Marketplace and Open VSX strip <video> tags, so these are clickable
+  poster images that link to the hosted clips on snap-ds.com. Keep the image
+  URLs absolute (HTTPS) — relative repo paths don't render reliably on Open VSX.
+-->
+
+| Drop a component, imports handled | Export an agent-ready skill |
+| :---: | :---: |
+| [![Pull a component from the gallery into your file — Snapds writes the JSX and merges the import automatically.](https://snap-ds.com/videos/import-demo-poster.jpg)](https://snap-ds.com/videos/import-demo.mp4) | [![Turn a component package into a skill your AI agent can use, straight from the editor.](https://snap-ds.com/videos/ai-demo-poster.jpg)](https://snap-ds.com/videos/ai-demo.mp4) |
+| Pull a component from the gallery into your file — Snapds writes the JSX and merges the import automatically. | Turn a component package into a skill your AI agent can use, straight from the editor. |
+
+▶ **[Watch both demos on snap-ds.com](https://snap-ds.com/#demo)** (click a thumbnail above to play the clip).
+
 ## Table of contents
 
+- [See it in action](#see-it-in-action)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
