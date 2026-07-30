@@ -5,6 +5,31 @@ All notable changes to the **Snapds** extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.5.0...snapds-v1.6.0) (2026-07-30)
+
+
+### Features
+
+* **introspect:** detect local component sources from components.json ([b5ae1ae](https://github.com/JoseJesusOchoaTorres/snapds/commit/b5ae1ae67dd238fa6d2ceb052858831cb4b39042))
+* **introspect:** introspect local component sources (foundation) ([89700ee](https://github.com/JoseJesusOchoaTorres/snapds/commit/89700ee9bf61b26b1866ab58acf1f0ae17382bfc))
+* **local-sources:** manual folder add + live file watcher ([ca0f7cc](https://github.com/JoseJesusOchoaTorres/snapds/commit/ca0f7cc44f8c188b5a513c50e6259db7ac373af4))
+* **local-sources:** opt-in detection banner + local-aware skill wording ([865347c](https://github.com/JoseJesusOchoaTorres/snapds/commit/865347c2a12e1e0e947d1bd5c68b392e7d9f8f4e))
+* **local-sources:** validate + harden monorepo multi-source detection ([17cb5a9](https://github.com/JoseJesusOchoaTorres/snapds/commit/17cb5a913768c15dc4baaac3f2fafd9814e02042))
+* **settings:** clarify npm vs local sources in components tab ([d5d1e8d](https://github.com/JoseJesusOchoaTorres/snapds/commit/d5d1e8dbf820028c83e40259996a36ebbb23a4e9))
+* **settings:** hide unwanted packages and remove manual local folders ([d5e33d0](https://github.com/JoseJesusOchoaTorres/snapds/commit/d5e33d0fd8aab713e84270cbc80c4a78c6784c6a))
+* **settings:** make card action tooltips explain the consequence ([24d72a4](https://github.com/JoseJesusOchoaTorres/snapds/commit/24d72a4023d81723cbf5a9c9193666dfd0e2f4a1))
+* **settings:** reload-by-name, LOCAL/UNSCOPED chips, and a discard button ([442be3e](https://github.com/JoseJesusOchoaTorres/snapds/commit/442be3e9fb930c15e02374060e92cb2a4493451a))
+* **settings:** surface local component sources in settings + gallery ([4ec751b](https://github.com/JoseJesusOchoaTorres/snapds/commit/4ec751b0a023cf5c47c4dc92a2976f4b36fc80e9))
+
+
+### Bug Fixes
+
+* **introspect:** ship typescript lib files so bundled ts resolves types ([0e0afdd](https://github.com/JoseJesusOchoaTorres/snapds/commit/0e0afddbf63065336efb49970490acbc40bf183b))
+* **local-sources:** address PR review feedback ([45ecc38](https://github.com/JoseJesusOchoaTorres/snapds/commit/45ecc3849f55342745ec23b7949e8db9895b6317))
+* **local-sources:** show manually-added folders in the package list ([2fa6a11](https://github.com/JoseJesusOchoaTorres/snapds/commit/2fa6a112bf9bba65f7227c943126f4274283455c))
+* **settings,gallery:** sticky-header hover, stale scope filters, reload centering ([475cdcf](https://github.com/JoseJesusOchoaTorres/snapds/commit/475cdcf1c04565d43dffd913437bf4c1548eeeb6))
+* **skills:** correct the cursor index-router test expectation ([be7770d](https://github.com/JoseJesusOchoaTorres/snapds/commit/be7770d4efbb559ebc3db841b0c1495ea91a47f3))
+
 ## [1.5.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.4.0...snapds-v1.5.0) (2026-07-29)
 
 
