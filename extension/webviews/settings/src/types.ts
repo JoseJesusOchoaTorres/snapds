@@ -58,7 +58,11 @@ export type FromSettings =
   | { type: 'importConfig'; filePath?: string }
   | { type: 'requestConfigStatus' }
   | { type: 'confirmImportConfig'; applyOverrides: boolean }
-  | { type: 'reloadPackage'; pkg: string };
+  | { type: 'reloadPackage'; pkg: string }
+  | { type: 'addLocalSource' }
+  | { type: 'enableLocalSource'; name: string }
+  | { type: 'setHiddenPackages'; names: string[] }
+  | { type: 'removeLocalSource'; name: string };
 
 export type ToSettings =
   | { type: 'packageList'; packages: PackageMeta[] }
@@ -72,6 +76,7 @@ export type ToSettings =
   | { type: 'componentDetail'; detail: ComponentDetail }
   | { type: 'userOverrides'; overrides: Record<string, Record<string, UserOverride>> }
   | { type: 'scopeFilters'; filters: string[] }
+  | { type: 'hiddenPackages'; names: string[] }
   | { type: 'configStatus'; payload: ConfigStatusPayload }
   | { type: 'configImportPreview'; payload: ConfigImportPreviewPayload }
   | { type: 'configExported'; outputPath: string };

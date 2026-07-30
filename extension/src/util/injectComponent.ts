@@ -12,7 +12,10 @@ export function buildImportEdit(
   meta: ComponentMeta,
 ): void {
   const { pkg, name } = splitComponentId(meta.id);
-  const result = computeImportEdit(document.getText(), pkg, name);
+  // Local sources carry an explicit per-file specifier (e.g. `@/components/ui/button`);
+  // npm packages leave it unset and fall back to the id's package prefix.
+  const specifier = meta.importSpecifier ?? pkg;
+  const result = computeImportEdit(document.getText(), specifier, name);
 
   if (result.kind === 'replace') {
     const range = new vscode.Range(

@@ -5,6 +5,7 @@ import { ComponentsTab } from './components/ComponentsTab';
 import { ConfigDetectedBanner } from './components/ConfigDetectedBanner';
 import { ExportConfigModal } from './components/ExportConfigModal';
 import { ImportPreviewModal } from './components/ImportPreviewModal';
+import { LocalSourceBanner } from './components/LocalSourceBanner';
 import { OverrideEditorModal } from './components/OverrideEditorModal';
 import { PackageDetailModal } from './components/PackageDetailModal';
 import { Tabs } from './components/Tabs';
@@ -21,6 +22,8 @@ export default function App() {
     showSkillsDir,
     query,
     scopeFilters,
+    hiddenPackages,
+    showHidden,
     isSaving,
     isRegenerating,
     activeTab,
@@ -38,17 +41,26 @@ export default function App() {
     addManual,
     removePackage,
     handleSave,
+    discardChanges,
     handleRegenerate,
     updateSkills,
     toggleFormat,
     toggleScope,
     openPackage,
+    addLocalSource,
+    enableLocalSource,
+    hidePackage,
+    unhidePackage,
+    toggleShowHidden,
+    removeLocalSource,
     reloadPackage,
     openComponentModal,
     saveOverride,
     resetOverride,
     configStatus,
     configBannerDismissed,
+    localBannerDismissed,
+    dismissLocalBanner,
     importPreview,
     showExportModal,
     setShowExportModal,
@@ -98,6 +110,18 @@ export default function App() {
     </button>
   );
 
+  const discardAction = (
+    <button
+      type="button"
+      className="btn-secondary"
+      onClick={discardChanges}
+      disabled={busy}
+      title="Discard unsaved component selection changes"
+    >
+      Discard changes
+    </button>
+  );
+
   const regenerateAction = (
     <button
       type="button"
@@ -118,6 +142,11 @@ export default function App() {
   );
 
   const showBanner = configStatus?.detected && configStatus.hasConflicts && !configBannerDismissed;
+  // A hidden source shouldn't nag from the banner or get re-enabled by it — the
+  // user chose to declutter it. Unhide (via "Show hidden") to bring it back.
+  const detectedLocalSources = packages
+    .filter((p) => p.kind === 'local' && !p.enabled && !hiddenPackages.includes(p.name))
+    .map((p) => p.name);
 
   return (
     <div className="root">
@@ -153,6 +182,16 @@ export default function App() {
         />
       )}
 
+      {detectedLocalSources.length > 0 && !localBannerDismissed && (
+        <LocalSourceBanner
+          sources={detectedLocalSources}
+          onAdd={() => {
+            for (const name of detectedLocalSources) enableLocalSource(name);
+          }}
+          onDismiss={dismissLocalBanner}
+        />
+      )}
+
       <Tabs
         active={activeTab}
         onChange={setActiveTab}
@@ -172,9 +211,21 @@ export default function App() {
                 onToggleScope={toggleScope}
                 onOpenPackage={openPackage}
                 onRemovePackage={removePackage}
+                onAddLocalSource={addLocalSource}
+                hiddenPackages={hiddenPackages}
+                showHidden={showHidden}
+                onToggleShowHidden={toggleShowHidden}
+                onHidePackage={hidePackage}
+                onUnhidePackage={unhidePackage}
+                onRemoveLocalSource={removeLocalSource}
               />
             ),
-            actions: saveAction,
+            actions: (
+              <>
+                {discardAction}
+                {saveAction}
+              </>
+            ),
           },
           {
             id: 'ai',

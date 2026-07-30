@@ -2,7 +2,7 @@
 
 > **End-user docs** → [snapds.dev](https://snapds.dev) · **Marketplace** → [VS Code Extension page](https://marketplace.visualstudio.com/items?itemName=Octojose.snapds)
 
-Snapds is a VS Code extension designed for React repositories and monorepos. It inspects component packages and extracts prop metadata via `react-docgen-typescript`. Features include an interactive web gallery to explore and drag-and-drop JSX components right into your code, as well as fast component injection via keyboard shortcuts.
+Snapds is a VS Code extension designed for React repositories and monorepos. It inspects component sources — npm packages or in-repo design systems (shadcn / local folders) — and extracts prop metadata via `react-docgen-typescript`. Features include an interactive web gallery to explore and drag-and-drop JSX components right into your code, as well as fast component injection via keyboard shortcuts.
 
 ---
 

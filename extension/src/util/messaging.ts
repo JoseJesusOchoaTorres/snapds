@@ -15,6 +15,18 @@ export interface ComponentMeta {
   props: PropMeta[];
   snippet?: string;
   /**
+   * Import specifier to emit when injecting this component — e.g. a local design
+   * system's path alias `@/components/ui/button`. When absent, injection falls
+   * back to the component id's package prefix (the npm-package behavior).
+   */
+  importSpecifier?: string;
+  /**
+   * Absolute path of the source file this component was introspected from. Set
+   * for local sources; used to derive `importSpecifier` and to scope the
+   * file-watcher. Host-only (webviews don't consume it).
+   */
+  sourceFile?: string;
+  /**
    * True when the component exposes no custom props and only accepts standard
    * DOM/SVG attributes (e.g. an icon typed `React.SVGProps<SVGSVGElement>`).
    * Lets the UI show an explanatory label instead of "no documented props".
@@ -136,7 +148,11 @@ export type FromSettings =
   | { type: 'importConfig'; filePath?: string }
   | { type: 'requestConfigStatus' }
   | { type: 'confirmImportConfig'; applyOverrides: boolean }
-  | { type: 'reloadPackage'; pkg: string };
+  | { type: 'reloadPackage'; pkg: string }
+  | { type: 'addLocalSource' }
+  | { type: 'enableLocalSource'; name: string }
+  | { type: 'setHiddenPackages'; names: string[] }
+  | { type: 'removeLocalSource'; name: string };
 
 export type ToGallery =
   | { type: 'componentList'; components: ComponentMeta[] }
@@ -171,6 +187,18 @@ export interface PackageMeta {
   excluded?: string[];
   /** Component names added manually. */
   manual?: string[];
+  /** `'local'` = an in-repo component source (shadcn / design system folder). */
+  kind?: 'npm' | 'local';
+  /** Local only: absolute source folder. */
+  rootDir?: string;
+  /** Local only: import-specifier base, e.g. `@/components/ui`. */
+  importAlias?: string;
+  /**
+   * Local only: `true` when auto-detected from a `components.json`, `false` when
+   * the user registered the folder manually via "+ Local folder". Only manual
+   * sources are truly removable (detected ones re-appear on the next scan).
+   */
+  autoDetected?: boolean;
 }
 
 export interface ConfigStatusPayload {
@@ -202,6 +230,7 @@ export type ToSettings =
   | { type: 'componentDetail'; detail: ComponentDetail }
   | { type: 'userOverrides'; overrides: Record<string, Record<string, UserOverride>> }
   | { type: 'scopeFilters'; filters: string[] }
+  | { type: 'hiddenPackages'; names: string[] }
   | { type: 'configStatus'; payload: ConfigStatusPayload }
   | { type: 'configImportPreview'; payload: ConfigImportPreviewPayload }
   | { type: 'configExported'; outputPath: string };

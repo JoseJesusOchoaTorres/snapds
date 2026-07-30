@@ -173,8 +173,14 @@ test('windsurf component rule carries a model_decision trigger', () => {
 test('cursor index router is always-on and stays name-only (no props table)', () => {
   const [index] = buildArtifacts([comp('Button'), comp('Card')], 'cursor');
   assert.ok(index.contents.includes('alwaysApply: true'));
-  assert.ok(index.contents.includes('Button'));
+  // The flat-lazy router lists each component by its loadable rule name
+  // (`snapds-<slug>`) for on-demand discovery — not the display name.
+  assert.ok(index.contents.includes('snapds-button'));
+  assert.ok(index.contents.includes('snapds-card'));
   assert.ok(!index.contents.includes('| Prop |'));
+  // Name-only means the loadable rule names, never the display names.
+  assert.ok(!index.contents.includes('Button'));
+  assert.ok(!index.contents.includes('Card'));
 });
 
 test('copilot consolidated file carries applyTo and the full props table', () => {

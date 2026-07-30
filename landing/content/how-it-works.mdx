@@ -30,6 +30,17 @@ Finally scans every `package.json` (excluding `node_modules`) and matches by
 `name`, so locally-built workspace packages resolve too.
 </Steps>
 
+**Local component sources.** In-repo design systems (shadcn or your own folder)
+skip node_modules entirely: Snapds reads the folder's source `.tsx` directly,
+resolves the folder from a `components.json` alias (or a folder you pick) via
+tsconfig `paths`, and injects each component from its **per-file path alias**
+(e.g. `@/components/ui/button`) rather than a package name. Their cache is keyed
+by a content signature (file mtimes), and a file watcher re-indexes on edit.
+
+In a **monorepo**, every sub-app's `components.json` is detected independently,
+so the same `@/*` alias resolves to each app's own folder — sources stay
+distinct (keyed by their workspace-relative folder) and never collide.
+
 ## Monorepo version resolution
 
 In monorepos where the same package is installed at different versions across

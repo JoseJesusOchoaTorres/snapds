@@ -72,6 +72,32 @@ header {
   text-align: center;
   padding: 16px 8px;
 }
+/* Guided variant of .empty: a short explainer of the two source kinds shown
+   when nothing is active yet. Left-aligned prose reads better than centered. */
+.empty-guide {
+  text-align: left;
+  padding: 12px;
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.empty-guide p {
+  margin: 0 0 6px;
+}
+.empty-guide ul {
+  margin: 0 0 6px;
+  padding-left: 18px;
+}
+.empty-guide li {
+  margin: 2px 0;
+}
+.empty-guide code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.95em;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--snapds-overlay-faint);
+}
 
 /* ---- Shared primitives -------------------------------------------------- */
 
@@ -124,6 +150,20 @@ textarea::placeholder {
 .filter-input {
   width: 100%;
   margin-bottom: 8px;
+}
+.components-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.components-toolbar .filter-input {
+  flex: 1;
+  margin-bottom: 0;
+}
+.add-local-source {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 textarea {
   min-height: 60px;
@@ -195,6 +235,9 @@ label > .desc {
   font: inherit;
 }
 .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   color: var(--vscode-foreground);
   border: none;
@@ -273,6 +316,34 @@ label > .desc {
   opacity: 0.7;
 }
 
+/* One-line orientation above the package list: what the two source kinds are
+   and what "+ Local folder" does. Muted so it reads as guidance, not chrome. */
+.tab-hint {
+  margin: 0 0 4px;
+  font-size: 0.85em;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+.tab-hint code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.95em;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--snapds-overlay-faint);
+}
+/* A LOCAL chip rendered inline inside prose (the hint / empty state). Static —
+   not a filter — so it drops the pointer cursor and hover of a real chip. The
+   `span` qualifier outranks the base `.scope-chip` (defined later) so the
+   cursor/hover reset actually wins. */
+span.scope-chip-inline {
+  cursor: default;
+  padding: 0 6px;
+  vertical-align: baseline;
+}
+span.scope-chip-inline:hover {
+  background: var(--vscode-editor-background);
+}
+
 .scope-filters {
   display: flex;
   flex-wrap: wrap;
@@ -298,12 +369,45 @@ label > .desc {
 .scope-chip-active:hover {
   color: var(--vscode-foreground);
 }
+/* Synthetic buckets (LOCAL / UNSCOPED): a dashed border + tracking marks them
+   as meta-filters distinct from the real npm scope chips. */
+.scope-chip-meta {
+  border-style: dashed;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
 .section-title {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 0.95em;
   margin: 12px 0 4px;
+}
+/* Smaller heading for the "Hidden" group nested under Available. */
+.section-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85em;
+  font-weight: 600;
+  opacity: 0.8;
+  margin: 12px 0 2px;
+}
+/* Inline text-button (e.g. "Show hidden (3)") pushed to the end of a heading. */
+.link-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+  color: var(--vscode-textLink-foreground);
+  opacity: 0.9;
+}
+.link-toggle:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 /* ---- Package + skill cards --------------------------------------------- */
@@ -346,6 +450,27 @@ label > .desc {
   font-family: var(--vscode-editor-font-family, monospace);
   flex: 1;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pkg-card-badge-local {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 8px;
+  color: var(--vscode-badge-foreground);
+  background: var(--vscode-badge-background);
+  opacity: 0.85;
+}
+/* Local sources only: the path alias their components import from. A quiet,
+   monospaced subtitle under the name — reinforces "this injects from an alias,
+   not node_modules" without competing with the component chips below. */
+.pkg-card-alias {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.8rem;
+  opacity: 0.65;
   overflow-wrap: anywhere;
 }
 .pkg-card-chips {
@@ -405,6 +530,14 @@ label > .desc {
     --vscode-toolbar-hoverBackground,
     var(--vscode-list-hoverBackground, transparent)
   );
+}
+/* Cards in the "Hidden" group read as dimmed/parked; the action button stays
+   full-strength so Unhide is easy to hit. */
+.pkg-card-hidden .pkg-card-main {
+  opacity: 0.55;
+}
+.pkg-card-hidden:hover .pkg-card-main {
+  opacity: 0.8;
 }
 .skill-card-title {
   font-weight: 600;
@@ -487,10 +620,14 @@ label > .desc {
 .modal-title {
   margin: 0;
   font-size: 1.15rem;
-  flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .modal-close {
+  /* Pushed to the far right; header actions (e.g. reload) sit next to the title. */
+  margin-left: auto;
   background: transparent;
   border: none;
   color: var(--vscode-foreground);

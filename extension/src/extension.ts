@@ -14,6 +14,11 @@ import {
 import { DsIntrospector } from './ds/dsIntrospector';
 import { applyWhitelist, type DsPackage, DsRegistry } from './ds/dsRegistry';
 import {
+  buildLocalSourceFromFolder,
+  detectLocalSources,
+  mergeLocalSources,
+} from './ds/localSources';
+import {
   generateSkillsToConfig,
   getSkillsConfig,
   listComponentSkillFiles,
@@ -278,11 +283,13 @@ function setupSettingsPanel(
       ac.settingsPanel.postScopeFilters(
         ctx.workspaceState.get<string[]>('snapds.scopeFilters') ?? [],
       );
+      ac.settingsPanel.postHiddenPackages(
+        ctx.workspaceState.get<string[]>('snapds.hiddenPackages') ?? [],
+      );
       ac.settingsPanel.postConfigStatus(detectConfigConflict(ac.registry, ctx));
     },
     onRequestComponents: async (pkgName) => {
-      const existing = ac.registry.list().find((p) => p.name === pkgName);
-      const descriptor = existing ?? (await ac.registry.resolveDescriptor(pkgName));
+      const descriptor = await resolvePackageByName(pkgName, ac);
       if (!descriptor) {
         vscode.window.showWarningMessage(`Snapds: could not locate "${pkgName}" in node_modules.`);
         ac.settingsPanel.postComponentNames(pkgName, []);
@@ -316,9 +323,69 @@ function setupSettingsPanel(
         ac.settingsPanel.postComponentNames(pkgName, []);
       }
     },
+    onAddLocalSource: async () => {
+      const root = ac.workspaceRoot;
+      if (!root) {
+        vscode.window.showWarningMessage('Snapds: open a workspace folder first.');
+        return;
+      }
+      const picked = await vscode.window.showOpenDialog({
+        canSelectFolders: true,
+        canSelectFiles: false,
+        canSelectMany: false,
+        openLabel: 'Select component source folder',
+        defaultUri: vscode.Uri.file(root),
+      });
+      if (!picked?.length) return;
+      const folder = picked[0].fsPath;
+      const rel = path.relative(root, folder);
+      // Empty `rel` means the picked folder IS the workspace root — reject it too,
+      // alongside anything outside the workspace.
+      if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+        vscode.window.showWarningMessage(
+          'Snapds: pick a folder inside the workspace (not the workspace root).',
+        );
+        return;
+      }
+      const src = buildLocalSourceFromFolder(folder, root);
+      if (!src.importAlias) {
+        const alias = await vscode.window.showInputBox({
+          title: 'Import alias for this component folder',
+          prompt: 'The specifier used in generated imports, e.g. @/components/ui',
+          placeHolder: '@/components/ui',
+          ignoreFocusOut: true,
+        });
+        if (!alias?.trim()) return;
+        src.importAlias = alias.trim();
+        src.importPath = alias.trim();
+      }
+      const list = ac.registry.list();
+      if (list.some((p) => p.name === src.name)) {
+        vscode.window.showInformationMessage(`Snapds: "${src.name}" is already registered.`);
+      } else {
+        await ac.registry.saveAll([...list, { ...src, excluded: [], manual: [] }]);
+      }
+      const registered = ac.registry.list().find((p) => p.name === src.name);
+      if (registered) await refreshActiveComponents(registered, ac);
+      ac.settingsPanel.postPackageList(await buildPackageList(ac));
+      setupLocalWatchers(ac);
+    },
+    onEnableLocalSource: async (name) => {
+      // Register a source that was auto-detected (components.json) but not yet
+      // enabled — the banner's one-click "Add".
+      const src = await resolvePackageByName(name, ac);
+      if (src?.kind !== 'local') return;
+      const list = ac.registry.list();
+      if (!list.some((p) => p.name === name)) {
+        await ac.registry.saveAll([...list, { ...src, excluded: [], manual: [] }]);
+      }
+      const registered = ac.registry.list().find((p) => p.name === name);
+      if (registered) await refreshActiveComponents(registered, ac);
+      ac.settingsPanel.postPackageList(await buildPackageList(ac));
+      setupLocalWatchers(ac);
+    },
     onReloadPackage: async (pkgName) => {
-      const existing = ac.registry.list().find((p) => p.name === pkgName);
-      const descriptor = existing ?? (await ac.registry.resolveDescriptor(pkgName));
+      const descriptor = await resolvePackageByName(pkgName, ac);
       if (!descriptor) {
         ac.settingsPanel.postComponentNames(pkgName, []);
         return;
@@ -374,8 +441,7 @@ function setupSettingsPanel(
       }
     },
     onRequestComponentDetail: async ({ pkg, component }) => {
-      const existing = ac.registry.list().find((p) => p.name === pkg);
-      const descriptor = existing ?? (await ac.registry.resolveDescriptor(pkg));
+      const descriptor = await resolvePackageByName(pkg, ac);
       if (!descriptor) {
         ac.settingsPanel.postComponentDetail({ pkg, component, props: [], skillFiles: [] });
         return;
@@ -402,6 +468,29 @@ function setupSettingsPanel(
         'snapds.scopeFilters',
         filters.length > 0 ? filters : undefined,
       );
+    },
+    onSetHiddenPackages: async (names) => {
+      // Personal, workspace-local declutter of the Available list — never
+      // committed, never affects teammates (mirrors scopeFilters persistence).
+      await ctx.workspaceState.update(
+        'snapds.hiddenPackages',
+        names.length > 0 ? names : undefined,
+      );
+    },
+    onRemoveLocalSource: async (name) => {
+      // Only manually-registered folders can be truly removed; a components.json
+      // source would just re-appear on the next scan (the UI hides those instead).
+      const list = ac.registry.list();
+      const target = list.find((p) => p.name === name && p.kind === 'local');
+      if (!target) return;
+      await ac.introspector.invalidate(target);
+      await ac.registry.saveAll(list.filter((p) => p.name !== name));
+      // Drop its components from the gallery/store so it disappears everywhere.
+      const remaining = ac.store.listComponents().filter((c) => !c.id.startsWith(`${name}#`));
+      ac.store.setComponents(remaining);
+      ac.gallery.postComponentList(remaining);
+      setupLocalWatchers(ac);
+      ac.settingsPanel.postPackageList(await buildPackageList(ac));
     },
     onSaveUserOverride: async ({ pkg, component, override }) => {
       await ac.userOverrides.set(pkg, component, override);
@@ -534,17 +623,20 @@ function setupSettingsPanel(
             const resolved = await Promise.all(
               packages.map(async (pkg) => {
                 const existing = oldByName.get(pkg.name);
-                let version = existing?.version ?? 'unknown';
-                const importPath = existing?.importPath ?? pkg.name;
-                let tsconfigPath = existing?.tsconfigPath;
-
-                if (!existing) {
-                  const descriptor = await ac.registry.resolveDescriptor(pkg.name);
-                  if (descriptor) {
-                    version = descriptor.version;
-                    tsconfigPath = descriptor.tsconfigPath;
-                  }
-                }
+                const descriptor = existing ?? (await resolvePackageByName(pkg.name, ac));
+                const version = descriptor?.version ?? 'unknown';
+                const importPath = descriptor?.importPath ?? pkg.name;
+                const tsconfigPath = descriptor?.tsconfigPath;
+                // Preserve local-source identity so a registered shadcn folder
+                // round-trips — kind/rootDir/importAlias drive introspection + imports.
+                const localFields =
+                  descriptor?.kind === 'local'
+                    ? {
+                        kind: 'local' as const,
+                        rootDir: descriptor.rootDir,
+                        importAlias: descriptor.importAlias,
+                      }
+                    : {};
 
                 if (pkg.components === undefined) {
                   return {
@@ -552,6 +644,7 @@ function setupSettingsPanel(
                     version,
                     importPath,
                     tsconfigPath,
+                    ...localFields,
                     excluded: existing?.excluded ?? [],
                     manual: existing?.manual ?? [],
                   };
@@ -560,7 +653,15 @@ function setupSettingsPanel(
                 const selected = pkg.selected ?? [];
                 const excluded = pkg.components.filter((c) => !selected.includes(c));
                 const manual = selected.filter((c) => !pkg.components?.includes(c));
-                return { name: pkg.name, version, importPath, tsconfigPath, excluded, manual };
+                return {
+                  name: pkg.name,
+                  version,
+                  importPath,
+                  tsconfigPath,
+                  ...localFields,
+                  excluded,
+                  manual,
+                };
               }),
             );
 
@@ -899,12 +1000,46 @@ async function afterDiscovery(ac: ActivationCtx): Promise<void> {
   await discoverAllInstallations(ac);
   notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath, ac);
   void preIndexAllVersions(ac);
+  setupLocalWatchers(ac);
+}
+
+/**
+ * Resolves a package name to its descriptor: a registered package (npm or
+ * local) first, then a shadcn local source detected on disk, then an npm
+ * package resolved from node_modules. Local sources carry kind/rootDir/alias.
+ */
+async function resolvePackageByName(
+  name: string,
+  ac: ActivationCtx,
+): Promise<DsPackage | undefined> {
+  const registered = ac.registry.list().find((p) => p.name === name);
+  // npm sources need no workspace scan — return the registered descriptor as-is.
+  if (registered && registered.kind !== 'local') return registered;
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const detectedLocal = root ? detectLocalSources(root).find((s) => s.name === name) : undefined;
+  if (registered) {
+    // Registered local source: keep the user's excluded/manual, but refresh
+    // rootDir/alias/tsconfig from detection so a later `components.json` edit
+    // isn't masked by the descriptor snapshotted at registration time.
+    return detectedLocal
+      ? {
+          ...registered,
+          rootDir: detectedLocal.rootDir,
+          importPath: detectedLocal.importPath,
+          importAlias: detectedLocal.importAlias,
+          tsconfigPath: detectedLocal.tsconfigPath,
+          version: detectedLocal.version,
+        }
+      : registered;
+  }
+  if (detectedLocal) return detectedLocal;
+  return ac.registry.resolveDescriptor(name);
 }
 
 async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
   const allPkgs = await ac.registry.discoverAllPackagesInWorkspace();
   const currentList = ac.registry.list();
-  return allPkgs.map((name) => {
+  const npm: PackageMeta[] = allPkgs.map((name) => {
     const pkg = currentList.find((p) => p.name === name);
     const cached = pkg ? ac.introspector.getCached(pkg) : undefined;
     return {
@@ -915,6 +1050,73 @@ async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
       manual: pkg?.manual ?? [],
     };
   });
+
+  // Local component sources (shadcn / in-repo design systems): auto-detected from
+  // components.json AND any registered manually via "+ Local folder" (which have
+  // no components.json). A source is "enabled" once registered.
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const detected = root ? detectLocalSources(root) : [];
+  const detectedNames = new Set(detected.map((s) => s.name));
+  const registeredLocal = currentList.filter((p) => p.kind === 'local');
+  const local: PackageMeta[] = mergeLocalSources(detected, registeredLocal).map((src) => {
+    const registered = currentList.find((p) => p.name === src.name && p.kind === 'local');
+    const cached = ac.introspector.getCached(registered ?? src);
+    return {
+      name: src.name,
+      kind: 'local',
+      rootDir: src.rootDir,
+      importAlias: src.importAlias,
+      // Manual folders exist only in the registry; detected ones come from a
+      // components.json and re-appear on scan, so only manual ones are removable.
+      autoDetected: detectedNames.has(src.name),
+      enabled: !!registered,
+      components: cached?.map((c) => c.name),
+      excluded: registered?.excluded ?? [],
+      manual: registered?.manual ?? [],
+    };
+  });
+
+  return [...npm, ...local];
+}
+
+let localWatchers: vscode.Disposable[] = [];
+let watcherLifecycleRegistered = false;
+
+/**
+ * (Re)registers a file watcher per registered local source folder so editing a
+ * component re-introspects and refreshes the gallery live. Local cache keys are
+ * content-signature (mtime) based, so a changed file naturally busts the cache;
+ * the watcher just triggers the re-scan + broadcast.
+ */
+function setupLocalWatchers(ac: ActivationCtx): void {
+  for (const d of localWatchers) d.dispose();
+  localWatchers = [];
+  // Register the teardown exactly once: a stable disposable that disposes
+  // whatever watchers exist at deactivation. Pushing each rebuilt batch into
+  // ctx.subscriptions (drained only on deactivate) would leak dead references.
+  if (!watcherLifecycleRegistered) {
+    watcherLifecycleRegistered = true;
+    ac.vsctx.subscriptions.push({
+      dispose: () => {
+        for (const d of localWatchers) d.dispose();
+      },
+    });
+  }
+  for (const p of ac.registry.list()) {
+    if (p.kind !== 'local' || !p.rootDir) continue;
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(p.rootDir, '**/*.{ts,tsx}'),
+    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onChange = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void reintrospectAndBroadcast(p.name, ac), 300);
+    };
+    watcher.onDidChange(onChange);
+    watcher.onDidCreate(onChange);
+    watcher.onDidDelete(onChange);
+    localWatchers.push(watcher);
+  }
 }
 
 async function collectWhitelistedComponents(ac: ActivationCtx): Promise<ComponentMeta[]> {
@@ -1028,8 +1230,7 @@ async function regenerateAll(ac: ActivationCtx): Promise<void> {
  * and refreshes the live props preview when relevant.
  */
 async function reintrospectAndBroadcast(pkgName: string, ac: ActivationCtx): Promise<void> {
-  const existing = ac.registry.list().find((p) => p.name === pkgName);
-  const descriptor = existing ?? (await ac.registry.resolveDescriptor(pkgName));
+  const descriptor = await resolvePackageByName(pkgName, ac);
   if (!descriptor) return;
   await refreshActiveComponents(descriptor, ac);
   const sel = ac.store.getSelected();

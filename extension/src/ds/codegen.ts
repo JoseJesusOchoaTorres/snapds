@@ -10,12 +10,13 @@ export function splitComponentId(id: string): { pkg: string; name: string } {
 }
 
 /**
- * Generates a named import statement for the component from its package.
- * The package is derived from the component id which must be in the form `pkg#Name`.
+ * Generates a named import statement for the component. The specifier is the
+ * component's explicit `importSpecifier` (e.g. a local design system's path
+ * alias) when set, otherwise the package prefix of its `pkg#Name` id.
  */
 export function generateImport(meta: ComponentMeta): string {
   const { pkg, name } = splitComponentId(meta.id);
-  return `import { ${name} } from '${pkg}';`;
+  return `import { ${name} } from '${meta.importSpecifier ?? pkg}';`;
 }
 
 export type ImportEdit =
