@@ -187,6 +187,16 @@ each package contributes to the gallery and skills.
   Components tab carries a short hint — and, when nothing is selected yet, a
   guided empty state — spelling out the difference between npm packages
   (`node_modules`) and local folders (path alias) so the two paradigms are clear.
+  A manually-added folder you no longer want shows a **Remove** (trash) button
+  that unregisters it for good.
+- **Hide packages you don't need** — every card in **Available** has a hide
+  (eye) button that drops it from the list, useful when the workspace pulls in
+  packages you'll never inject. Hidden ones collapse behind a **Show hidden (N)**
+  toggle; reveal them and click the eye again to unhide. This declutter is
+  personal and workspace-local (`snapds.hiddenPackages` in workspace state) — it
+  isn't written to `snapds.config.json` and doesn't affect teammates.
+  Auto-detected sources are hidden rather than removed (they'd re-appear on the
+  next scan); only manually-added local folders can be truly removed.
 - **Discard changes** — reverts unsaved component selections to the last saved
   state without closing the panel.
 

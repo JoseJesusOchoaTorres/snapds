@@ -46,6 +46,8 @@ export interface SettingsHandlers {
   onReloadPackage?: (pkg: string) => void | Promise<void>;
   onAddLocalSource?: () => void | Promise<void>;
   onEnableLocalSource?: (name: string) => void | Promise<void>;
+  onSetHiddenPackages?: (names: string[]) => void | Promise<void>;
+  onRemoveLocalSource?: (name: string) => void | Promise<void>;
 }
 
 export class SettingsPanelProvider {
@@ -151,6 +153,12 @@ export class SettingsPanelProvider {
         case 'enableLocalSource':
           void this.handlers.onEnableLocalSource?.(msg.name);
           break;
+        case 'setHiddenPackages':
+          void this.handlers.onSetHiddenPackages?.(msg.names);
+          break;
+        case 'removeLocalSource':
+          void this.handlers.onRemoveLocalSource?.(msg.name);
+          break;
       }
     });
 
@@ -229,6 +237,12 @@ export class SettingsPanelProvider {
   postScopeFilters(filters: string[]): void {
     if (this.panel) {
       void this.panel.webview.postMessage({ type: 'scopeFilters', filters } satisfies ToSettings);
+    }
+  }
+
+  postHiddenPackages(names: string[]): void {
+    if (this.panel) {
+      void this.panel.webview.postMessage({ type: 'hiddenPackages', names } satisfies ToSettings);
     }
   }
 

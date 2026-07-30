@@ -22,6 +22,8 @@ export default function App() {
     showSkillsDir,
     query,
     scopeFilters,
+    hiddenPackages,
+    showHidden,
     isSaving,
     isRegenerating,
     activeTab,
@@ -47,6 +49,10 @@ export default function App() {
     openPackage,
     addLocalSource,
     enableLocalSource,
+    hidePackage,
+    unhidePackage,
+    toggleShowHidden,
+    removeLocalSource,
     reloadPackage,
     openComponentModal,
     saveOverride,
@@ -204,6 +210,12 @@ export default function App() {
                 onOpenPackage={openPackage}
                 onRemovePackage={removePackage}
                 onAddLocalSource={addLocalSource}
+                hiddenPackages={hiddenPackages}
+                showHidden={showHidden}
+                onToggleShowHidden={toggleShowHidden}
+                onHidePackage={hidePackage}
+                onUnhidePackage={unhidePackage}
+                onRemoveLocalSource={removeLocalSource}
               />
             ),
             actions: (

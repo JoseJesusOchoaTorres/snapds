@@ -6,10 +6,19 @@ interface Props {
   totalCount: number;
   preview: string[];
   onOpen: () => void;
+  /** Active cards: deactivate (exclude all components). */
   onRemove?: () => void;
+  /** Manual local folders: permanently unregister the folder from Snapds. */
+  onRemoveLocal?: () => void;
+  /** Available discovered cards: hide from the Available list (reversible). */
+  onHide?: () => void;
+  /** Hidden cards: restore to the Available list. */
+  onUnhide?: () => void;
   showCount?: boolean;
   showEmptyPreview?: boolean;
   isActive?: boolean;
+  /** Renders the card dimmed — used in the "Hidden" group. */
+  hidden?: boolean;
   /** In-repo local source (shadcn / design system folder) — shows a "Local" badge. */
   local?: boolean;
   /** Local only: the path-alias base its components import from (e.g. `@/components/ui`). */
@@ -26,17 +35,22 @@ export function PackageCard({
   preview,
   onOpen,
   onRemove,
+  onRemoveLocal,
+  onHide,
+  onUnhide,
   showCount = true,
   showEmptyPreview = true,
   isActive = false,
+  hidden = false,
   local = false,
   importAlias,
 }: Props) {
   const shown = preview.slice(0, PREVIEW_LIMIT);
   const extra = preview.length - shown.length;
+  const hasAction = !!(onRemove || onRemoveLocal || onHide || onUnhide);
   return (
     <div
-      className={`pkg-card${onRemove ? ' pkg-card-removable' : ''}${isActive ? ' pkg-card-active' : ''}`}
+      className={`pkg-card${hasAction ? ' pkg-card-removable' : ''}${isActive ? ' pkg-card-active' : ''}${hidden ? ' pkg-card-hidden' : ''}`}
     >
       <button type="button" className="pkg-card-main" onClick={onOpen} title={`Configure ${name}`}>
         <div className="pkg-card-head">
@@ -78,10 +92,43 @@ export function PackageCard({
           type="button"
           className="pkg-card-remove"
           onClick={onRemove}
-          title={`Remove ${name}`}
-          aria-label={`Remove ${name}`}
+          title={`Deactivate ${name}`}
+          aria-label={`Deactivate ${name}`}
         >
           <Icon name="close" />
+        </button>
+      )}
+      {onRemoveLocal && (
+        <button
+          type="button"
+          className="pkg-card-remove"
+          onClick={onRemoveLocal}
+          title="Remove this folder from Snapds"
+          aria-label={`Remove folder ${name} from Snapds`}
+        >
+          <Icon name="trash" />
+        </button>
+      )}
+      {onHide && (
+        <button
+          type="button"
+          className="pkg-card-remove"
+          onClick={onHide}
+          title="Hide from this list"
+          aria-label={`Hide ${name}`}
+        >
+          <Icon name="eye-closed" />
+        </button>
+      )}
+      {onUnhide && (
+        <button
+          type="button"
+          className="pkg-card-remove"
+          onClick={onUnhide}
+          title="Show in this list"
+          aria-label={`Show ${name}`}
+        >
+          <Icon name="eye" />
         </button>
       )}
     </div>

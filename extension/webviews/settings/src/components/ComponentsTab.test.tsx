@@ -18,6 +18,12 @@ const baseProps = {
   onOpenPackage: noop,
   onRemovePackage: noop,
   onAddLocalSource: noop,
+  hiddenPackages: [] as string[],
+  showHidden: false,
+  onToggleShowHidden: noop,
+  onHidePackage: noop,
+  onUnhidePackage: noop,
+  onRemoveLocalSource: noop,
 };
 
 describe('ComponentsTab source guidance', () => {
@@ -96,5 +102,92 @@ describe('ComponentsTab source guidance', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '+ Local folder' }));
     expect(onAddLocalSource).toHaveBeenCalledOnce();
+  });
+});
+
+describe('ComponentsTab hide & remove', () => {
+  it('hides hidden packages from Available and offers a Show hidden toggle', () => {
+    const packages: PackageMeta[] = [
+      { name: 'lucide-react', enabled: false, kind: 'npm' },
+      { name: 'cmdk', enabled: false, kind: 'npm' },
+    ];
+    render(<ComponentsTab {...baseProps} packages={packages} hiddenPackages={['cmdk']} />);
+
+    expect(screen.queryByText('cmdk')).toBeNull();
+    expect(screen.getByText('lucide-react')).not.toBeNull();
+    expect(screen.getByRole('button', { name: /show hidden \(1\)/i })).not.toBeNull();
+  });
+
+  it('calls onHidePackage when a discovered Available card is hidden', () => {
+    const onHidePackage = vi.fn();
+    const packages: PackageMeta[] = [{ name: 'lucide-react', enabled: false, kind: 'npm' }];
+    render(<ComponentsTab {...baseProps} packages={packages} onHidePackage={onHidePackage} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide lucide-react' }));
+    expect(onHidePackage).toHaveBeenCalledWith('lucide-react');
+  });
+
+  it('renders hidden packages in a Hidden group with an Unhide action', () => {
+    const onUnhidePackage = vi.fn();
+    const packages: PackageMeta[] = [{ name: 'cmdk', enabled: false, kind: 'npm' }];
+    render(
+      <ComponentsTab
+        {...baseProps}
+        packages={packages}
+        hiddenPackages={['cmdk']}
+        showHidden
+        onUnhidePackage={onUnhidePackage}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show cmdk' }));
+    expect(onUnhidePackage).toHaveBeenCalledWith('cmdk');
+  });
+
+  it('lets a manually-added local folder be removed and never hides it', () => {
+    const onRemoveLocalSource = vi.fn();
+    const packages: PackageMeta[] = [
+      {
+        name: 'src/components/ui-v2',
+        enabled: false,
+        kind: 'local',
+        autoDetected: false,
+        importAlias: '@/components/ui-v2',
+      },
+    ];
+    render(
+      <ComponentsTab
+        {...baseProps}
+        packages={packages}
+        // Even if it somehow lands in hiddenPackages, a manual folder stays visible.
+        hiddenPackages={['src/components/ui-v2']}
+        onRemoveLocalSource={onRemoveLocalSource}
+      />,
+    );
+
+    expect(screen.getByText('src/components/ui-v2')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hide src/components/ui-v2' })).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove folder src/components/ui-v2 from Snapds' }),
+    );
+    expect(onRemoveLocalSource).toHaveBeenCalledWith('src/components/ui-v2');
+  });
+
+  it('treats an auto-detected local source as hideable, not removable', () => {
+    const packages: PackageMeta[] = [
+      {
+        name: 'src/components/ui',
+        enabled: false,
+        kind: 'local',
+        autoDetected: true,
+        importAlias: '@/components/ui',
+      },
+    ];
+    render(<ComponentsTab {...baseProps} packages={packages} />);
+
+    expect(screen.getByRole('button', { name: 'Hide src/components/ui' })).not.toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Remove folder src/components/ui from Snapds' }),
+    ).toBeNull();
   });
 });

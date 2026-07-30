@@ -283,6 +283,9 @@ function setupSettingsPanel(
       ac.settingsPanel.postScopeFilters(
         ctx.workspaceState.get<string[]>('snapds.scopeFilters') ?? [],
       );
+      ac.settingsPanel.postHiddenPackages(
+        ctx.workspaceState.get<string[]>('snapds.hiddenPackages') ?? [],
+      );
       ac.settingsPanel.postConfigStatus(detectConfigConflict(ac.registry, ctx));
     },
     onRequestComponents: async (pkgName) => {
@@ -461,6 +464,29 @@ function setupSettingsPanel(
         'snapds.scopeFilters',
         filters.length > 0 ? filters : undefined,
       );
+    },
+    onSetHiddenPackages: async (names) => {
+      // Personal, workspace-local declutter of the Available list — never
+      // committed, never affects teammates (mirrors scopeFilters persistence).
+      await ctx.workspaceState.update(
+        'snapds.hiddenPackages',
+        names.length > 0 ? names : undefined,
+      );
+    },
+    onRemoveLocalSource: async (name) => {
+      // Only manually-registered folders can be truly removed; a components.json
+      // source would just re-appear on the next scan (the UI hides those instead).
+      const list = ac.registry.list();
+      const target = list.find((p) => p.name === name && p.kind === 'local');
+      if (!target) return;
+      await ac.introspector.invalidate(target);
+      await ac.registry.saveAll(list.filter((p) => p.name !== name));
+      // Drop its components from the gallery/store so it disappears everywhere.
+      const remaining = ac.store.listComponents().filter((c) => !c.id.startsWith(`${name}#`));
+      ac.store.setComponents(remaining);
+      ac.gallery.postComponentList(remaining);
+      setupLocalWatchers(ac);
+      ac.settingsPanel.postPackageList(await buildPackageList(ac));
     },
     onSaveUserOverride: async ({ pkg, component, override }) => {
       await ac.userOverrides.set(pkg, component, override);
@@ -1012,6 +1038,7 @@ async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
   // no components.json). A source is "enabled" once registered.
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   const detected = root ? detectLocalSources(root) : [];
+  const detectedNames = new Set(detected.map((s) => s.name));
   const registeredLocal = currentList.filter((p) => p.kind === 'local');
   const local: PackageMeta[] = mergeLocalSources(detected, registeredLocal).map((src) => {
     const registered = currentList.find((p) => p.name === src.name && p.kind === 'local');
@@ -1021,6 +1048,9 @@ async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
       kind: 'local',
       rootDir: src.rootDir,
       importAlias: src.importAlias,
+      // Manual folders exist only in the registry; detected ones come from a
+      // components.json and re-appear on scan, so only manual ones are removable.
+      autoDetected: detectedNames.has(src.name),
       enabled: !!registered,
       components: cached?.map((c) => c.name),
       excluded: registered?.excluded ?? [],

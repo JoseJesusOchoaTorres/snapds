@@ -1,5 +1,5 @@
-import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PackageCard } from './PackageCard';
 
 afterEach(cleanup);
@@ -41,5 +41,32 @@ describe('PackageCard local vs npm source affordances', () => {
 
     expect(container.querySelector('.pkg-card-badge-local')).not.toBeNull();
     expect(container.querySelector('.pkg-card-alias')).toBeNull();
+  });
+});
+
+describe('PackageCard hide / remove actions', () => {
+  it('calls onRemoveLocal from the folder Remove button', () => {
+    const onRemoveLocal = vi.fn();
+    render(<PackageCard {...baseProps} local importAlias="@/x" onRemoveLocal={onRemoveLocal} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /remove folder .* from snapds/i }));
+    expect(onRemoveLocal).toHaveBeenCalledOnce();
+  });
+
+  it('calls onHide from the Hide button', () => {
+    const onHide = vi.fn();
+    render(<PackageCard {...baseProps} onHide={onHide} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^hide /i }));
+    expect(onHide).toHaveBeenCalledOnce();
+  });
+
+  it('dims the card and exposes Unhide when hidden', () => {
+    const onUnhide = vi.fn();
+    const { container } = render(<PackageCard {...baseProps} hidden onUnhide={onUnhide} />);
+
+    expect(container.querySelector('.pkg-card-hidden')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^show /i }));
+    expect(onUnhide).toHaveBeenCalledOnce();
   });
 });

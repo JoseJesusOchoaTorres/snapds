@@ -383,6 +383,32 @@ span.scope-chip-inline:hover {
   font-size: 0.95em;
   margin: 12px 0 4px;
 }
+/* Smaller heading for the "Hidden" group nested under Available. */
+.section-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85em;
+  font-weight: 600;
+  opacity: 0.8;
+  margin: 12px 0 2px;
+}
+/* Inline text-button (e.g. "Show hidden (3)") pushed to the end of a heading. */
+.link-toggle {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+  color: var(--vscode-textLink-foreground);
+  opacity: 0.9;
+}
+.link-toggle:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
 
 /* ---- Package + skill cards --------------------------------------------- */
 
@@ -504,6 +530,14 @@ span.scope-chip-inline:hover {
     --vscode-toolbar-hoverBackground,
     var(--vscode-list-hoverBackground, transparent)
   );
+}
+/* Cards in the "Hidden" group read as dimmed/parked; the action button stays
+   full-strength so Unhide is easy to hit. */
+.pkg-card-hidden .pkg-card-main {
+  opacity: 0.55;
+}
+.pkg-card-hidden:hover .pkg-card-main {
+  opacity: 0.8;
 }
 .skill-card-title {
   font-weight: 600;

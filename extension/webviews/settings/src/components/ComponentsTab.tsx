@@ -13,6 +13,12 @@ interface Props {
   onOpenPackage: (name: string) => void;
   onRemovePackage: (name: string) => void;
   onAddLocalSource: () => void;
+  hiddenPackages: string[];
+  showHidden: boolean;
+  onToggleShowHidden: () => void;
+  onHidePackage: (name: string) => void;
+  onUnhidePackage: (name: string) => void;
+  onRemoveLocalSource: (name: string) => void;
 }
 
 /**
@@ -37,6 +43,15 @@ function filterKeyOf(p: PackageMeta): string {
   return scopeOf(p.name) ?? UNSCOPED;
 }
 
+/**
+ * A local folder the user registered by hand (no `components.json`). These are
+ * the only sources that can be truly removed — detected ones re-appear on scan,
+ * so those are hidden instead.
+ */
+function isManualLocal(p: PackageMeta): boolean {
+  return p.kind === 'local' && p.autoDetected === false;
+}
+
 /** Splits packages into Active (>=1 used component or enabled) vs Available sections. */
 export function ComponentsTab({
   packages,
@@ -49,6 +64,12 @@ export function ComponentsTab({
   onOpenPackage,
   onRemovePackage,
   onAddLocalSource,
+  hiddenPackages,
+  showHidden,
+  onToggleShowHidden,
+  onHidePackage,
+  onUnhidePackage,
+  onRemoveLocalSource,
 }: Props) {
   const comparator = (a: PackageMeta, b: PackageMeta) => {
     if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
@@ -106,10 +127,12 @@ export function ComponentsTab({
     };
   }, [packages, selectedByPkg, query, scopeFilters, scopes]);
 
-  const renderCard = (p: PackageMeta, available = false) => {
+  const renderCard = (p: PackageMeta, opts: { available?: boolean; hidden?: boolean } = {}) => {
+    const { available = false, hidden = false } = opts;
     const detected = componentsByPkg[p.name] ?? [];
     const selected = selectedByPkg[p.name] ?? [];
     const total = new Set([...detected, ...selected]).size;
+    const manualLocal = isManualLocal(p);
     return (
       <PackageCard
         key={p.name}
@@ -118,7 +141,14 @@ export function ComponentsTab({
         totalCount={total}
         preview={selected}
         onOpen={() => onOpenPackage(p.name)}
-        onRemove={available ? undefined : () => onRemovePackage(p.name)}
+        // Manual folders get a real Remove (unregister) in either section;
+        // discovered Active packages keep the deactivate (×); discovered
+        // Available packages get Hide, and hidden ones get Unhide.
+        onRemove={!available && !manualLocal ? () => onRemovePackage(p.name) : undefined}
+        onRemoveLocal={manualLocal ? () => onRemoveLocalSource(p.name) : undefined}
+        onHide={available && !manualLocal && !hidden ? () => onHidePackage(p.name) : undefined}
+        onUnhide={hidden ? () => onUnhidePackage(p.name) : undefined}
+        hidden={hidden}
         showCount={!available}
         showEmptyPreview={!available}
         isActive={!available}
@@ -127,6 +157,12 @@ export function ComponentsTab({
       />
     );
   };
+
+  // Available splits into visible vs hidden (personal declutter). Manual local
+  // folders are never hideable — they always stay visible with their Remove.
+  const hiddenSet = new Set(hiddenPackages);
+  const availableVisible = available.filter((p) => isManualLocal(p) || !hiddenSet.has(p.name));
+  const availableHidden = available.filter((p) => !isManualLocal(p) && hiddenSet.has(p.name));
 
   return (
     <div className="tab-content">
@@ -213,15 +249,45 @@ export function ComponentsTab({
           )}
 
           <h3 className="section-title">
-            Available <span className="badge">{available.length}</span>
+            Available <span className="badge">{availableVisible.length}</span>
+            {availableHidden.length > 0 && (
+              <button
+                type="button"
+                className="link-toggle"
+                onClick={onToggleShowHidden}
+                aria-pressed={showHidden}
+              >
+                {showHidden ? 'Hide hidden' : `Show hidden (${availableHidden.length})`}
+              </button>
+            )}
           </h3>
-          {available.length ? (
+          {availableVisible.length ? (
             <>
               <p className="section-desc">None of these packages have components selected yet.</p>
-              <div className="pkg-card-grid">{available.map((p) => renderCard(p, true))}</div>
+              <div className="pkg-card-grid">
+                {availableVisible.map((p) => renderCard(p, { available: true }))}
+              </div>
             </>
           ) : (
-            <div className="empty">Nothing available.</div>
+            <div className="empty">
+              {availableHidden.length > 0
+                ? 'All available packages are hidden.'
+                : 'Nothing available.'}
+            </div>
+          )}
+
+          {showHidden && availableHidden.length > 0 && (
+            <>
+              <h4 className="section-subtitle">
+                Hidden <span className="badge">{availableHidden.length}</span>
+              </h4>
+              <p className="section-desc">
+                Not shown in the list above. Unhide any to bring it back.
+              </p>
+              <div className="pkg-card-grid">
+                {availableHidden.map((p) => renderCard(p, { available: true, hidden: true }))}
+              </div>
+            </>
           )}
         </>
       )}

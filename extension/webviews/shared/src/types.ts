@@ -137,6 +137,11 @@ export interface PackageMeta {
   rootDir?: string;
   /** Local only: import-specifier base, e.g. `@/components/ui`. */
   importAlias?: string;
+  /**
+   * Local only: `true` when auto-detected from a `components.json`, `false` when
+   * registered manually via "+ Local folder". Only manual sources are removable.
+   */
+  autoDetected?: boolean;
 }
 
 export interface ConfigStatusPayload {

@@ -37,6 +37,8 @@ export function useSettingsController() {
   const [showSkillsDir, setShowSkillsDir] = useState(false);
   const [query, setQuery] = useState('');
   const [scopeFilters, setScopeFilters] = useState<string[]>([]);
+  const [hiddenPackages, setHiddenPackages] = useState<string[]>([]);
+  const [showHidden, setShowHidden] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [activeTab, setActiveTab] = useState('components');
@@ -124,6 +126,8 @@ export function useSettingsController() {
         setComponentDetail(msg.detail);
       } else if (msg.type === 'scopeFilters') {
         setScopeFilters(msg.filters);
+      } else if (msg.type === 'hiddenPackages') {
+        setHiddenPackages(msg.names);
       } else if (msg.type === 'configStatus') {
         setConfigStatus(msg.payload);
         // If the status changes (e.g. after import), un-dismiss the banner.
@@ -271,6 +275,41 @@ export function useSettingsController() {
   const enableLocalSource = (name: string) =>
     vscode.postMessage({ type: 'enableLocalSource', name });
 
+  // Hide/unhide discovered packages from the Available list (personal, workspace
+  // -local declutter). The full list is persisted host-side each change.
+  const hidePackage = (name: string) =>
+    setHiddenPackages((prev) => {
+      if (prev.includes(name)) return prev;
+      const next = [...prev, name];
+      vscode.postMessage({ type: 'setHiddenPackages', names: next });
+      return next;
+    });
+  const unhidePackage = (name: string) =>
+    setHiddenPackages((prev) => {
+      const next = prev.filter((n) => n !== name);
+      vscode.postMessage({ type: 'setHiddenPackages', names: next });
+      return next;
+    });
+  const toggleShowHidden = () => setShowHidden((v) => !v);
+
+  // Permanently unregister a manually-added local folder. Drop it locally at once
+  // so the card vanishes; the host re-broadcasts the authoritative packageList.
+  const removeLocalSource = (name: string) => {
+    setPackages((prev) => prev.filter((p) => p.name !== name));
+    setSelectedByPkg((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    setHiddenPackages((prev) => {
+      if (!prev.includes(name)) return prev;
+      const next = prev.filter((n) => n !== name);
+      vscode.postMessage({ type: 'setHiddenPackages', names: next });
+      return next;
+    });
+    vscode.postMessage({ type: 'removeLocalSource', name });
+  };
+
   const reloadPackage = (name: string) => {
     setComponentsByPkg((prev) => {
       const next = { ...prev };
@@ -355,6 +394,8 @@ export function useSettingsController() {
     showSkillsDir,
     query,
     scopeFilters,
+    hiddenPackages,
+    showHidden,
     isSaving,
     isRegenerating,
     activeTab,
@@ -380,6 +421,10 @@ export function useSettingsController() {
     openPackage,
     addLocalSource,
     enableLocalSource,
+    hidePackage,
+    unhidePackage,
+    toggleShowHidden,
+    removeLocalSource,
     reloadPackage,
     openComponentModal,
     saveOverride,

@@ -150,7 +150,9 @@ export type FromSettings =
   | { type: 'confirmImportConfig'; applyOverrides: boolean }
   | { type: 'reloadPackage'; pkg: string }
   | { type: 'addLocalSource' }
-  | { type: 'enableLocalSource'; name: string };
+  | { type: 'enableLocalSource'; name: string }
+  | { type: 'setHiddenPackages'; names: string[] }
+  | { type: 'removeLocalSource'; name: string };
 
 export type ToGallery =
   | { type: 'componentList'; components: ComponentMeta[] }
@@ -191,6 +193,12 @@ export interface PackageMeta {
   rootDir?: string;
   /** Local only: import-specifier base, e.g. `@/components/ui`. */
   importAlias?: string;
+  /**
+   * Local only: `true` when auto-detected from a `components.json`, `false` when
+   * the user registered the folder manually via "+ Local folder". Only manual
+   * sources are truly removable (detected ones re-appear on the next scan).
+   */
+  autoDetected?: boolean;
 }
 
 export interface ConfigStatusPayload {
@@ -222,6 +230,7 @@ export type ToSettings =
   | { type: 'componentDetail'; detail: ComponentDetail }
   | { type: 'userOverrides'; overrides: Record<string, Record<string, UserOverride>> }
   | { type: 'scopeFilters'; filters: string[] }
+  | { type: 'hiddenPackages'; names: string[] }
   | { type: 'configStatus'; payload: ConfigStatusPayload }
   | { type: 'configImportPreview'; payload: ConfigImportPreviewPayload }
   | { type: 'configExported'; outputPath: string };
