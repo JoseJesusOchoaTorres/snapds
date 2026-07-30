@@ -92,7 +92,7 @@ export function PackageCard({
           type="button"
           className="pkg-card-remove"
           onClick={onRemove}
-          title={`Deactivate ${name}`}
+          title={`Deactivate ${name} — clear its selected components and move it back to Available. The package stays discoverable.`}
           aria-label={`Deactivate ${name}`}
         >
           <Icon name="close" />
@@ -103,7 +103,7 @@ export function PackageCard({
           type="button"
           className="pkg-card-remove"
           onClick={onRemoveLocal}
-          title="Remove this folder from Snapds"
+          title={`Remove ${name} from Snapds — permanently unregister this manually-added folder. Re-add it any time with "+ Local folder".`}
           aria-label={`Remove folder ${name} from Snapds`}
         >
           <Icon name="trash" />
@@ -114,7 +114,7 @@ export function PackageCard({
           type="button"
           className="pkg-card-remove"
           onClick={onHide}
-          title="Hide from this list"
+          title={`Hide ${name} from the Available list — a personal declutter, not an uninstall. Reveal it again under "Show hidden".`}
           aria-label={`Hide ${name}`}
         >
           <Icon name="eye-closed" />
@@ -125,7 +125,7 @@ export function PackageCard({
           type="button"
           className="pkg-card-remove"
           onClick={onUnhide}
-          title="Show in this list"
+          title={`Show ${name} in the Available list again`}
           aria-label={`Show ${name}`}
         >
           <Icon name="eye" />

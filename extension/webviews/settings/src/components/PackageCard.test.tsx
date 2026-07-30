@@ -49,7 +49,10 @@ describe('PackageCard hide / remove actions', () => {
     const onRemoveLocal = vi.fn();
     render(<PackageCard {...baseProps} local importAlias="@/x" onRemoveLocal={onRemoveLocal} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /remove folder .* from snapds/i }));
+    const btn = screen.getByRole('button', { name: /remove folder .* from snapds/i });
+    // Tooltip explains the consequence, not just the verb.
+    expect(btn.getAttribute('title')).toMatch(/permanently unregister/i);
+    fireEvent.click(btn);
     expect(onRemoveLocal).toHaveBeenCalledOnce();
   });
 
@@ -57,7 +60,10 @@ describe('PackageCard hide / remove actions', () => {
     const onHide = vi.fn();
     render(<PackageCard {...baseProps} onHide={onHide} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /^hide /i }));
+    const btn = screen.getByRole('button', { name: /^hide /i });
+    // Tooltip clarifies hiding is a declutter, not an uninstall.
+    expect(btn.getAttribute('title')).toMatch(/not an uninstall/i);
+    fireEvent.click(btn);
     expect(onHide).toHaveBeenCalledOnce();
   });
 
@@ -66,7 +72,9 @@ describe('PackageCard hide / remove actions', () => {
     const { container } = render(<PackageCard {...baseProps} hidden onUnhide={onUnhide} />);
 
     expect(container.querySelector('.pkg-card-hidden')).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /^show /i }));
+    const btn = screen.getByRole('button', { name: /^show /i });
+    expect(btn.getAttribute('title')).toMatch(/available list again/i);
+    fireEvent.click(btn);
     expect(onUnhide).toHaveBeenCalledOnce();
   });
 });
