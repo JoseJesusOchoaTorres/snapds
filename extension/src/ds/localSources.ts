@@ -164,9 +164,29 @@ export function buildLocalSourceFromFolder(folderPath: string, workspaceRoot: st
  * list alongside detected shadcn sources.
  */
 export function mergeLocalSources(detected: DsPackage[], registered: DsPackage[]): DsPackage[] {
+  const detectedByName = new Map(detected.map((s) => [s.name, s]));
   const byName = new Map<string, DsPackage>();
   for (const s of detected) byName.set(s.name, s);
-  for (const r of registered) byName.set(r.name, r);
+  for (const r of registered) {
+    const d = detectedByName.get(r.name);
+    // For a source that's both auto-detected and registered, keep the user's
+    // excluded/manual selection but refresh location + alias from detection —
+    // a `components.json` edit (new alias/folder) must not stay masked by the
+    // descriptor snapshotted when the source was first registered.
+    byName.set(
+      r.name,
+      d
+        ? {
+            ...r,
+            rootDir: d.rootDir,
+            importPath: d.importPath,
+            importAlias: d.importAlias,
+            tsconfigPath: d.tsconfigPath,
+            version: d.version,
+          }
+        : r,
+    );
+  }
   return [...byName.values()];
 }
 

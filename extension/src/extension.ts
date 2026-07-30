@@ -339,8 +339,12 @@ function setupSettingsPanel(
       if (!picked?.length) return;
       const folder = picked[0].fsPath;
       const rel = path.relative(root, folder);
-      if (rel.startsWith('..') || path.isAbsolute(rel)) {
-        vscode.window.showWarningMessage('Snapds: the folder must be inside the workspace.');
+      // Empty `rel` means the picked folder IS the workspace root — reject it too,
+      // alongside anything outside the workspace.
+      if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+        vscode.window.showWarningMessage(
+          'Snapds: pick a folder inside the workspace (not the workspace root).',
+        );
         return;
       }
       const src = buildLocalSourceFromFolder(folder, root);
@@ -1009,12 +1013,26 @@ async function resolvePackageByName(
   ac: ActivationCtx,
 ): Promise<DsPackage | undefined> {
   const registered = ac.registry.list().find((p) => p.name === name);
-  if (registered) return registered;
+  // npm sources need no workspace scan — return the registered descriptor as-is.
+  if (registered && registered.kind !== 'local') return registered;
   const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  if (root) {
-    const local = detectLocalSources(root).find((s) => s.name === name);
-    if (local) return local;
+  const detectedLocal = root ? detectLocalSources(root).find((s) => s.name === name) : undefined;
+  if (registered) {
+    // Registered local source: keep the user's excluded/manual, but refresh
+    // rootDir/alias/tsconfig from detection so a later `components.json` edit
+    // isn't masked by the descriptor snapshotted at registration time.
+    return detectedLocal
+      ? {
+          ...registered,
+          rootDir: detectedLocal.rootDir,
+          importPath: detectedLocal.importPath,
+          importAlias: detectedLocal.importAlias,
+          tsconfigPath: detectedLocal.tsconfigPath,
+          version: detectedLocal.version,
+        }
+      : registered;
   }
+  if (detectedLocal) return detectedLocal;
   return ac.registry.resolveDescriptor(name);
 }
 
@@ -1062,6 +1080,7 @@ async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
 }
 
 let localWatchers: vscode.Disposable[] = [];
+let watcherLifecycleRegistered = false;
 
 /**
  * (Re)registers a file watcher per registered local source folder so editing a
@@ -1072,6 +1091,17 @@ let localWatchers: vscode.Disposable[] = [];
 function setupLocalWatchers(ac: ActivationCtx): void {
   for (const d of localWatchers) d.dispose();
   localWatchers = [];
+  // Register the teardown exactly once: a stable disposable that disposes
+  // whatever watchers exist at deactivation. Pushing each rebuilt batch into
+  // ctx.subscriptions (drained only on deactivate) would leak dead references.
+  if (!watcherLifecycleRegistered) {
+    watcherLifecycleRegistered = true;
+    ac.vsctx.subscriptions.push({
+      dispose: () => {
+        for (const d of localWatchers) d.dispose();
+      },
+    });
+  }
   for (const p of ac.registry.list()) {
     if (p.kind !== 'local' || !p.rootDir) continue;
     const watcher = vscode.workspace.createFileSystemWatcher(
@@ -1087,7 +1117,6 @@ function setupLocalWatchers(ac: ActivationCtx): void {
     watcher.onDidDelete(onChange);
     localWatchers.push(watcher);
   }
-  ac.vsctx.subscriptions.push(...localWatchers);
 }
 
 async function collectWhitelistedComponents(ac: ActivationCtx): Promise<ComponentMeta[]> {

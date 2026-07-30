@@ -276,20 +276,20 @@ export function useSettingsController() {
     vscode.postMessage({ type: 'enableLocalSource', name });
 
   // Hide/unhide discovered packages from the Available list (personal, workspace
-  // -local declutter). The full list is persisted host-side each change.
-  const hidePackage = (name: string) =>
-    setHiddenPackages((prev) => {
-      if (prev.includes(name)) return prev;
-      const next = [...prev, name];
-      vscode.postMessage({ type: 'setHiddenPackages', names: next });
-      return next;
-    });
-  const unhidePackage = (name: string) =>
-    setHiddenPackages((prev) => {
-      const next = prev.filter((n) => n !== name);
-      vscode.postMessage({ type: 'setHiddenPackages', names: next });
-      return next;
-    });
+  // -local declutter). Compute the next list from current state, set it, and post
+  // once — no side effects inside the state updater (which can run twice).
+  const persistHidden = (names: string[]) => {
+    setHiddenPackages(names);
+    vscode.postMessage({ type: 'setHiddenPackages', names });
+  };
+  const hidePackage = (name: string) => {
+    if (hiddenPackages.includes(name)) return;
+    persistHidden([...hiddenPackages, name]);
+  };
+  const unhidePackage = (name: string) => {
+    if (!hiddenPackages.includes(name)) return;
+    persistHidden(hiddenPackages.filter((n) => n !== name));
+  };
   const toggleShowHidden = () => setShowHidden((v) => !v);
 
   // Permanently unregister a manually-added local folder. Drop it locally at once
@@ -301,12 +301,7 @@ export function useSettingsController() {
       delete next[name];
       return next;
     });
-    setHiddenPackages((prev) => {
-      if (!prev.includes(name)) return prev;
-      const next = prev.filter((n) => n !== name);
-      vscode.postMessage({ type: 'setHiddenPackages', names: next });
-      return next;
-    });
+    if (hiddenPackages.includes(name)) persistHidden(hiddenPackages.filter((n) => n !== name));
     vscode.postMessage({ type: 'removeLocalSource', name });
   };
 

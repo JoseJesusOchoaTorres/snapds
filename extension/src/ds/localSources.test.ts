@@ -80,6 +80,26 @@ test('mergeLocalSources surfaces manually-registered sources missing from detect
   assert.deepEqual(merged.find((s) => s.name === 'src/components/ui')?.excluded, ['Card']);
 });
 
+test('mergeLocalSources refreshes rootDir/importAlias from detection on a collision', () => {
+  // The same source, but components.json now maps it to a new alias + folder.
+  const detected = [
+    localPkg('src/components/ui', {
+      importAlias: '@/ui',
+      importPath: '@/ui',
+      rootDir: '/r/NEW',
+    }),
+  ];
+  const registered = [localPkg('src/components/ui', { excluded: ['Card'] })];
+  const merged = mergeLocalSources(detected, registered);
+  assert.equal(merged.length, 1);
+  const s = merged[0];
+  // The user's selection is preserved…
+  assert.deepEqual(s.excluded, ['Card']);
+  // …but location + alias track the fresh detection, not the registration-time snapshot.
+  assert.equal(s.importAlias, '@/ui');
+  assert.equal(s.rootDir, '/r/NEW');
+});
+
 test('detectLocalSources handles a monorepo: multiple components.json, same alias, distinct apps', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'snapds-monorepo-'));
   const write = (rel: string, body: string) => {

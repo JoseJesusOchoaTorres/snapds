@@ -142,8 +142,10 @@ export default function App() {
   );
 
   const showBanner = configStatus?.detected && configStatus.hasConflicts && !configBannerDismissed;
+  // A hidden source shouldn't nag from the banner or get re-enabled by it — the
+  // user chose to declutter it. Unhide (via "Show hidden") to bring it back.
   const detectedLocalSources = packages
-    .filter((p) => p.kind === 'local' && !p.enabled)
+    .filter((p) => p.kind === 'local' && !p.enabled && !hiddenPackages.includes(p.name))
     .map((p) => p.name);
 
   return (

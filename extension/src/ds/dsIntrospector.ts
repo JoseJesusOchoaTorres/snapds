@@ -159,7 +159,13 @@ export class DsIntrospector {
     // Local sources have no npm version — key on the folder + a content signature
     // so editing a component file invalidates the entry (an npm version never would).
     if (p.kind === 'local' && p.rootDir) {
-      return `ds.cache.v${CACHE_SCHEMA_VERSION}.local:${p.rootDir}@${this.localCacheSig(p.rootDir)}`;
+      // Key on the folder + content signature AND the alias/tsconfig identity: the
+      // cached ComponentMeta bakes in per-file importSpecifiers derived from the
+      // alias, so an alias (or tsconfig) change must bust the cache even when the
+      // component files' mtimes are untouched.
+      return `ds.cache.v${CACHE_SCHEMA_VERSION}.local:${p.rootDir}@${this.localCacheSig(
+        p.rootDir,
+      )}#${p.importAlias ?? ''}#${p.tsconfigPath ?? ''}`;
     }
     const installedVersion = versionOverride ?? this.resolveInstalledVersion(p);
     let key = `ds.cache.v${CACHE_SCHEMA_VERSION}.${p.name}@${installedVersion}`;
