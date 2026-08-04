@@ -287,6 +287,10 @@ function setupSettingsPanel(
         ctx.workspaceState.get<string[]>('snapds.hiddenPackages') ?? [],
       );
       ac.settingsPanel.postConfigStatus(detectConfigConflict(ac.registry, ctx));
+      // Populate Active card counts without waiting for a per-card click. Runs
+      // after the package list is posted so the webview has each package's
+      // excluded/manual context before the component names arrive.
+      void pushActiveComponentNames(ac);
     },
     onRequestComponents: async (pkgName) => {
       const descriptor = await resolvePackageByName(pkgName, ac);
@@ -1045,6 +1049,33 @@ async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
   });
 
   return [...npm, ...local];
+}
+
+/**
+ * Streams component names for every registered package to the settings panel so
+ * the Active cards show their real counts on open — instead of a stale 0/0 until
+ * the user clicks each card. Uses the warm cache when present (instant); a cold
+ * package is introspected in the background, joining any startup warm-up already
+ * in flight (introspect() dedupes), and its names posted as soon as they resolve.
+ */
+async function pushActiveComponentNames(ac: ActivationCtx): Promise<void> {
+  // Sequential on purpose: a cold panel-open must not fan out N concurrent
+  // ts.createProgram parses — the same peak-memory pattern indexPackagesWithProgress
+  // avoids. Warm packages resolve instantly (getCached); a cold one joins any
+  // in-flight startup parse via the introspector's dedup, so at most one parse
+  // runs here at a time.
+  for (const pkg of ac.registry.list()) {
+    try {
+      const cached = ac.introspector.getCached(pkg);
+      const all = cached ?? (await ac.introspector.introspect(pkg));
+      ac.settingsPanel.postComponentNames(
+        pkg.name,
+        all.map((c) => c.name),
+      );
+    } catch {
+      // Leave the card at its seeded state; a manual click can retry.
+    }
+  }
 }
 
 let localWatchers: vscode.Disposable[] = [];
