@@ -156,7 +156,13 @@ export type FromSettings =
 
 export type ToGallery =
   | { type: 'componentList'; components: ComponentMeta[] }
-  | { type: 'indexing'; packages: string[] };
+  | { type: 'indexing'; packages: string[] }
+  /**
+   * Per-package progress emitted from the SAME host loop that drives the
+   * notification toast, so the gallery bar's package name and `done/total`
+   * never diverge from the toast. `done`/`total`/`pkg` mirror the toast exactly.
+   */
+  | { type: 'indexingProgress'; done: number; total: number; pkg: string };
 
 export type ToProps =
   | { type: 'componentSchema'; component: ComponentMeta }

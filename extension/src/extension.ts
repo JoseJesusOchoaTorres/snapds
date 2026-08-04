@@ -585,10 +585,7 @@ function setupSettingsPanel(
         ac.pendingImport = undefined;
 
         const list = ac.registry.list();
-        ac.gallery.postIndexing(list.map((p) => p.name));
-        await Promise.all(list.map((pkg) => refreshActiveComponents(pkg, ac)));
-        ac.gallery.postIndexing([]);
-        ac.gallery.postComponentList(ac.store.listComponents());
+        await indexPackagesWithProgress(list, ac);
         ac.settingsPanel.postPackageList(await buildPackageList(ac));
         ac.settingsPanel.postSkillsConfig(getSkillsConfig());
         ac.settingsPanel.postScopeFilters(
@@ -669,22 +666,7 @@ function setupSettingsPanel(
             await ac.registry.saveAll(finalList);
 
             const activePackages = ac.registry.list();
-
-            let done = 0;
-            progress.report({ message: `0 / ${activePackages.length}`, increment: 0 });
-            ac.gallery.postIndexing(activePackages.map((p) => p.name));
-            await Promise.all(
-              activePackages.map(async (pkg) => {
-                await refreshActiveComponents(pkg, ac);
-                done++;
-                progress.report({
-                  message: `${done} / ${activePackages.length} — ${pkg.name}`,
-                  increment: (1 / activePackages.length) * 100,
-                });
-              }),
-            );
-            ac.gallery.postIndexing([]);
-            ac.gallery.postComponentList(ac.store.listComponents());
+            await indexPackagesWithProgress(activePackages, ac, progress);
 
             const allComponents = ac.store.listComponents();
             await autoGenerateForNew(allComponents, ac);
@@ -874,21 +856,7 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
         cancellable: false,
       },
       async (progress) => {
-        let done = 0;
-        progress.report({ message: `0 / ${list.length}`, increment: 0 });
-        ac.gallery.postIndexing(list.map((p) => p.name));
-        await Promise.all(
-          list.map(async (pkg) => {
-            await refreshActiveComponents(pkg, ac);
-            done++;
-            progress.report({
-              message: `${done} / ${list.length} — ${pkg.name}`,
-              increment: (1 / list.length) * 100,
-            });
-          }),
-        );
-        ac.gallery.postIndexing([]);
-        ac.gallery.postComponentList(ac.store.listComponents());
+        await indexPackagesWithProgress(list, ac, progress);
         ac.settingsPanel.postPackageList(await buildPackageList(ac));
         totalComponents = ac.store.listComponents().length;
       },
@@ -1167,18 +1135,7 @@ async function reindexInBackground(ac: ActivationCtx): Promise<void> {
       cancellable: false,
     },
     async (progress) => {
-      let done = 0;
-      progress.report({ message: `0 / ${list.length}`, increment: 0 });
-      await Promise.all(
-        list.map(async (pkg) => {
-          await refreshActiveComponents(pkg, ac);
-          done++;
-          progress.report({
-            message: `${done} / ${list.length} — ${pkg.name}`,
-            increment: (1 / list.length) * 100,
-          });
-        }),
-      );
+      await indexPackagesWithProgress(list, ac, progress);
       ac.settingsPanel.postPackageList(await buildPackageList(ac));
     },
   );
@@ -1191,20 +1148,7 @@ async function clearIntrospectionCache(ac: ActivationCtx): Promise<void> {
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Window, title: 'Snapds' },
     async (progress) => {
-      let done = 0;
-      progress.report({
-        message: `Re-indexing ${list.length} package${list.length > 1 ? 's' : ''}…`,
-      });
-      ac.gallery.postIndexing(list.map((p) => p.name));
-      await Promise.all(
-        list.map(async (pkg) => {
-          await refreshActiveComponents(pkg, ac);
-          done++;
-          progress.report({ message: `${pkg.name} (${done}/${list.length})` });
-        }),
-      );
-      ac.gallery.postIndexing([]);
-      ac.gallery.postComponentList(ac.store.listComponents());
+      await indexPackagesWithProgress(list, ac, progress);
       ac.settingsPanel.postPackageList(await buildPackageList(ac));
     },
   );
@@ -1253,4 +1197,35 @@ async function refreshActiveComponents(pkg: DsPackage, ac: ActivationCtx): Promi
       `Failed to introspect ${pkg.name}: ${e instanceof Error ? e.message : String(e)}`,
     );
   }
+}
+
+/**
+ * Indexes packages ONE AT A TIME, driving the gallery indexing bar and (when
+ * supplied) the notification toast from a single loop. Because both progress
+ * surfaces read the same `done`/`total`/`pkg` on every step, their package name
+ * and counter can never diverge (the toast/gallery desync bug). Sequential
+ * introspection also keeps a single TypeScript program alive at a time instead
+ * of N concurrent ones — parsing is CPU-bound and sync, so `Promise.all` bought
+ * no parallelism, only peak memory.
+ */
+async function indexPackagesWithProgress(
+  packages: DsPackage[],
+  ac: ActivationCtx,
+  progress?: vscode.Progress<{ message?: string; increment?: number }>,
+): Promise<void> {
+  const total = packages.length;
+  ac.gallery.postIndexing(packages.map((p) => p.name));
+  progress?.report({ message: `0 / ${total}`, increment: 0 });
+  let done = 0;
+  for (const pkg of packages) {
+    await refreshActiveComponents(pkg, ac);
+    done++;
+    ac.gallery.postIndexingProgress(done, total, pkg.name);
+    progress?.report({
+      message: `${done} / ${total} — ${pkg.name}`,
+      increment: total > 0 ? (1 / total) * 100 : 100,
+    });
+  }
+  ac.gallery.postIndexing([]);
+  ac.gallery.postComponentList(ac.store.listComponents());
 }

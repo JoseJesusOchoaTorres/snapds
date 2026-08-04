@@ -15,6 +15,9 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
   /** Tracks packages currently being indexed so the state can be replayed when
    *  the view becomes visible mid-indexing (resolveWebviewView fires on first show). */
   private activeIndexing: string[] | null = null;
+  /** Last per-package progress, replayed alongside `activeIndexing` so a view that
+   *  opens mid-indexing shows the correct counter/name instead of a stale 0/N. */
+  private lastProgress: { done: number; total: number; pkg: string } | null = null;
 
   constructor(
     private ctx: vscode.ExtensionContext,
@@ -31,12 +34,24 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.onDidReceiveMessage((msg: FromGallery) => {
       switch (msg.type) {
-        case 'ready':
+        case 'ready': {
           // Replay the indexing state so the gallery shows skeletons even when
           // the view first became visible after indexing had already started.
-          if (this.activeIndexing) this.postIndexing(this.activeIndexing);
+          // Capture progress first: postIndexing() clears it.
+          const replayProgress = this.lastProgress;
+          if (this.activeIndexing) {
+            this.postIndexing(this.activeIndexing);
+            if (replayProgress) {
+              this.postIndexingProgress(
+                replayProgress.done,
+                replayProgress.total,
+                replayProgress.pkg,
+              );
+            }
+          }
           void this.handlers.onReady();
           break;
+        }
         case 'search':
           this.handlers.onSearch(msg.query);
           break;
@@ -57,7 +72,15 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
 
   postIndexing(packages: string[]): void {
     this.activeIndexing = packages.length > 0 ? packages : null;
+    // A fresh (or finished) indexing run has no progress yet — clear the memo so
+    // a later replay can't resurrect a previous run's counter.
+    this.lastProgress = null;
     this.post({ type: 'indexing', packages });
+  }
+
+  postIndexingProgress(done: number, total: number, pkg: string): void {
+    this.lastProgress = { done, total, pkg };
+    this.post({ type: 'indexingProgress', done, total, pkg });
   }
 
   private post(msg: ToGallery): void {

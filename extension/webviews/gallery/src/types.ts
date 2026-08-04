@@ -9,4 +9,5 @@ export type FromGallery =
 
 export type ToGallery =
   | { type: 'componentList'; components: ComponentMeta[] }
-  | { type: 'indexing'; packages: string[] };
+  | { type: 'indexing'; packages: string[] }
+  | { type: 'indexingProgress'; done: number; total: number; pkg: string };

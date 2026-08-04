@@ -14,6 +14,13 @@ export default function App() {
   const [totalIndexing, setTotalIndexing] = useState(0);
   const pendingRef = useRef<Set<string>>(new Set());
   const [lastCompletedPkg, setLastCompletedPkg] = useState('');
+  // Authoritative per-package progress from the host loop (same source as the
+  // notification toast). When present it drives the bar's counter and name so the
+  // two can never disagree; the componentList-diff below is only a pre-first-event
+  // fallback for the very first render.
+  const [progress, setProgress] = useState<{ done: number; total: number; pkg: string } | null>(
+    null,
+  );
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -47,8 +54,19 @@ export default function App() {
       } else if (msg.type === 'indexing') {
         pendingRef.current = new Set(msg.packages);
         setLastCompletedPkg('');
+        setProgress(null);
         setPendingPackages(new Set(msg.packages));
         if (msg.packages.length > 0) setTotalIndexing(msg.packages.length);
+      } else if (msg.type === 'indexingProgress') {
+        setProgress({ done: msg.done, total: msg.total, pkg: msg.pkg });
+        // Drop the just-finished package from the skeleton set even when it
+        // yielded zero components (no componentList arrives to clear it).
+        if (pendingRef.current.has(msg.pkg)) {
+          const next = new Set(pendingRef.current);
+          next.delete(msg.pkg);
+          pendingRef.current = next;
+          setPendingPackages(next);
+        }
       }
     };
     window.addEventListener('message', onMessage);
@@ -102,6 +120,11 @@ export default function App() {
   };
 
   const isIndexing = pendingPackages.size > 0;
+  // Bar counter/name: prefer the host's authoritative progress; fall back to the
+  // componentList diff only until the first progress event lands.
+  const indexingDone = progress ? progress.done : totalIndexing - pendingPackages.size;
+  const indexingTotal = progress ? progress.total : totalIndexing;
+  const indexingName = progress?.pkg || lastCompletedPkg || [...pendingPackages][0];
   // Packages still loading that haven't appeared in the component list yet.
   const pendingList = [...pendingPackages].filter((p) => !groupedComponents[p]);
   const showTree = filtered.length > 0 || pendingList.length > 0;
@@ -145,9 +168,9 @@ export default function App() {
         <div className="indexing-bar" role="status" aria-live="polite">
           <div className="indexing-row">
             <span className="indexing-spinner" aria-hidden="true" />
-            <span className="indexing-pkg-name">{lastCompletedPkg || [...pendingPackages][0]}</span>
+            <span className="indexing-pkg-name">{indexingName}</span>
             <span className="indexing-progress">
-              {totalIndexing - pendingPackages.size} / {totalIndexing}
+              {indexingDone} / {indexingTotal}
             </span>
           </div>
           <p className="indexing-hint">

@@ -41,4 +41,7 @@ export const commands = {
 
 export const Uri = {
   file: (fsPath: string) => ({ fsPath }),
+  joinPath: (base: { fsPath: string }, ...segments: string[]) => ({
+    fsPath: [base.fsPath, ...segments].join('/'),
+  }),
 };

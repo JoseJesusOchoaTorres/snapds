@@ -72,3 +72,34 @@ describe('indexing message', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 });
+
+// ─── indexingProgress ───────────────────────────────────────────────────────────
+
+describe('indexingProgress message', () => {
+  it('drives the counter authoritatively (matches the host toast)', async () => {
+    render(<App />);
+    act(() => post({ type: 'indexing', packages: ['@acme/ui', '@acme/icons'] }));
+    act(() => post({ type: 'indexingProgress', done: 1, total: 2, pkg: '@acme/ui' }));
+    expect(within(screen.getByRole('status')).getByText('1 / 2')).toBeTruthy();
+    expect(within(screen.getByRole('status')).getByText('@acme/ui')).toBeTruthy();
+  });
+
+  it('lets the host counter override the componentList-diff fallback', async () => {
+    render(<App />);
+    act(() => post({ type: 'indexing', packages: ['@acme/ui', '@acme/icons'] }));
+    // No componentList arrives; the diff fallback would compute 2 - 1 = 1 after
+    // progress drops @acme/ui from pending. The host authoritatively says 2/2.
+    act(() => post({ type: 'indexingProgress', done: 2, total: 2, pkg: '@acme/ui' }));
+    expect(within(screen.getByRole('status')).getByText('2 / 2')).toBeTruthy();
+  });
+
+  it('clears the skeleton for a package that yielded zero components', async () => {
+    render(<App />);
+    act(() => post({ type: 'indexing', packages: ['@acme/ui', '@acme/empty'] }));
+    // @acme/empty finishes with no componentList of its own — progress must still
+    // drop it from the pending skeleton set.
+    act(() => post({ type: 'indexingProgress', done: 1, total: 2, pkg: '@acme/empty' }));
+    expect(screen.queryByLabelText('Loading @acme/empty')).toBeNull();
+    expect(screen.getByLabelText('Loading @acme/ui')).toBeTruthy();
+  });
+});
