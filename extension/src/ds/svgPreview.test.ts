@@ -88,6 +88,38 @@ test('strips the style attribute (can carry url() fetches / redressing CSS)', ()
   assert.doesNotMatch(out, /evil\.example/);
 });
 
+test('selects the svg of the named component in a multi-component file', () => {
+  const src = `
+    export const First = () => (
+      <svg viewBox="0 0 24 24"><path d="M1 1" /></svg>
+    );
+    export const Second = () => (
+      <svg viewBox="0 0 24 24"><path d="M2 2" /></svg>
+    );`;
+  const first = extractSvgMarkup(src, 'First');
+  const second = extractSvgMarkup(src, 'Second');
+  assert.ok(first && second);
+  assert.match(first, /M1 1/);
+  assert.doesNotMatch(first, /M2 2/);
+  assert.match(second, /M2 2/);
+  assert.doesNotMatch(second, /M1 1/);
+  // Unknown name and no name both fall back to the first svg.
+  assert.match(extractSvgMarkup(src, 'Missing') ?? '', /M1 1/);
+  assert.match(extractSvgMarkup(src) ?? '', /M1 1/);
+});
+
+test('drops xlink:href (JSX xlinkHref) external references', () => {
+  const src = `
+    export const Sprite = () => (
+      <svg viewBox="0 0 24 24"><use xlinkHref="http://evil.example/sprite#x" /></svg>
+    );`;
+  const out = extractSvgMarkup(src);
+  assert.ok(out);
+  assert.doesNotMatch(out, /xlink/i);
+  assert.doesNotMatch(out, /evil\.example/);
+  assert.match(out, /<use\/>/);
+});
+
 test('returns undefined for a component with no inline svg (wraps another icon)', () => {
   const src = `
     import { Home } from 'lucide-react';

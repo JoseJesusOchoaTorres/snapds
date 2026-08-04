@@ -101,6 +101,9 @@ function serializeAttrs(attributes: ts.JsxAttributes): string {
     // spelling (onload=, onclick=) that TSX also accepts and that the browser
     // would treat as an inline handler.
     if (/^on/i.test(name)) continue;
+    // xlink:* references (JSX spells `xlink:href` as `xlinkHref`, an Identifier
+    // that slips past the namespaced-name guard) — external/navigational refs.
+    if (/^xlink/i.test(name)) continue;
     const value = attrValue(prop.initializer);
     if (value === undefined) continue;
     const mapped = ATTR_RENAME[name] ?? name;
@@ -133,22 +136,42 @@ function serializeElement(node: ts.JsxElement | ts.JsxSelfClosingElement): strin
   return `<${tag}${attrs}>${children}</${tag}>`;
 }
 
-function findSvg(node: ts.Node): ts.JsxElement | ts.JsxSelfClosingElement | undefined {
-  if (ts.isJsxElement(node) && ts.isIdentifier(node.openingElement.tagName)) {
-    if (node.openingElement.tagName.text === 'svg') return node;
+type SvgEl = ts.JsxElement | ts.JsxSelfClosingElement;
+
+function isSvgTag(node: ts.Node): node is SvgEl {
+  if (ts.isJsxElement(node)) {
+    return (
+      ts.isIdentifier(node.openingElement.tagName) && node.openingElement.tagName.text === 'svg'
+    );
   }
-  if (ts.isJsxSelfClosingElement(node) && ts.isIdentifier(node.tagName)) {
-    if (node.tagName.text === 'svg') return node;
+  if (ts.isJsxSelfClosingElement(node)) {
+    return ts.isIdentifier(node.tagName) && node.tagName.text === 'svg';
   }
-  let found: ts.JsxElement | ts.JsxSelfClosingElement | undefined;
-  ts.forEachChild(node, (child) => {
-    if (found) return;
-    found = findSvg(child);
-  });
-  return found;
+  return false;
 }
 
-export function extractSvgMarkup(source: string): string | undefined {
+/** Collects every top-level `<svg>` element in the file, in source order. */
+function collectSvgs(node: ts.Node, out: SvgEl[]): void {
+  if (isSvgTag(node)) out.push(node);
+  ts.forEachChild(node, (child) => collectSvgs(child, out));
+}
+
+/** Name of the nearest enclosing function/variable/class declaration, if any. */
+function enclosingName(node: ts.Node): string | undefined {
+  for (let n: ts.Node | undefined = node.parent; n; n = n.parent) {
+    if (ts.isFunctionDeclaration(n) && n.name) return n.name.text;
+    if (ts.isClassDeclaration(n) && n.name) return n.name.text;
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name)) return n.name.text;
+  }
+  return undefined;
+}
+
+/**
+ * `componentName` scopes selection to the `<svg>` inside the declaration of that
+ * component, so a file exporting several icons previews the right one. Falls back
+ * to the first `<svg>` in the file when the name can't be matched.
+ */
+export function extractSvgMarkup(source: string, componentName?: string): string | undefined {
   try {
     const sf = ts.createSourceFile(
       'icon.tsx',
@@ -157,11 +180,17 @@ export function extractSvgMarkup(source: string): string | undefined {
       true,
       ts.ScriptKind.TSX,
     );
-    const svg = findSvg(sf);
-    if (!svg) return undefined;
+    const svgs: SvgEl[] = [];
+    collectSvgs(sf, svgs);
+    if (svgs.length === 0) return undefined;
+    let svg = svgs[0];
+    if (componentName) {
+      const match = svgs.find((s) => enclosingName(s) === componentName);
+      if (match) svg = match;
+    }
     let markup = serializeElement(svg);
     if (!markup.startsWith('<svg') || markup.length > MAX_OUTPUT) return undefined;
-    // Ensure the namespace so it renders standalone via innerHTML.
+    // Ensure the namespace so the SVG renders standalone (as an <img> data URI).
     if (!/\sxmlns=/.test(markup)) {
       markup = markup.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
     }

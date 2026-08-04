@@ -1,5 +1,5 @@
 import { Control, vscode } from '@snapds/webview-shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ComponentMeta, ToProps } from './types';
 
 type VersionsInfo = {
@@ -47,6 +47,19 @@ export default function App() {
       vscode.postMessage({ type: 'propsUpdated', componentId: comp.id, props: next });
     }
   };
+
+  // Render the sanitized SVG as an <img> data URI rather than injecting HTML: an
+  // <img>-loaded SVG can neither run scripts nor fetch external resources, so
+  // there is no innerHTML sink. `currentColor` is resolved to the theme
+  // foreground up front because an image-embedded SVG can't read the page's vars.
+  const svgSrc = useMemo(() => {
+    if (!svgPreview) return null;
+    const fg =
+      getComputedStyle(document.documentElement).getPropertyValue('--vscode-foreground').trim() ||
+      '#cccccc';
+    const themed = svgPreview.replace('<svg', `<svg color="${fg}"`);
+    return `data:image/svg+xml,${encodeURIComponent(themed)}`;
+  }, [svgPreview]);
 
   if (!comp) return <p className="empty">Select a component in the sidebar.</p>;
 
@@ -127,24 +140,16 @@ export default function App() {
           )}
         </div>
       )}
-      {svgPreview && (
-        // Sanitized inline SVG extracted from a local icon's source (no external
-        // refs, scripts, or handlers — see host-side extractSvgMarkup).
-        <div
-          className="svg-preview"
-          role="img"
-          aria-label={`${comp.name} preview`}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: markup is host-sanitized to a whitelist of SVG tags/attrs.
-          dangerouslySetInnerHTML={{ __html: svgPreview }}
-        />
+      {svgSrc && (
+        <div className="svg-preview">
+          <img src={svgSrc} alt={`${comp.name} preview`} />
+        </div>
       )}
       {comp.props.length === 0 ? (
         <div className="empty">
-          {svgPreview
-            ? 'Preview of the icon from your local source. This component only accepts standard DOM/SVG props.'
-            : comp.standardPropsOnly
-              ? 'This component only accepts standard DOM/SVG props.'
-              : 'This component has no documented props.'}
+          {comp.standardPropsOnly
+            ? 'This component only accepts standard DOM/SVG props.'
+            : 'This component has no documented props.'}
         </div>
       ) : (
         comp.props.map((p) => (

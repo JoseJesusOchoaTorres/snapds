@@ -13,11 +13,11 @@ export default function App() {
   const [pendingPackages, setPendingPackages] = useState<Set<string>>(new Set());
   const [totalIndexing, setTotalIndexing] = useState(0);
   const pendingRef = useRef<Set<string>>(new Set());
-  const [lastCompletedPkg, setLastCompletedPkg] = useState('');
   // Authoritative per-package progress from the host loop (same source as the
-  // notification toast). When present it drives the bar's counter and name so the
-  // two can never disagree; the componentList-diff below is only a pre-first-event
-  // fallback for the very first render.
+  // notification toast). It is the ONLY signal that clears a package from the
+  // pending/skeleton set — full componentList snapshots never do, so a reindex
+  // over already-populated packages keeps its progress bar and skeletons until
+  // each package actually reports done.
   const [progress, setProgress] = useState<{ done: number; total: number; pkg: string } | null>(
     null,
   );
@@ -43,17 +43,12 @@ export default function App() {
     const onMessage = (e: MessageEvent<ToGallery>) => {
       const msg = e.data;
       if (msg.type === 'componentList') {
+        // Snapshot updates component data only. It must NOT clear pending: during
+        // a reindex the first snapshot still carries every package's OLD
+        // components, which would wrongly mark them all done at once.
         setComponents(msg.components);
-        const loadedPkgs = new Set(msg.components.map((c) => c.id.split('#')[0]));
-        const justCompleted = [...loadedPkgs].filter((p) => pendingRef.current.has(p));
-        if (justCompleted.length > 0) setLastCompletedPkg(justCompleted[justCompleted.length - 1]);
-        const nextPending = new Set(pendingRef.current);
-        for (const p of loadedPkgs) nextPending.delete(p);
-        pendingRef.current = nextPending;
-        setPendingPackages(nextPending);
       } else if (msg.type === 'indexing') {
         pendingRef.current = new Set(msg.packages);
-        setLastCompletedPkg('');
         setProgress(null);
         setPendingPackages(new Set(msg.packages));
         if (msg.packages.length > 0) setTotalIndexing(msg.packages.length);
@@ -124,7 +119,7 @@ export default function App() {
   // componentList diff only until the first progress event lands.
   const indexingDone = progress ? progress.done : totalIndexing - pendingPackages.size;
   const indexingTotal = progress ? progress.total : totalIndexing;
-  const indexingName = progress?.pkg || lastCompletedPkg || [...pendingPackages][0];
+  const indexingName = progress?.pkg || [...pendingPackages][0];
   // Packages still loading that haven't appeared in the component list yet.
   const pendingList = [...pendingPackages].filter((p) => !groupedComponents[p]);
   const showTree = filtered.length > 0 || pendingList.length > 0;

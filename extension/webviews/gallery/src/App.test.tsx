@@ -32,26 +32,28 @@ describe('componentList message', () => {
     expect(screen.getByText('Card')).toBeTruthy();
   });
 
-  it('removes a package from the indexing bar when its components arrive', async () => {
+  it('keeps the indexing bar visible when a full snapshot arrives mid-index', async () => {
     render(<App />);
+    act(() => post({ type: 'indexing', packages: ['@acme/ui', '@acme/icons'] }));
+    // A snapshot must not clear pending — the bar stays until indexingProgress.
+    act(() => post({ type: 'componentList', components: [btn, arrow] }));
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(within(screen.getByRole('status')).getByText('0 / 2')).toBeTruthy();
+  });
+
+  it('does not mark packages done from a full snapshot during a reindex', async () => {
+    render(<App />);
+    // Two packages already populated from a prior load.
+    act(() => post({ type: 'componentList', components: [btn, arrow] }));
+    // Reindex begins; the first refresh re-emits the full (still-old) snapshot.
     act(() => post({ type: 'indexing', packages: ['@acme/ui', '@acme/icons'] }));
     act(() => post({ type: 'componentList', components: [btn, arrow] }));
+    // Progress must stay 0/2 — only indexingProgress advances it.
+    expect(within(screen.getByRole('status')).getByText('0 / 2')).toBeTruthy();
+    act(() => post({ type: 'indexingProgress', done: 1, total: 2, pkg: '@acme/ui' }));
+    expect(within(screen.getByRole('status')).getByText('1 / 2')).toBeTruthy();
+    act(() => post({ type: 'indexingProgress', done: 2, total: 2, pkg: '@acme/icons' }));
     expect(screen.queryByRole('status')).toBeNull();
-  });
-
-  it('advances the progress counter when a package arrives incrementally', async () => {
-    render(<App />);
-    act(() => post({ type: 'indexing', packages: ['@acme/ui', '@acme/icons'] }));
-    act(() => post({ type: 'componentList', components: [btn] }));
-    expect(screen.getByText('1 / 2')).toBeTruthy();
-    expect(screen.getByRole('status')).toBeTruthy();
-  });
-
-  it('shows the last completed package name in the indexing bar', async () => {
-    render(<App />);
-    act(() => post({ type: 'indexing', packages: ['@acme/ui', '@acme/icons'] }));
-    act(() => post({ type: 'componentList', components: [btn] }));
-    expect(within(screen.getByRole('status')).getByText('@acme/ui')).toBeTruthy();
   });
 });
 
@@ -71,6 +73,12 @@ describe('indexing message', () => {
     act(() => post({ type: 'indexing', packages: [] }));
     expect(screen.queryByRole('status')).toBeNull();
   });
+
+  it('shows the first pending package name before any progress event', async () => {
+    render(<App />);
+    act(() => post({ type: 'indexing', packages: ['@acme/ui', '@acme/icons'] }));
+    expect(within(screen.getByRole('status')).getByText('@acme/ui')).toBeTruthy();
+  });
 });
 
 // ─── indexingProgress ───────────────────────────────────────────────────────────
@@ -84,11 +92,10 @@ describe('indexingProgress message', () => {
     expect(within(screen.getByRole('status')).getByText('@acme/ui')).toBeTruthy();
   });
 
-  it('lets the host counter override the componentList-diff fallback', async () => {
+  it('reports the host counter verbatim, independent of pending set size', async () => {
     render(<App />);
     act(() => post({ type: 'indexing', packages: ['@acme/ui', '@acme/icons'] }));
-    // No componentList arrives; the diff fallback would compute 2 - 1 = 1 after
-    // progress drops @acme/ui from pending. The host authoritatively says 2/2.
+    // Host says 2/2 even though only one package has been dropped from pending.
     act(() => post({ type: 'indexingProgress', done: 2, total: 2, pkg: '@acme/ui' }));
     expect(within(screen.getByRole('status')).getByText('2 / 2')).toBeTruthy();
   });

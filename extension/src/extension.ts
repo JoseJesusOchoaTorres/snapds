@@ -602,6 +602,7 @@ function setupSettingsPanel(
         ac.pendingImport = undefined;
 
         const list = ac.registry.list();
+        pruneStoreToRegistry(ac);
         await indexPackagesWithProgress(list, ac);
         ac.settingsPanel.postPackageList(await buildPackageList(ac));
         ac.settingsPanel.postSkillsConfig(getSkillsConfig());
@@ -683,6 +684,7 @@ function setupSettingsPanel(
             await ac.registry.saveAll(finalList);
 
             const activePackages = ac.registry.list();
+            pruneStoreToRegistry(ac);
             await indexPackagesWithProgress(activePackages, ac, progress);
 
             const allComponents = ac.store.listComponents();
@@ -859,7 +861,11 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
 
     const cold = list.filter((p) => !ac.introspector.getCached(p));
     if (cold.length === 0) {
-      await Promise.all(list.map((pkg) => refreshActiveComponents(pkg, ac)));
+      // Warm cache: no indexing bar needed, but still serialize so a concurrent
+      // save/reindex can't interleave store writes with this warm-up.
+      await serializeIndexing(() =>
+        Promise.all(list.map((pkg) => refreshActiveComponents(pkg, ac))),
+      );
       ac.settingsPanel.postPackageList(await buildPackageList(ac));
       void afterDiscovery(ac);
       return;
@@ -895,7 +901,7 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
 function computeSvgPreview(meta: ComponentMeta): string | undefined {
   if (!meta.sourceFile) return undefined;
   try {
-    return extractSvgMarkup(fs.readFileSync(meta.sourceFile, 'utf8'));
+    return extractSvgMarkup(fs.readFileSync(meta.sourceFile, 'utf8'), meta.name);
   } catch {
     return undefined;
   }
@@ -1270,24 +1276,55 @@ async function refreshActiveComponents(pkg: DsPackage, ac: ActivationCtx): Promi
  * of N concurrent ones — parsing is CPU-bound and sync, so `Promise.all` bought
  * no parallelism, only peak memory.
  */
+// Serializes indexing runs so concurrent triggers (startup warm-up, a save, a
+// reindex, a cache clear) never interleave their gallery/store/progress updates.
+// A rejected run can't wedge the chain: each link runs regardless of the prior
+// outcome, and the tracked tail always resolves.
+let indexingChain: Promise<unknown> = Promise.resolve();
+function serializeIndexing<T>(run: () => Promise<T>): Promise<T> {
+  const next = indexingChain.then(run, run);
+  indexingChain = next.then(
+    () => {},
+    () => {},
+  );
+  return next;
+}
+
+/**
+ * Drops store components whose package is no longer in the registry (e.g. one the
+ * user just deactivated, or removed by an imported config), so the gallery stops
+ * showing orphaned components without waiting for a full reload.
+ */
+function pruneStoreToRegistry(ac: ActivationCtx): void {
+  const valid = new Set(ac.registry.list().map((p) => p.name));
+  const current = ac.store.listComponents();
+  const kept = current.filter((c) => valid.has(c.id.split('#')[0]));
+  if (kept.length !== current.length) {
+    ac.store.setComponents(kept);
+    ac.gallery.postComponentList(kept);
+  }
+}
+
 async function indexPackagesWithProgress(
   packages: DsPackage[],
   ac: ActivationCtx,
   progress?: vscode.Progress<{ message?: string; increment?: number }>,
 ): Promise<void> {
-  const total = packages.length;
-  ac.gallery.postIndexing(packages.map((p) => p.name));
-  progress?.report({ message: `0 / ${total}`, increment: 0 });
-  let done = 0;
-  for (const pkg of packages) {
-    await refreshActiveComponents(pkg, ac);
-    done++;
-    ac.gallery.postIndexingProgress(done, total, pkg.name);
-    progress?.report({
-      message: `${done} / ${total} — ${pkg.name}`,
-      increment: total > 0 ? (1 / total) * 100 : 100,
-    });
-  }
-  ac.gallery.postIndexing([]);
-  ac.gallery.postComponentList(ac.store.listComponents());
+  await serializeIndexing(async () => {
+    const total = packages.length;
+    ac.gallery.postIndexing(packages.map((p) => p.name));
+    progress?.report({ message: `0 / ${total}`, increment: 0 });
+    let done = 0;
+    for (const pkg of packages) {
+      await refreshActiveComponents(pkg, ac);
+      done++;
+      ac.gallery.postIndexingProgress(done, total, pkg.name);
+      progress?.report({
+        message: `${done} / ${total} — ${pkg.name}`,
+        increment: total > 0 ? (1 / total) * 100 : 100,
+      });
+    }
+    ac.gallery.postIndexing([]);
+    ac.gallery.postComponentList(ac.store.listComponents());
+  });
 }

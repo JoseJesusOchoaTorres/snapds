@@ -55,9 +55,10 @@ textarea {
   opacity: 0.7;
 }
 
-/* Live preview of a local icon's inline SVG. Sets `color` only (not `fill`) so
-   `currentColor` resolves to the theme foreground while an explicit `fill="none"`
-   on stroke-based icons is preserved (CSS fill would override it). */
+/* Live preview of a local icon, rendered as an <img> data URI (no inline HTML
+   injection). currentColor is baked into the SVG host-side from the theme
+   foreground, so the neutral surface keeps both stroke- and fill-based icons
+   readable in either theme. */
 .svg-preview {
   display: flex;
   align-items: center;
@@ -67,10 +68,9 @@ textarea {
   border: 1px solid var(--vscode-panel-border, var(--vscode-widget-border, transparent));
   border-radius: 6px;
   background: var(--vscode-editor-background);
-  color: var(--vscode-foreground);
 }
 
-.svg-preview svg {
+.svg-preview img {
   width: 64px;
   height: 64px;
   max-width: 100%;
