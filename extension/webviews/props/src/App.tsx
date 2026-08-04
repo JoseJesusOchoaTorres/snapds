@@ -16,12 +16,14 @@ export default function App() {
   const [comp, setComp] = useState<ComponentMeta | null>(null);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [versionsInfo, setVersionsInfo] = useState<VersionsInfo | null>(null);
+  const [svgPreview, setSvgPreview] = useState<string | null>(null);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent<ToProps>) => {
       const m = e.data;
       if (m.type === 'componentSchema') {
         setComp(m.component);
+        setSvgPreview(m.svgPreview ?? null);
         const defaults: Record<string, unknown> = {};
         for (const p of m.component.props) {
           if (p.defaultValue !== undefined) defaults[p.name] = p.defaultValue;
@@ -125,11 +127,24 @@ export default function App() {
           )}
         </div>
       )}
+      {svgPreview && (
+        // Sanitized inline SVG extracted from a local icon's source (no external
+        // refs, scripts, or handlers — see host-side extractSvgMarkup).
+        <div
+          className="svg-preview"
+          role="img"
+          aria-label={`${comp.name} preview`}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: markup is host-sanitized to a whitelist of SVG tags/attrs.
+          dangerouslySetInnerHTML={{ __html: svgPreview }}
+        />
+      )}
       {comp.props.length === 0 ? (
         <div className="empty">
-          {comp.standardPropsOnly
-            ? 'This component only accepts standard DOM/SVG props.'
-            : 'This component has no documented props.'}
+          {svgPreview
+            ? 'Preview of the icon from your local source. This component only accepts standard DOM/SVG props.'
+            : comp.standardPropsOnly
+              ? 'This component only accepts standard DOM/SVG props.'
+              : 'This component has no documented props.'}
         </div>
       ) : (
         comp.props.map((p) => (

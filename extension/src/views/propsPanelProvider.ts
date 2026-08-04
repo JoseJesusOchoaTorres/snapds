@@ -13,6 +13,7 @@ export class PropsPanelProvider {
   private panel: vscode.WebviewPanel | undefined;
   private pendingSchema: ComponentMeta | undefined;
   private pendingValues: Record<string, unknown> | undefined;
+  private pendingSvgPreview: string | undefined;
 
   constructor(
     private ctx: vscode.ExtensionContext,
@@ -69,23 +70,33 @@ export class PropsPanelProvider {
     return this.panel !== undefined;
   }
 
-  postComponentSchema(component: ComponentMeta, values?: Record<string, unknown>): void {
+  postComponentSchema(
+    component: ComponentMeta,
+    values?: Record<string, unknown>,
+    svgPreview?: string,
+  ): void {
     if (!this.panel) {
       this.pendingSchema = component;
       this.pendingValues = values;
+      this.pendingSvgPreview = svgPreview;
       this.show();
       return;
     }
-    this.post({ type: 'componentSchema', component });
+    this.post({ type: 'componentSchema', component, svgPreview });
     if (values) this.post({ type: 'restoreProps', props: values });
   }
 
   private flushPending(): void {
     if (this.pendingSchema) {
-      this.post({ type: 'componentSchema', component: this.pendingSchema });
+      this.post({
+        type: 'componentSchema',
+        component: this.pendingSchema,
+        svgPreview: this.pendingSvgPreview,
+      });
       if (this.pendingValues) this.post({ type: 'restoreProps', props: this.pendingValues });
       this.pendingSchema = undefined;
       this.pendingValues = undefined;
+      this.pendingSvgPreview = undefined;
     }
   }
 

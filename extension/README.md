@@ -53,6 +53,7 @@ Snapds is a powerful VS Code extension designed for React monorepos. It introspe
 - ⚡ **Performance Optimized**: Uses advanced caching based on package version and config file mtime so re-opening the gallery is instant. Each package version is cached independently, so switching between versions in the props panel requires no re-parse after startup.
 - 🗂️ **Monorepo multi-version support**: In a monorepo with apps using different versions of the same package, Snapds auto-detects the right version from the file currently open in your editor and shows the matching props. A version selector in the props panel lets you override this manually, and an "Add to this app" button injects the dependency into the nearest `package.json` when the package isn't listed there yet.
 - 🎨 **Local component sources**: Point Snapds at an in-repo design system, not just npm packages. A shadcn `components.json` is auto-detected, or register any folder with **+ Local folder**. Local components inject from their path alias (e.g. `@/components/ui/button`) instead of `node_modules`, are badged **LOCAL**, and re-index live as you edit them.
+- 🖼️ **Local icon preview**: When you select an icon component from a local source, the props panel renders a live preview of its SVG — extracted statically from the component's own source file (sanitized, never executed).
 - 🤖 **Generate Skills**: Turn your component metadata into agent-consumable skill docs so coding agents can use your design system without re-reading source or `.d.ts` files (saving tokens).
 
 ## Managing Packages & Components

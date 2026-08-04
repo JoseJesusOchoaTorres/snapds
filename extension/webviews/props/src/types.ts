@@ -9,7 +9,7 @@ export type FromProps =
   | { type: 'addToPackageJson'; pkg: string; version: string };
 
 export type ToProps =
-  | { type: 'componentSchema'; component: ComponentMeta }
+  | { type: 'componentSchema'; component: ComponentMeta; svgPreview?: string }
   | { type: 'restoreProps'; props: Record<string, unknown> }
   | {
       type: 'versionsAvailable';

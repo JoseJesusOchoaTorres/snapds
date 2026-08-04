@@ -26,6 +26,7 @@ import {
   runGenerateSkills,
   setSkillsConfig,
 } from './ds/skillWriter';
+import { extractSvgMarkup } from './ds/svgPreview';
 import {
   discoverInstallations,
   findNearestPackageJson,
@@ -124,7 +125,11 @@ function setupPropsPanel(ctx: vscode.ExtensionContext, ac: ActivationCtx): Props
     onReady: () => {
       const sel = ac.store.getSelected();
       if (sel) {
-        ac.propsPanel.postComponentSchema(sel, ac.store.getConfiguredProps(sel.id));
+        ac.propsPanel.postComponentSchema(
+          sel,
+          ac.store.getConfiguredProps(sel.id),
+          computeSvgPreview(sel),
+        );
         notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath, ac);
       }
     },
@@ -148,7 +153,11 @@ function setupPropsPanel(ctx: vscode.ExtensionContext, ac: ActivationCtx): Props
       if (selected?.id.startsWith(`${pkg}#`)) {
         const updated = whitelisted.find((c) => c.id === selected.id);
         if (updated) {
-          ac.propsPanel.postComponentSchema(updated, ac.store.getConfiguredProps(selected.id));
+          ac.propsPanel.postComponentSchema(
+            updated,
+            ac.store.getConfiguredProps(selected.id),
+            computeSvgPreview(updated),
+          );
         }
       }
 
@@ -246,7 +255,11 @@ function setupGallery(ctx: vscode.ExtensionContext, ac: ActivationCtx): GalleryV
       const meta = ac.store.getComponent(componentId);
       if (!meta) return;
       ac.store.select(componentId);
-      ac.propsPanel.postComponentSchema(meta, ac.store.getConfiguredProps(componentId));
+      ac.propsPanel.postComponentSchema(
+        meta,
+        ac.store.getConfiguredProps(componentId),
+        computeSvgPreview(meta),
+      );
       notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath, ac);
     },
   });
@@ -874,6 +887,20 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
 
 // ─── Helper utilities ────────────────────────────────────────────────────────
 
+/**
+ * Reads a LOCAL-source icon component's own source file and statically extracts
+ * a sanitized inline `<svg>` for the props-panel preview. Returns undefined for
+ * npm components (no `sourceFile`) or files with no renderable inline SVG.
+ */
+function computeSvgPreview(meta: ComponentMeta): string | undefined {
+  if (!meta.sourceFile) return undefined;
+  try {
+    return extractSvgMarkup(fs.readFileSync(meta.sourceFile, 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
 /** Looks up the right installation for the focused file and notifies the props panel. */
 function notifyVersions(filePath: string | undefined, ac: ActivationCtx): void {
   if (!ac.propsPanel.isOpen()) return;
@@ -1210,7 +1237,11 @@ async function reintrospectAndBroadcast(pkgName: string, ac: ActivationCtx): Pro
   await refreshActiveComponents(descriptor, ac);
   const sel = ac.store.getSelected();
   if (sel?.id.startsWith(`${pkgName}#`) && ac.propsPanel.isOpen()) {
-    ac.propsPanel.postComponentSchema(sel, ac.store.getConfiguredProps(sel.id));
+    ac.propsPanel.postComponentSchema(
+      sel,
+      ac.store.getConfiguredProps(sel.id),
+      computeSvgPreview(sel),
+    );
   }
 }
 
