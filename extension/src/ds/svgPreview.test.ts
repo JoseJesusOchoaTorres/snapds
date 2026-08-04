@@ -136,3 +136,12 @@ test('returns undefined on unparseable / empty input', () => {
   assert.equal(extractSvgMarkup(''), undefined);
   assert.equal(extractSvgMarkup('const x = ('), undefined);
 });
+
+test('returns undefined when a valid svg is followed by a syntax error', () => {
+  // createSourceFile recovers a partial AST here; the trailing broken statement
+  // must still make the whole extraction bail out rather than preview the svg.
+  const src = `
+    export const Icon = () => <svg viewBox="0 0 24 24"><path d="M1 1" /></svg>;
+    const x = (`;
+  assert.equal(extractSvgMarkup(src), undefined);
+});

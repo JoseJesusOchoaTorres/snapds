@@ -180,6 +180,14 @@ export function extractSvgMarkup(source: string, componentName?: string): string
       true,
       ts.ScriptKind.TSX,
     );
+    // Reject syntactically broken sources: createSourceFile parses tolerantly and
+    // recovers a partial AST (e.g. a valid <svg> followed by `const x = (`), which
+    // could yield garbled markup. `parseDiagnostics` isn't on the public
+    // SourceFile type, hence the narrow cast; it holds syntax errors only, so
+    // well-formed icon files (regardless of tsconfig/types) are never rejected.
+    const parseDiagnostics = (sf as unknown as { parseDiagnostics?: readonly ts.Diagnostic[] })
+      .parseDiagnostics;
+    if (parseDiagnostics && parseDiagnostics.length > 0) return undefined;
     const svgs: SvgEl[] = [];
     collectSvgs(sf, svgs);
     if (svgs.length === 0) return undefined;
