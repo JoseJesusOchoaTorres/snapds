@@ -11,12 +11,17 @@ import * as ts from 'typescript';
 export function enumerateComponentExports(
   entry: string | undefined,
   tsconfigPath?: string,
+  program?: ts.Program,
 ): Array<{ name: string; description?: string }> {
   if (!entry) return [];
   try {
-    const program = ts.createProgram([entry], buildCompilerOptions(tsconfigPath));
-    const checker = program.getTypeChecker();
-    const source = program.getSourceFile(entry);
+    // Reuse the caller's program when given (doIntrospect builds one program per
+    // package and shares it with extractInterfaceProps) — `ts.createProgram`
+    // loads the default lib and resolves the whole module graph, so building it
+    // once instead of twice per package is a real cold-start win.
+    const prog = program ?? ts.createProgram([entry], buildCompilerOptions(tsconfigPath));
+    const checker = prog.getTypeChecker();
+    const source = prog.getSourceFile(entry);
     if (!source) return [];
     const moduleSymbol = checker.getSymbolAtLocation(source);
     if (!moduleSymbol) return [];
