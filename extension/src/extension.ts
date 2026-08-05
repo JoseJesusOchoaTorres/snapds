@@ -26,6 +26,7 @@ import {
   runGenerateSkills,
   setSkillsConfig,
 } from './ds/skillWriter';
+import { extractSvgMarkup } from './ds/svgPreview';
 import {
   discoverInstallations,
   findNearestPackageJson,
@@ -124,7 +125,11 @@ function setupPropsPanel(ctx: vscode.ExtensionContext, ac: ActivationCtx): Props
     onReady: () => {
       const sel = ac.store.getSelected();
       if (sel) {
-        ac.propsPanel.postComponentSchema(sel, ac.store.getConfiguredProps(sel.id));
+        ac.propsPanel.postComponentSchema(
+          sel,
+          ac.store.getConfiguredProps(sel.id),
+          computeSvgPreview(sel),
+        );
         notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath, ac);
       }
     },
@@ -148,7 +153,11 @@ function setupPropsPanel(ctx: vscode.ExtensionContext, ac: ActivationCtx): Props
       if (selected?.id.startsWith(`${pkg}#`)) {
         const updated = whitelisted.find((c) => c.id === selected.id);
         if (updated) {
-          ac.propsPanel.postComponentSchema(updated, ac.store.getConfiguredProps(selected.id));
+          ac.propsPanel.postComponentSchema(
+            updated,
+            ac.store.getConfiguredProps(selected.id),
+            computeSvgPreview(updated),
+          );
         }
       }
 
@@ -246,7 +255,11 @@ function setupGallery(ctx: vscode.ExtensionContext, ac: ActivationCtx): GalleryV
       const meta = ac.store.getComponent(componentId);
       if (!meta) return;
       ac.store.select(componentId);
-      ac.propsPanel.postComponentSchema(meta, ac.store.getConfiguredProps(componentId));
+      ac.propsPanel.postComponentSchema(
+        meta,
+        ac.store.getConfiguredProps(componentId),
+        computeSvgPreview(meta),
+      );
       notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath, ac);
     },
   });
@@ -287,6 +300,10 @@ function setupSettingsPanel(
         ctx.workspaceState.get<string[]>('snapds.hiddenPackages') ?? [],
       );
       ac.settingsPanel.postConfigStatus(detectConfigConflict(ac.registry, ctx));
+      // Populate Active card counts without waiting for a per-card click. Runs
+      // after the package list is posted so the webview has each package's
+      // excluded/manual context before the component names arrive.
+      void pushActiveComponentNames(ac);
     },
     onRequestComponents: async (pkgName) => {
       const descriptor = await resolvePackageByName(pkgName, ac);
@@ -585,10 +602,8 @@ function setupSettingsPanel(
         ac.pendingImport = undefined;
 
         const list = ac.registry.list();
-        ac.gallery.postIndexing(list.map((p) => p.name));
-        await Promise.all(list.map((pkg) => refreshActiveComponents(pkg, ac)));
-        ac.gallery.postIndexing([]);
-        ac.gallery.postComponentList(ac.store.listComponents());
+        pruneStoreToRegistry(ac);
+        await indexPackagesWithProgress(list, ac);
         ac.settingsPanel.postPackageList(await buildPackageList(ac));
         ac.settingsPanel.postSkillsConfig(getSkillsConfig());
         ac.settingsPanel.postScopeFilters(
@@ -669,22 +684,8 @@ function setupSettingsPanel(
             await ac.registry.saveAll(finalList);
 
             const activePackages = ac.registry.list();
-
-            let done = 0;
-            progress.report({ message: `0 / ${activePackages.length}`, increment: 0 });
-            ac.gallery.postIndexing(activePackages.map((p) => p.name));
-            await Promise.all(
-              activePackages.map(async (pkg) => {
-                await refreshActiveComponents(pkg, ac);
-                done++;
-                progress.report({
-                  message: `${done} / ${activePackages.length} — ${pkg.name}`,
-                  increment: (1 / activePackages.length) * 100,
-                });
-              }),
-            );
-            ac.gallery.postIndexing([]);
-            ac.gallery.postComponentList(ac.store.listComponents());
+            pruneStoreToRegistry(ac);
+            await indexPackagesWithProgress(activePackages, ac, progress);
 
             const allComponents = ac.store.listComponents();
             await autoGenerateForNew(allComponents, ac);
@@ -860,7 +861,11 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
 
     const cold = list.filter((p) => !ac.introspector.getCached(p));
     if (cold.length === 0) {
-      await Promise.all(list.map((pkg) => refreshActiveComponents(pkg, ac)));
+      // Warm cache: no indexing bar needed, but still serialize so a concurrent
+      // save/reindex can't interleave store writes with this warm-up.
+      await serializeIndexing(() =>
+        Promise.all(list.map((pkg) => refreshActiveComponents(pkg, ac))),
+      );
       ac.settingsPanel.postPackageList(await buildPackageList(ac));
       void afterDiscovery(ac);
       return;
@@ -874,21 +879,7 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
         cancellable: false,
       },
       async (progress) => {
-        let done = 0;
-        progress.report({ message: `0 / ${list.length}`, increment: 0 });
-        ac.gallery.postIndexing(list.map((p) => p.name));
-        await Promise.all(
-          list.map(async (pkg) => {
-            await refreshActiveComponents(pkg, ac);
-            done++;
-            progress.report({
-              message: `${done} / ${list.length} — ${pkg.name}`,
-              increment: (1 / list.length) * 100,
-            });
-          }),
-        );
-        ac.gallery.postIndexing([]);
-        ac.gallery.postComponentList(ac.store.listComponents());
+        await indexPackagesWithProgress(list, ac, progress);
         ac.settingsPanel.postPackageList(await buildPackageList(ac));
         totalComponents = ac.store.listComponents().length;
       },
@@ -901,6 +892,20 @@ function runStartupFlow(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
 }
 
 // ─── Helper utilities ────────────────────────────────────────────────────────
+
+/**
+ * Reads a LOCAL-source icon component's own source file and statically extracts
+ * a sanitized inline `<svg>` for the props-panel preview. Returns undefined for
+ * npm components (no `sourceFile`) or files with no renderable inline SVG.
+ */
+function computeSvgPreview(meta: ComponentMeta): string | undefined {
+  if (!meta.sourceFile) return undefined;
+  try {
+    return extractSvgMarkup(fs.readFileSync(meta.sourceFile, 'utf8'), meta.name);
+  } catch {
+    return undefined;
+  }
+}
 
 /** Looks up the right installation for the focused file and notifies the props panel. */
 function notifyVersions(filePath: string | undefined, ac: ActivationCtx): void {
@@ -1079,6 +1084,33 @@ async function buildPackageList(ac: ActivationCtx): Promise<PackageMeta[]> {
   return [...npm, ...local];
 }
 
+/**
+ * Streams component names for every registered package to the settings panel so
+ * the Active cards show their real counts on open — instead of a stale 0/0 until
+ * the user clicks each card. Uses the warm cache when present (instant); a cold
+ * package is introspected in the background, joining any startup warm-up already
+ * in flight (introspect() dedupes), and its names posted as soon as they resolve.
+ */
+async function pushActiveComponentNames(ac: ActivationCtx): Promise<void> {
+  // Sequential on purpose: a cold panel-open must not fan out N concurrent
+  // ts.createProgram parses — the same peak-memory pattern indexPackagesWithProgress
+  // avoids. Warm packages resolve instantly (getCached); a cold one joins any
+  // in-flight startup parse via the introspector's dedup, so at most one parse
+  // runs here at a time.
+  for (const pkg of ac.registry.list()) {
+    try {
+      const cached = ac.introspector.getCached(pkg);
+      const all = cached ?? (await ac.introspector.introspect(pkg));
+      ac.settingsPanel.postComponentNames(
+        pkg.name,
+        all.map((c) => c.name),
+      );
+    } catch {
+      // Leave the card at its seeded state; a manual click can retry.
+    }
+  }
+}
+
 let localWatchers: vscode.Disposable[] = [];
 let watcherLifecycleRegistered = false;
 
@@ -1167,18 +1199,7 @@ async function reindexInBackground(ac: ActivationCtx): Promise<void> {
       cancellable: false,
     },
     async (progress) => {
-      let done = 0;
-      progress.report({ message: `0 / ${list.length}`, increment: 0 });
-      await Promise.all(
-        list.map(async (pkg) => {
-          await refreshActiveComponents(pkg, ac);
-          done++;
-          progress.report({
-            message: `${done} / ${list.length} — ${pkg.name}`,
-            increment: (1 / list.length) * 100,
-          });
-        }),
-      );
+      await indexPackagesWithProgress(list, ac, progress);
       ac.settingsPanel.postPackageList(await buildPackageList(ac));
     },
   );
@@ -1191,20 +1212,7 @@ async function clearIntrospectionCache(ac: ActivationCtx): Promise<void> {
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Window, title: 'Snapds' },
     async (progress) => {
-      let done = 0;
-      progress.report({
-        message: `Re-indexing ${list.length} package${list.length > 1 ? 's' : ''}…`,
-      });
-      ac.gallery.postIndexing(list.map((p) => p.name));
-      await Promise.all(
-        list.map(async (pkg) => {
-          await refreshActiveComponents(pkg, ac);
-          done++;
-          progress.report({ message: `${pkg.name} (${done}/${list.length})` });
-        }),
-      );
-      ac.gallery.postIndexing([]);
-      ac.gallery.postComponentList(ac.store.listComponents());
+      await indexPackagesWithProgress(list, ac, progress);
       ac.settingsPanel.postPackageList(await buildPackageList(ac));
     },
   );
@@ -1235,7 +1243,11 @@ async function reintrospectAndBroadcast(pkgName: string, ac: ActivationCtx): Pro
   await refreshActiveComponents(descriptor, ac);
   const sel = ac.store.getSelected();
   if (sel?.id.startsWith(`${pkgName}#`) && ac.propsPanel.isOpen()) {
-    ac.propsPanel.postComponentSchema(sel, ac.store.getConfiguredProps(sel.id));
+    ac.propsPanel.postComponentSchema(
+      sel,
+      ac.store.getConfiguredProps(sel.id),
+      computeSvgPreview(sel),
+    );
   }
 }
 
@@ -1253,4 +1265,66 @@ async function refreshActiveComponents(pkg: DsPackage, ac: ActivationCtx): Promi
       `Failed to introspect ${pkg.name}: ${e instanceof Error ? e.message : String(e)}`,
     );
   }
+}
+
+/**
+ * Indexes packages ONE AT A TIME, driving the gallery indexing bar and (when
+ * supplied) the notification toast from a single loop. Because both progress
+ * surfaces read the same `done`/`total`/`pkg` on every step, their package name
+ * and counter can never diverge (the toast/gallery desync bug). Sequential
+ * introspection also keeps a single TypeScript program alive at a time instead
+ * of N concurrent ones — parsing is CPU-bound and sync, so `Promise.all` bought
+ * no parallelism, only peak memory.
+ */
+// Serializes indexing runs so concurrent triggers (startup warm-up, a save, a
+// reindex, a cache clear) never interleave their gallery/store/progress updates.
+// A rejected run can't wedge the chain: each link runs regardless of the prior
+// outcome, and the tracked tail always resolves.
+let indexingChain: Promise<unknown> = Promise.resolve();
+function serializeIndexing<T>(run: () => Promise<T>): Promise<T> {
+  const next = indexingChain.then(run, run);
+  indexingChain = next.then(
+    () => {},
+    () => {},
+  );
+  return next;
+}
+
+/**
+ * Drops store components whose package is no longer in the registry (e.g. one the
+ * user just deactivated, or removed by an imported config), so the gallery stops
+ * showing orphaned components without waiting for a full reload.
+ */
+function pruneStoreToRegistry(ac: ActivationCtx): void {
+  const valid = new Set(ac.registry.list().map((p) => p.name));
+  const current = ac.store.listComponents();
+  const kept = current.filter((c) => valid.has(c.id.split('#')[0]));
+  if (kept.length !== current.length) {
+    ac.store.setComponents(kept);
+    ac.gallery.postComponentList(kept);
+  }
+}
+
+async function indexPackagesWithProgress(
+  packages: DsPackage[],
+  ac: ActivationCtx,
+  progress?: vscode.Progress<{ message?: string; increment?: number }>,
+): Promise<void> {
+  await serializeIndexing(async () => {
+    const total = packages.length;
+    ac.gallery.postIndexing(packages.map((p) => p.name));
+    progress?.report({ message: `0 / ${total}`, increment: 0 });
+    let done = 0;
+    for (const pkg of packages) {
+      await refreshActiveComponents(pkg, ac);
+      done++;
+      ac.gallery.postIndexingProgress(done, total, pkg.name);
+      progress?.report({
+        message: `${done} / ${total} — ${pkg.name}`,
+        increment: total > 0 ? (1 / total) * 100 : 100,
+      });
+    }
+    ac.gallery.postIndexing([]);
+    ac.gallery.postComponentList(ac.store.listComponents());
+  });
 }

@@ -1,5 +1,5 @@
 import { Control, vscode } from '@snapds/webview-shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ComponentMeta, ToProps } from './types';
 
 type VersionsInfo = {
@@ -16,12 +16,14 @@ export default function App() {
   const [comp, setComp] = useState<ComponentMeta | null>(null);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [versionsInfo, setVersionsInfo] = useState<VersionsInfo | null>(null);
+  const [svgPreview, setSvgPreview] = useState<string | null>(null);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent<ToProps>) => {
       const m = e.data;
       if (m.type === 'componentSchema') {
         setComp(m.component);
+        setSvgPreview(m.svgPreview ?? null);
         const defaults: Record<string, unknown> = {};
         for (const p of m.component.props) {
           if (p.defaultValue !== undefined) defaults[p.name] = p.defaultValue;
@@ -45,6 +47,19 @@ export default function App() {
       vscode.postMessage({ type: 'propsUpdated', componentId: comp.id, props: next });
     }
   };
+
+  // Render the sanitized SVG as an <img> data URI rather than injecting HTML: an
+  // <img>-loaded SVG can neither run scripts nor fetch external resources, so
+  // there is no innerHTML sink. `currentColor` is resolved to the theme
+  // foreground up front because an image-embedded SVG can't read the page's vars.
+  const svgSrc = useMemo(() => {
+    if (!svgPreview) return null;
+    const fg =
+      getComputedStyle(document.documentElement).getPropertyValue('--vscode-foreground').trim() ||
+      '#cccccc';
+    const themed = svgPreview.replace('<svg', `<svg color="${fg}"`);
+    return `data:image/svg+xml,${encodeURIComponent(themed)}`;
+  }, [svgPreview]);
 
   if (!comp) return <p className="empty">Select a component in the sidebar.</p>;
 
@@ -123,6 +138,11 @@ export default function App() {
               + Add to this app
             </button>
           )}
+        </div>
+      )}
+      {svgSrc && (
+        <div className="svg-preview">
+          <img src={svgSrc} alt={`${comp.name} preview`} />
         </div>
       )}
       {comp.props.length === 0 ? (

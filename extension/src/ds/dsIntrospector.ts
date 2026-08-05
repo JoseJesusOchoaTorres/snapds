@@ -255,10 +255,18 @@ export class DsIntrospector {
       ?.map(normalizePackage)
       .find((pkg) => pkg.name === p.name);
 
+    // One TS program per package, shared by the export scan below and by
+    // extractInterfaceProps — `ts.createProgram` loads the default lib and
+    // resolves the whole module graph, so building it once (not twice) per
+    // package meaningfully cuts cold-start time on large design systems.
+    const tsProgram = entry
+      ? ts.createProgram([entry], buildCompilerOptions(p.tsconfigPath))
+      : undefined;
+
     // Public component surface. When the entry is a barrel that re-exports from
     // sub-files, this resolves the real (re-)exported value names via the TS
     // Compiler API — used below to merge in components docgen skips entirely.
-    const exportedComponents = enumerateComponentExports(entry, p.tsconfigPath);
+    const exportedComponents = enumerateComponentExports(entry, p.tsconfigPath, tsProgram);
     const exportedNames = new Set(exportedComponents.map((e) => e.name));
 
     // react-docgen-typescript only follows a barrel's re-exports shallowly and
@@ -282,12 +290,6 @@ export class DsIntrospector {
         }
       }
     }
-
-    // Create one TS program for the whole package — reused by extractInterfaceProps
-    // so we don't pay the ts.createProgram cost once per component.
-    const tsProgram = entry
-      ? ts.createProgram([entry], buildCompilerOptions(p.tsconfigPath))
-      : undefined;
 
     const components: ComponentMeta[] = parsed
       .filter((c) => c.displayName && c.displayName !== '__type' && /^[A-Z]/.test(c.displayName))

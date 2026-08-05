@@ -156,10 +156,26 @@ export type FromSettings =
 
 export type ToGallery =
   | { type: 'componentList'; components: ComponentMeta[] }
-  | { type: 'indexing'; packages: string[] };
+  | { type: 'indexing'; packages: string[] }
+  /**
+   * Per-package progress emitted from the SAME host loop that drives the
+   * notification toast, so the gallery bar's package name and `done/total`
+   * never diverge from the toast. `done`/`total`/`pkg` mirror the toast exactly.
+   */
+  | { type: 'indexingProgress'; done: number; total: number; pkg: string };
 
 export type ToProps =
-  | { type: 'componentSchema'; component: ComponentMeta }
+  | {
+      type: 'componentSchema';
+      component: ComponentMeta;
+      /**
+       * Sanitized inline `<svg>` markup for a LOCAL-source icon component,
+       * extracted statically from its source file. Present only when the
+       * component's source contains renderable inline SVG; the panel shows it as
+       * a live preview. Never set for npm packages (no source to read).
+       */
+      svgPreview?: string;
+    }
   | { type: 'restoreProps'; props: Record<string, unknown> }
   | {
       type: 'versionsAvailable';
