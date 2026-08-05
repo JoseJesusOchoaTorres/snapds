@@ -5,6 +5,27 @@ All notable changes to the **Snapds** extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.6.0...snapds-v1.7.0) (2026-08-05)
+
+
+### Features
+
+* **props:** preview local icon SVGs in the props panel ([df7b179](https://github.com/JoseJesusOchoaTorres/snapds/commit/df7b179d8a57b54e319cc481101cf36d4b46cb60))
+
+
+### Bug Fixes
+
+* address PR review feedback and resolve CodeQL XSS finding ([da909a5](https://github.com/JoseJesusOchoaTorres/snapds/commit/da909a56d40fd2cd8767f9ab5ad809552dc77099))
+* **gallery:** keep the indexing bar in sync with the notification toast ([7fdd73f](https://github.com/JoseJesusOchoaTorres/snapds/commit/7fdd73f0d76c3aa2de3eaa1e54f0bea6dfa48576))
+* **icon:** thicken activity-bar icon stroke to match VS Code weight ([e7b1b34](https://github.com/JoseJesusOchoaTorres/snapds/commit/e7b1b347e87eaae67280f3bb48215199af0d8dbd))
+* **props:** reject syntactically broken sources in the SVG preview extractor ([800c660](https://github.com/JoseJesusOchoaTorres/snapds/commit/800c66084499bec8aae20a5cbc8c0b68a2ca49ec))
+* **settings:** show active package component counts on open ([648b1aa](https://github.com/JoseJesusOchoaTorres/snapds/commit/648b1aaa229ad59257172087907021988d0921a7))
+
+
+### Performance Improvements
+
+* **introspection:** reuse one TypeScript program per package ([39bf628](https://github.com/JoseJesusOchoaTorres/snapds/commit/39bf6289d8724d3ceea821fe16d7b0c61b7ad4e4))
+
 ## [1.6.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.5.0...snapds-v1.6.0) (2026-07-30)
 
 
