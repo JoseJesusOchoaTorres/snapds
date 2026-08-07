@@ -19,7 +19,17 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      // Pin React types to this workspace's own @types (v19). Next imports
+      // `react-dom/experimental`, and pnpm hoists the extension's
+      // @types/react-dom@18 into the shared store, so without these mappings TS
+      // resolves React 18 types here and they clash with v19 ("ReactNode is not
+      // assignable to ReactNode"). Type-resolution only — Next's bundler is
+      // unaffected, and the extension workspace keeps its own React 18 types.
+      "react": ["./node_modules/@types/react"],
+      "react/*": ["./node_modules/@types/react/*"],
+      "react-dom": ["./node_modules/@types/react-dom"],
+      "react-dom/*": ["./node_modules/@types/react-dom/*"]
     }
   },
   "include": [

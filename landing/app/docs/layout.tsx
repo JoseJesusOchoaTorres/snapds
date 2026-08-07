@@ -3,6 +3,7 @@ import { Footer, Layout, Navbar } from 'nextra-theme-docs';
 import type { ReactNode } from 'react';
 import { Logo } from '../../src/components/icons';
 import 'nextra-theme-docs/style.css';
+import '../../src/styles/docs.css';
 
 const REPO = 'https://github.com/JoseJesusOchoaTorres/snapds';
 const MARKETPLACE = 'https://marketplace.visualstudio.com/search?term=snapds&target=VSCode';
