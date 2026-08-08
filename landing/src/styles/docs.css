@@ -1,0 +1,10 @@
+/* Docs-only overrides layered on top of nextra-theme-docs/style.css. */
+
+/* Body text for a <Cards.Card>. Nextra pads only the card's title <span> (it
+   carries `p-4`), not the children, so the description would otherwise sit
+   flush against the left/right edges while the title is inset by 1rem. Match
+   that inset so the two align. Vertical spacing is already handled by the theme
+   (the body's `margin-top` above it and the title span's own `padding` below). */
+.card__body {
+  padding-inline: 1rem;
+}
