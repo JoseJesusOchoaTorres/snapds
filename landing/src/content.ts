@@ -3,6 +3,7 @@ import type { IconName } from './components/icons';
 export const LINKS = {
   github: 'https://github.com/JoseJesusOchoaTorres/snapds',
   marketplace: 'https://marketplace.visualstudio.com/items?itemName=Octojose.snapds',
+  openVsx: 'https://open-vsx.org/extension/Octojose/snapds',
   issues: 'https://github.com/JoseJesusOchoaTorres/snapds/issues',
   changelog: 'https://github.com/JoseJesusOchoaTorres/snapds/blob/main/extension/CHANGELOG.md',
 };
@@ -90,8 +91,8 @@ export const SKILL_ITEMS: SkillItem[] = [
   },
   {
     icon: 'file',
-    title: 'Two formats',
-    desc: 'Augment skills (SKILL.md per component) or an assistant-agnostic AGENTS.md dictionary — pick one or both.',
+    title: 'A format for every agent',
+    desc: 'Generate skills for Claude, Cursor, Windsurf, Copilot, Cline, Augment, or an assistant-agnostic AGENTS.md — pick any combination.',
   },
   {
     icon: 'folder',
@@ -131,6 +132,14 @@ export const FAQS: Faq[] = [
   {
     q: 'Which projects does Snapds work with?',
     a: 'React + TypeScript monorepos. It reads component metadata via react-docgen-typescript plus the TypeScript compiler API, and requires VS Code 1.85 or newer.',
+  },
+  {
+    q: 'Does Snapds only work in VS Code?',
+    a: "Snapds is built for VS Code (1.85+) and is published to both the Visual Studio Marketplace and the Open VSX Registry. Open VSX makes it installable in VS Code-compatible editors such as Cursor, Windsurf, and VSCodium — but Snapds has only been tested in VS Code, so those editors aren't officially supported yet.",
+  },
+  {
+    q: 'Can I use it with a local design system like shadcn/ui?',
+    a: 'Yes. Beyond npm packages, Snapds indexes in-repo component folders. A shadcn `components.json` is auto-detected, or you can register any folder yourself. Local components inject from their path alias (e.g. `@/components/ui/button`), are badged `LOCAL`, and re-index live as you edit them.',
   },
   {
     q: 'Does it add runtime dependencies to my project?',
