@@ -5,6 +5,7 @@ export default {
   'how-it-works': 'How it works',
 
   '--guides': { type: 'separator', title: 'Guides' },
+  demos: 'Demos',
   examples: 'Examples & use cases',
   skills: 'Skills for agents',
 

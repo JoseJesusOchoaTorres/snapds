@@ -8,3 +8,32 @@
 .card__body {
   padding-inline: 1rem;
 }
+
+/* Demo videos (docs "Demos" page). A responsive grid of native <video>
+   players, each pinned to the clips' intrinsic 1920×986 ratio so the poster
+   and player never letterbox or shift layout. */
+.doc-videos {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.doc-video {
+  margin: 0;
+}
+
+.doc-video video {
+  width: 100%;
+  aspect-ratio: 1920 / 986;
+  border-radius: 12px;
+  border: 1px solid var(--x-color-neutral-200, rgba(0, 0, 0, 0.1));
+  background: #000;
+  display: block;
+}
+
+.doc-video figcaption {
+  margin-top: 0.6rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--x-color-neutral-500, #6b7280);
+}

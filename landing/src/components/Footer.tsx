@@ -29,7 +29,10 @@ export function Footer() {
           <div className="footer__col">
             <h4>Resources</h4>
             <a href={LINKS.marketplace} target="_blank" rel="noreferrer">
-              Marketplace
+              VS Code Marketplace
+            </a>
+            <a href={LINKS.openVsx} target="_blank" rel="noreferrer">
+              Open VSX Registry
             </a>
             <a href={LINKS.github} target="_blank" rel="noreferrer">
               GitHub
