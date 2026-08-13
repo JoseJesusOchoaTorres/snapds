@@ -5,6 +5,13 @@ All notable changes to the **Snapds** extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.7.0...snapds-v1.7.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* **deps:** resolve transitive security advisories via pnpm overrides + vsce bump ([9cff0ba](https://github.com/JoseJesusOchoaTorres/snapds/commit/9cff0ba41362c277bb0a127d9364ef2d9cf415a8))
+
 ## [1.7.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.6.0...snapds-v1.7.0) (2026-08-05)
 
 
