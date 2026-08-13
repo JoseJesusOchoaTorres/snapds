@@ -243,7 +243,7 @@
     "@types/react-dom": "18.3.7",
     "@types/vscode": "^1.85.0",
     "@vitejs/plugin-react": "4.7.0",
-    "@vscode/vsce": "^2.24.0",
+    "@vscode/vsce": "^3.9.2",
     "ovsx": "^0.9.0",
     "esbuild": "^0.20.0",
     "jsdom": "29.1.1",
