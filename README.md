@@ -1,5 +1,7 @@
 # Snapds — Contributor Guide
 
+[![CI](https://github.com/JoseJesusOchoaTorres/snapds/actions/workflows/ci.yml/badge.svg)](https://github.com/JoseJesusOchoaTorres/snapds/actions/workflows/ci.yml)
+
 > **End-user docs** → [snapds.dev](https://snapds.dev) · **Marketplace** → [VS Code Extension page](https://marketplace.visualstudio.com/items?itemName=Octojose.snapds)
 
 Snapds is a VS Code extension designed for React repositories and monorepos. It inspects component sources — npm packages or in-repo design systems (shadcn / local folders) — and extracts prop metadata via `react-docgen-typescript`. Features include an interactive web gallery to explore and drag-and-drop JSX components right into your code, as well as fast component injection via keyboard shortcuts.
@@ -190,3 +192,20 @@ pnpm run lint:fix    # apply safe fixes
 ```
 
 The `pre-commit` hook runs `pnpm run lint` automatically before each commit.
+
+---
+
+## Continuous integration
+
+Every pull request targeting `main` (and every push to `main`) runs
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml), which has three independent jobs:
+
+| Job     | Command           | What it checks                                  |
+| ------- | ----------------- | ----------------------------------------------- |
+| `Lint`  | `pnpm run lint`   | Biome lint + format                             |
+| `Test`  | `pnpm test`       | Extension host (`node --test`) + webview suites |
+| `Build` | `pnpm run build`  | Extension + webviews + landing compile cleanly  |
+
+To make CI the authoritative merge gate, these jobs are configured as **required status checks** in
+the branch-protection rule for `main`, so a PR cannot be merged until they pass. The `pre-commit`
+hook is a fast local safety net; CI is the authoritative gate.
