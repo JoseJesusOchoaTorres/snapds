@@ -245,7 +245,7 @@
     "@vitejs/plugin-react": "4.7.0",
     "@vscode/vsce": "^2.24.0",
     "ovsx": "^0.9.0",
-    "esbuild": "^0.20.0",
+    "esbuild": "^0.28.1",
     "jsdom": "29.1.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
