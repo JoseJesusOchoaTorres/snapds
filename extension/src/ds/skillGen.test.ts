@@ -218,3 +218,17 @@ test('compact flag does not affect per-component agents (they keep props)', () =
   const md = buildComponentSkillMarkdown(withProps, 'cursor', 'button');
   assert.ok(md.includes('| Prop |'));
 });
+
+test('props table escapes backslashes so a prop value cannot break the markdown table', () => {
+  const meta: ComponentMeta = {
+    id: '@acme/ui#Input',
+    name: 'Input',
+    // description holds a\|b — a backslash before a pipe. Without escaping the
+    // backslash first (js/incomplete-sanitization) it becomes a\\|b, whose '|'
+    // opens a new table column. Escaping backslash first yields a\\\|b: literal
+    // backslash + literal pipe, keeping the value inside its cell.
+    props: [{ name: 'value', type: 'string', raw: 'string', required: true, description: 'a\\|b' }],
+  };
+  const md = buildComponentSkillMarkdown(meta, 'augment', 'input');
+  assert.ok(md.includes('a\\\\\\|b'), `backslash not escaped first: ${md}`);
+});

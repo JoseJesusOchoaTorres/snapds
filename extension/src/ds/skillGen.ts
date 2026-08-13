@@ -56,7 +56,7 @@ function componentDescription(meta: ComponentMeta): string {
 }
 
 function escapeCell(s: string): string {
-  return s.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim();
+  return s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').trim();
 }
 
 /** Resolves a unique kebab-case slug per component, deduping collisions with -2, -3, … */
