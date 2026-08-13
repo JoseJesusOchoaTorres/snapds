@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { ComponentMeta, PropMeta } from '../util/messaging';
-import { computeImportEdit, generateExampleJSX, generateImport, splitComponentId } from './codegen';
+import {
+  computeImportEdit,
+  generateExampleJSX,
+  generateImport,
+  generateJSX,
+  splitComponentId,
+} from './codegen';
 
 /** Applies an ImportEdit to `text` so assertions can compare final source. */
 function applyEdit(text: string, pkg: string, name: string): string {
@@ -136,4 +142,14 @@ test('generateExampleJSX output contains no snippet tab-stop artifacts', () => {
   const out = generateExampleJSX(meta);
   // biome-ignore lint/suspicious/noTemplateCurlyInString: intentionally testing absence of snippet syntax
   assert.ok(!out.includes('${'), 'must not contain ${ } snippet placeholders');
+});
+
+test('generateJSX escapes backslashes so prop values cannot break out of the snippet placeholder', () => {
+  const meta = comp('Input', [prop({ name: 'value', type: 'string', required: true })]);
+  // Input contains a\}b — a backslash before a brace. If the backslash is not
+  // escaped first (js/incomplete-sanitization), it becomes a\\}b and the '}' closes
+  // the ${..} placeholder early, injecting snippet syntax. Escaping backslash first
+  // yields a\\\}b, keeping the brace literal inside the placeholder.
+  const out = generateJSX(meta, { value: 'a\\}b' });
+  assert.ok(out.includes('a\\\\\\}b'), `backslash not escaped first: ${out}`);
 });

@@ -196,5 +196,5 @@ export function generateExampleJSX(meta: ComponentMeta): string {
  * Escapes snippet tab-stop syntax so it's safe to embed in a snippet.
  */
 function escapeSnippet(s: string): string {
-  return s.replace(/\$/g, '\\$').replace(/\}/g, '\\}');
+  return s.replace(/\\/g, '\\\\').replace(/\$/g, '\\$').replace(/\}/g, '\\}');
 }
