@@ -5,6 +5,13 @@ All notable changes to the **Snapds** extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.7.1...snapds-v1.7.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* **codegen:** escape backslashes first in snippet and table escaping (js/incomplete-sanitization) ([31039cc](https://github.com/JoseJesusOchoaTorres/snapds/commit/31039ccc5c2344f101620ec9265eb1bd31ca63b5))
+
 ## [1.7.1](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.7.0...snapds-v1.7.1) (2026-08-13)
 
 
