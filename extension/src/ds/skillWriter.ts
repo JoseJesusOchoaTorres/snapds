@@ -2,7 +2,13 @@ import * as fs from 'node:fs';
 import { access, mkdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import type { ComponentMeta, SkillFileEntry, SkillFormat, SkillsConfig } from '../util/messaging';
+import type {
+  ComponentMeta,
+  CustomSnippet,
+  SkillFileEntry,
+  SkillFormat,
+  SkillsConfig,
+} from '../util/messaging';
 import { splitComponentId } from './codegen';
 import { AGENT_ORDER, AGENTS } from './skillAgents';
 import {
@@ -211,9 +217,13 @@ export async function generateSkillsToConfig(
   opts: { mode: 'full' | 'incremental'; changedIds?: Set<string> } = {
     mode: 'full',
   },
+  snippets: CustomSnippet[] = [],
 ): Promise<number> {
   const skillComponents = applyPackageExclusion(allComponents, config.excludedPackages);
-  if (!skillComponents.length || !config.formats.length) return 0;
+  const selectedIds = new Set(config.skillSnippetIds ?? []);
+  const skillSnippets = snippets.filter((s) => selectedIds.has(s.id));
+  // Generate when there's anything to write — components OR custom snippets.
+  if ((!skillComponents.length && !skillSnippets.length) || !config.formats.length) return 0;
   const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   const changedIds = opts.mode === 'incremental' ? opts.changedIds : undefined;
 
@@ -237,6 +247,7 @@ export async function generateSkillsToConfig(
       changedIds,
       guidance,
       config.compactConsolidated,
+      skillSnippets,
     );
     // Auto-overwrite: no modal prompt on the automated path.
     const count = await writeArtifacts(base, artifacts, { value: true });
@@ -349,15 +360,20 @@ async function writeArtifacts(
   return written;
 }
 
-export async function runGenerateSkills(components: ComponentMeta[]): Promise<void> {
-  if (!components.length) {
+export async function runGenerateSkills(
+  components: ComponentMeta[],
+  snippets: CustomSnippet[] = [],
+): Promise<void> {
+  const skillComponents = applyPackageExclusion(components, getSkillsConfig().excludedPackages);
+  const selectedSnippetIds = new Set(getSkillsConfig().skillSnippetIds ?? []);
+  const skillSnippets = snippets.filter((s) => selectedSnippetIds.has(s.id));
+
+  if (!skillComponents.length && !skillSnippets.length) {
     vscode.window.showWarningMessage(
-      'Snapds: no components found. Configure packages in Settings first.',
+      'Snapds: nothing to generate. Configure packages, or enable "Include custom snippets" with at least one snippet.',
     );
     return;
   }
-
-  const skillComponents = applyPackageExclusion(components, getSkillsConfig().excludedPackages);
 
   const agentPicks = await vscode.window.showQuickPick(
     AGENT_ORDER.map((id) => ({
@@ -423,6 +439,7 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
           undefined,
           guidance,
           getSkillsConfig().compactConsolidated,
+          skillSnippets,
         );
         const count = await writeArtifacts(base, artifacts, confirmedOverwrite);
         if (count < 0) {

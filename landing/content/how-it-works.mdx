@@ -118,6 +118,15 @@ inserted after the last import in the file, on its own line.
 
 ## Webviews
 
-The gallery, props panel, and settings are native VS Code **webviews**, so the
-UI matches your editor theme and stays fast even on large monorepos thanks to
-differential updates.
+The gallery, props panel, settings, and the snippet capture/edit modal are
+native VS Code **webviews**, so the UI matches your editor theme and stays fast
+even on large monorepos thanks to differential updates.
+
+## Custom snippets
+
+Snapds also captures **your own** code. Saving a selection stores a snippet —
+its code plus the imports Snapds detected in it — either privately in the
+workspace state or, when you share it, in `snapds.config.json`. On drop or
+inject the snippet's code is escaped and written at the cursor while every one of
+its imports is merged into the file, the same way a component's single import is.
+See [Custom snippets](/docs/custom-snippets) for the full flow.

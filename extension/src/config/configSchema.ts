@@ -1,4 +1,4 @@
-import type { SkillsConfig, UserOverride } from '../util/messaging';
+import type { CustomSnippet, SkillsConfig, UserOverride } from '../util/messaging';
 
 /**
  * Per-component overrides stored in snapds.config.json.
@@ -38,6 +38,12 @@ export interface SnapdsConfig {
   packages?: SnapdsConfigPackage[];
   skills?: SkillsConfig;
   scopeFilters?: string[];
+  /**
+   * Team-shared custom snippets. Only snippets a user explicitly promoted with
+   * "Share with team" are written here; user-local snippets live in
+   * `workspaceState` and never reach this file. Stored with `scope: 'shared'`.
+   */
+  customSnippets?: CustomSnippet[];
 }
 
 /** Summary of what an import will change — shown in the ImportPreviewModal. */
@@ -48,4 +54,6 @@ export interface ImportChangeSummary {
   overridesCount: number;
   skillsChanged: boolean;
   scopeFiltersChanged: boolean;
+  /** Number of shared custom snippets that differ from the current state. */
+  customSnippetsChanged: number;
 }

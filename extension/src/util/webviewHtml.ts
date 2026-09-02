@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 
-export type WebviewApp = 'gallery' | 'props' | 'settings';
+export type WebviewApp = 'gallery' | 'props' | 'settings' | 'snippet';
 
 /**
  * Returns the HTML content for a webview app, with resource URIs and a nonce.

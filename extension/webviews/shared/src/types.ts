@@ -33,6 +33,53 @@ export interface ComponentMeta {
   standardPropsOnly?: boolean;
 }
 
+// ─── Custom snippets ─────────────────────────────────────────────────────────
+
+/** Mirror of the host `ImportSpec` (see src/util/messaging.ts). */
+export type ImportSpec =
+  | { kind: 'named'; specifier: string; names: string[] }
+  | { kind: 'default'; specifier: string; local: string }
+  | { kind: 'namespace'; specifier: string; local: string };
+
+/** Mirror of the host `CustomSnippet` — what the gallery renders in its 2nd tab. */
+export interface CustomSnippet {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  code: string;
+  imports: ImportSpec[];
+  languageId: string;
+  scope: 'local' | 'shared';
+  createdAt: string;
+}
+
+/** Mirror of the host `SnippetDraft` — the capture/edit modal's opening payload. */
+export interface SnippetDraft {
+  id?: string;
+  name: string;
+  description: string;
+  category: string;
+  code: string;
+  languageId: string;
+  scope: 'local' | 'shared';
+  importLines: string[];
+  existingCategories: string[];
+  mode: 'create' | 'edit';
+  canShare: boolean;
+}
+
+/** Mirror of the host `SnippetSaveResult` — what the modal posts back on save. */
+export interface SnippetSaveResult {
+  id?: string;
+  name: string;
+  description: string;
+  category: string;
+  code: string;
+  scope: 'local' | 'shared';
+  importLines: string[];
+}
+
 // ─── User overrides ──────────────────────────────────────────────────────────
 
 export interface PropOverride {
@@ -96,6 +143,8 @@ export interface SkillsConfig {
   instructions?: Record<string, string>;
   /** Package names kept in the gallery but excluded from skill generation. */
   excludedPackages?: string[];
+  /** Ids of custom snippets to append to generated skills (local + shared); opt-in. */
+  skillSnippetIds?: string[];
 }
 
 export interface SkillFileEntry {

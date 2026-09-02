@@ -1,11 +1,14 @@
 import type * as vscode from 'vscode';
-import type { ComponentMeta, FromGallery, ToGallery } from '../util/messaging';
+import type { ComponentMeta, CustomSnippet, FromGallery, ToGallery } from '../util/messaging';
 import { getWebviewHtml, webviewResourceRoots } from '../util/webviewHtml';
 
 export interface GalleryHandlers {
   onReady: () => void | Promise<void>;
   onSearch: (query: string) => void;
   onSelect: (componentId: string) => void | Promise<void>;
+  onSnippetSelect: (snippetId: string) => void | Promise<void>;
+  onEditSnippet: (snippetId: string) => void | Promise<void>;
+  onDeleteSnippet: (snippetId: string) => void | Promise<void>;
 }
 
 export class GalleryViewProvider implements vscode.WebviewViewProvider {
@@ -58,6 +61,15 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
         case 'componentSelected':
           void this.handlers.onSelect(msg.componentId);
           break;
+        case 'snippetSelected':
+          void this.handlers.onSnippetSelect(msg.snippetId);
+          break;
+        case 'editSnippet':
+          void this.handlers.onEditSnippet(msg.snippetId);
+          break;
+        case 'deleteSnippet':
+          void this.handlers.onDeleteSnippet(msg.snippetId);
+          break;
       }
     });
 
@@ -68,6 +80,18 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
 
   postComponentList(components: ComponentMeta[]): void {
     this.post({ type: 'componentList', components });
+  }
+
+  postSnippetList(snippets: CustomSnippet[]): void {
+    this.post({ type: 'snippetList', snippets });
+  }
+
+  postSwitchTab(tab: 'components' | 'snippets'): void {
+    this.post({ type: 'switchTab', tab });
+  }
+
+  postFocusSearch(): void {
+    this.post({ type: 'focusSearch' });
   }
 
   postIndexing(packages: string[]): void {

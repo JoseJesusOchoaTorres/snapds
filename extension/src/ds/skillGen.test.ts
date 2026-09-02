@@ -1,16 +1,62 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { ComponentMeta } from '../util/messaging';
+import type { ComponentMeta, CustomSnippet } from '../util/messaging';
 import {
   buildArtifacts,
   buildComponentSkillMarkdown,
+  buildMainSkillMarkdown,
   expectedSkillRelPath,
   kebab,
   resolveGuidance,
 } from './skillGen';
 
 const comp = (name: string): ComponentMeta => ({ id: `@acme/ui#${name}`, name, props: [] });
+
+const snip = (over: Partial<CustomSnippet> & { id: string; name: string }): CustomSnippet => ({
+  description: '',
+  category: undefined,
+  code: '<Button />',
+  imports: [],
+  languageId: 'typescriptreact',
+  scope: 'local',
+  createdAt: 'T',
+  ...over,
+});
 const paths = (a: { relativePath: string }[]) => a.map((x) => x.relativePath);
+
+test('buildMainSkillMarkdown appends a Custom Snippets section grouped by category', () => {
+  const md = buildMainSkillMarkdown(
+    [comp('Button')],
+    'augment',
+    new Map([['@acme/ui#Button', 'button']]),
+    undefined,
+    false,
+    [
+      snip({
+        id: 'snippet:1',
+        name: 'Labeled pair',
+        category: 'Forms',
+        description: 'Two buttons in a label',
+        code: '<Label><Button /></Label>',
+        imports: [{ kind: 'named', specifier: '@acme/ui', names: ['Button', 'Label'] }],
+      }),
+    ],
+  );
+  assert.ok(md.includes('## Custom Snippets'), 'has the snippets section');
+  assert.ok(md.includes('### Forms'), 'groups by category');
+  assert.ok(md.includes('#### Labeled pair'), 'lists the snippet name');
+  assert.ok(md.includes("import { Button, Label } from '@acme/ui';"), 'renders imports');
+  assert.ok(md.includes('<Label><Button /></Label>'), 'renders the code');
+});
+
+test('buildMainSkillMarkdown omits the snippets section when none are given', () => {
+  const md = buildMainSkillMarkdown(
+    [comp('Button')],
+    'augment',
+    new Map([['@acme/ui#Button', 'button']]),
+  );
+  assert.ok(!md.includes('## Custom Snippets'));
+});
 
 test('kebab converts PascalCase and separators to kebab-case', () => {
   assert.equal(kebab('ButtonGroup'), 'button-group');

@@ -1,6 +1,12 @@
 import * as path from 'node:path';
-import type { ComponentMeta, PropMeta, SkillFormat, SkillsConfig } from '../util/messaging';
-import { generateExampleJSX, generateImport, splitComponentId } from './codegen';
+import type {
+  ComponentMeta,
+  CustomSnippet,
+  PropMeta,
+  SkillFormat,
+  SkillsConfig,
+} from '../util/messaging';
+import { emitImport, generateExampleJSX, generateImport, splitComponentId } from './codegen';
 import { AGENTS } from './skillAgents';
 
 export type { SkillFormat };
@@ -194,6 +200,42 @@ function buildCatalogEntry(meta: ComponentMeta, guidance = '', compact = false):
 }
 
 /**
+ * Renders the "Custom Snippets" section appended to the router/main file when
+ * snippet-skill generation is enabled. Grouped by category; each snippet shows
+ * its description, required imports, and code so an agent can reproduce it.
+ */
+function buildSnippetsSection(snippets: CustomSnippet[]): string[] {
+  if (snippets.length === 0) return [];
+  const byCat = new Map<string, CustomSnippet[]>();
+  for (const s of snippets) {
+    const cat = s.category?.trim() || '(Uncategorized)';
+    const list = byCat.get(cat);
+    if (list) list.push(s);
+    else byCat.set(cat, [s]);
+  }
+
+  const parts = [
+    '',
+    '## Custom Snippets',
+    '',
+    'Team code snippets captured with Snapds. Prefer these for the patterns they cover.',
+    '',
+  ];
+  for (const [cat, list] of byCat) {
+    parts.push(`### ${cat}`, '');
+    for (const s of list) {
+      parts.push(`#### ${s.name}`, '');
+      if (s.description?.trim()) parts.push(s.description.trim(), '');
+      const lang = s.languageId === 'javascriptreact' ? 'jsx' : 'tsx';
+      const importLines = s.imports.map(emitImport);
+      const body = importLines.length > 0 ? [...importLines, '', s.code] : [s.code];
+      parts.push(`\`\`\`${lang}`, ...body, '```', '');
+    }
+  }
+  return parts;
+}
+
+/**
  * Builds the router/main file. Its shape adapts to the agent's layout so that
  * always-loaded routers (flat-lazy, consolidated) stay token-cheap:
  * - folder/generic: full component table linking to each detail file.
@@ -206,8 +248,10 @@ export function buildMainSkillMarkdown(
   slugs: Map<string, string>,
   guidance?: ResolvedGuidance,
   compact = false,
+  snippets: CustomSnippet[] = [],
 ): string {
   const agent = AGENTS[format];
+  const snippetSection = buildSnippetsSection(snippets);
   const pkgs = Array.from(
     new Set(components.map((c) => splitComponentId(c.id).pkg).filter(Boolean)),
   );
@@ -230,6 +274,7 @@ export function buildMainSkillMarkdown(
     for (const c of components) {
       parts.push(buildCatalogEntry(c, guidance?.perComponent[c.id], compact));
     }
+    parts.push(...snippetSection);
     return parts.join('\n');
   }
 
@@ -245,6 +290,7 @@ export function buildMainSkillMarkdown(
       // biome-ignore lint/style/noNonNullAssertion: comps derives from components, the same array used to build slugs
       parts.push(`### ${pkg}`, '', comps.map((c) => `snapds-${slugs.get(c.id)!}`).join(', '), '');
     }
+    parts.push(...snippetSection);
     return parts.join('\n');
   }
 
@@ -264,6 +310,7 @@ export function buildMainSkillMarkdown(
     }
     parts.push('');
   }
+  parts.push(...snippetSection);
   return parts.join('\n');
 }
 
@@ -280,6 +327,7 @@ export function buildArtifacts(
   changedIds?: Set<string>,
   guidance?: ResolvedGuidance,
   compact = false,
+  snippets: CustomSnippet[] = [],
 ): SkillArtifact[] {
   const agent = AGENTS[format];
   const slugs = resolveSlugs(components);
@@ -287,7 +335,7 @@ export function buildArtifacts(
   const artifacts: SkillArtifact[] = [
     {
       relativePath: agent.routerRelPath,
-      contents: buildMainSkillMarkdown(components, format, slugs, guidance, compact),
+      contents: buildMainSkillMarkdown(components, format, slugs, guidance, compact, snippets),
     },
   ];
   if (!agent.componentRelPath) return artifacts;

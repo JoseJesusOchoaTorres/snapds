@@ -14,10 +14,11 @@ Snapds is a VS Code extension designed for React repositories and monorepos. It 
 snapds/
 ├── extension/          # VS Code extension
 │   ├── src/            #   Node.js extension host (esbuild → dist/)
-│   ├── webviews/       #   Three Vite React apps (gallery, props, settings)
+│   ├── webviews/       #   Four Vite React apps (gallery, props, settings, snippet)
 │   │   ├── gallery/
 │   │   ├── props/
 │   │   ├── settings/
+│   │   ├── snippet/    #   Capture/edit modal for custom snippets
 │   │   └── shared/     #   Types shared across webviews
 │   └── media/          #   Compiled webview output (gitignored, copied by build)
 ├── landing/            # Marketing & docs site (Next.js + Nextra)

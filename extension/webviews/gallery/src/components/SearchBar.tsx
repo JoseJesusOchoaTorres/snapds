@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { ClearIcon } from './icons';
 
 interface Props {
@@ -6,8 +6,17 @@ interface Props {
   onChange: (v: string) => void;
 }
 
-export function SearchBar({ value, onChange }: Props) {
+export interface SearchBarHandle {
+  focus(): void;
+}
+
+export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
+  { value, onChange },
+  ref,
+) {
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }));
 
   const clear = () => {
     onChange('');
@@ -46,4 +55,4 @@ export function SearchBar({ value, onChange }: Props) {
       )}
     </div>
   );
-}
+});

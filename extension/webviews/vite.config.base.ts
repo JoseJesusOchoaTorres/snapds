@@ -19,6 +19,8 @@ export function createWebviewConfig(dir: string) {
       include: ['src/**/*.test.{ts,tsx}'],
     },
     build: {
+      // Each app builds to its own `dist/`, then `scripts/copy-webviews.mjs`
+      // copies it into `extension/media/<app>/`, where getWebviewHtml() loads it.
       outDir: resolve(dir, 'dist'),
       emptyOutDir: true,
       assetsInlineLimit: 100_000,

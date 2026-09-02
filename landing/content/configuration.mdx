@@ -123,6 +123,11 @@ it finds. Editing the file invalidates the introspection cache automatically.
 | `…props[prop].hidden`              | `boolean`                   | Hide the prop from the UI and skills.               |
 | `skills`                           | `object`                    | AI skills export config (mirrors `snapds.skills`).  |
 | `scopeFilters`                     | `string[]`                  | Active scope chips pre-applied for all teammates — npm scopes like `@acme`, or the meta-buckets `LOCAL` / `UNSCOPED`. |
+| `customSnippets`                   | `array`                     | Team-shared [custom snippets](/docs/custom-snippets). Only snippets you promote with **Share with team** land here; private ones stay in workspace state. |
+| `customSnippets[].name`            | `string`                    | Snippet display name.                               |
+| `customSnippets[].category`        | `string`                    | Optional group; omitted means _Uncategorized_.      |
+| `customSnippets[].code`            | `string`                    | The captured source, inserted on drag/inject.       |
+| `customSnippets[].imports`         | `array`                     | Import specs injected with the snippet.             |
 
 <Callout type="info">
 **Backward compat:** The older `ignore` field on a package object is still

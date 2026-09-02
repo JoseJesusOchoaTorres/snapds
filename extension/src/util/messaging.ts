@@ -34,6 +34,83 @@ export interface ComponentMeta {
   standardPropsOnly?: boolean;
 }
 
+/**
+ * A single import statement a custom snippet needs when injected.
+ * Captured (and confirmed) at save time, then re-emitted at inject time so a
+ * snippet carries every module it depends on — unlike a component, whose one
+ * import is derived from its `pkg#Name` id.
+ */
+export type ImportSpec =
+  | { kind: 'named'; specifier: string; names: string[] }
+  | { kind: 'default'; specifier: string; local: string }
+  | { kind: 'namespace'; specifier: string; local: string };
+
+/**
+ * A user-captured code snippet. Flows through the SAME gallery render, drag,
+ * and inject pipeline as a `ComponentMeta`, but carries a raw `code` body
+ * (escaped at inject time) and its own `imports` instead of props.
+ *
+ * `id` uses the reserved `snippet:<uuid>` namespace so it never collides with
+ * the `pkg#Name` component id-space (which `pruneStoreToRegistry` would drop).
+ */
+export interface CustomSnippet {
+  id: string;
+  name: string;
+  description?: string;
+  /** Undefined groups the snippet under the reserved "Uncategorized" bucket. */
+  category?: string;
+  /** Raw captured source. Escaped via `escapeSnippet` before insertion. */
+  code: string;
+  imports: ImportSpec[];
+  /** Editor language the snippet was captured from, e.g. `typescriptreact`. */
+  languageId: string;
+  /** `local` = workspaceState only; `shared` = promoted to snapds.config.json. */
+  scope: 'local' | 'shared';
+  /** ISO timestamp; used only for stable ordering. */
+  createdAt: string;
+}
+
+/**
+ * The payload the capture/edit modal opens with. Imports are pre-rendered to
+ * human-readable statement lines (via `emitImport`) so the webview never has to
+ * emit or parse import syntax — the host re-parses `importLines` on save.
+ */
+export interface SnippetDraft {
+  /** Present when editing an existing snippet; absent when capturing a new one. */
+  id?: string;
+  name: string;
+  description: string;
+  category: string;
+  code: string;
+  languageId: string;
+  scope: 'local' | 'shared';
+  /** Pre-rendered, pre-checked `import … from '…'` lines detected in the selection. */
+  importLines: string[];
+  /** Categories already in use, offered in the picker for pick-or-create. */
+  existingCategories: string[];
+  mode: 'create' | 'edit';
+  /** False when there is no workspace/config to promote a shared snippet into. */
+  canShare: boolean;
+}
+
+/** What the modal sends back on save. The host parses `importLines` into `ImportSpec[]`. */
+export interface SnippetSaveResult {
+  id?: string;
+  name: string;
+  description: string;
+  category: string;
+  code: string;
+  scope: 'local' | 'shared';
+  importLines: string[];
+}
+
+export type FromSnippetEditor =
+  | { type: 'ready' }
+  | { type: 'save'; result: SnippetSaveResult }
+  | { type: 'cancel' };
+
+export type ToSnippetEditor = { type: 'draft'; draft: SnippetDraft };
+
 export interface PropOverride {
   hidden?: boolean;
   description?: string;
@@ -55,7 +132,10 @@ export interface UserOverride {
 export type FromGallery =
   | { type: 'ready' }
   | { type: 'componentSelected'; componentId: string }
-  | { type: 'search'; query: string };
+  | { type: 'search'; query: string }
+  | { type: 'snippetSelected'; snippetId: string }
+  | { type: 'editSnippet'; snippetId: string }
+  | { type: 'deleteSnippet'; snippetId: string };
 
 export type FromProps =
   | { type: 'ready' }
@@ -87,6 +167,13 @@ export interface SkillsConfig {
   instructions?: Record<string, string>;
   /** Package names whose components are kept in the gallery but excluded from skill generation. */
   excludedPackages?: string[];
+  /**
+   * Ids of custom snippets (local AND shared) to append to generated skill files
+   * as a "Custom Snippets" section. Opt-in: empty/undefined means no snippets are
+   * included. Note: including local snippets writes their code into (usually
+   * committed) skill files.
+   */
+  skillSnippetIds?: string[];
 }
 
 /** A generated skill file discovered on disk in the configured destination. */
@@ -152,17 +239,29 @@ export type FromSettings =
   | { type: 'addLocalSource' }
   | { type: 'enableLocalSource'; name: string }
   | { type: 'setHiddenPackages'; names: string[] }
-  | { type: 'removeLocalSource'; name: string };
+  | { type: 'removeLocalSource'; name: string }
+  | { type: 'requestSnippets' }
+  | { type: 'editSnippet'; snippetId: string }
+  | { type: 'deleteSnippet'; snippetId: string }
+  | { type: 'setSnippetScope'; snippetId: string; scope: 'local' | 'shared' }
+  | { type: 'recategorizeSnippet'; snippetId: string; category: string }
+  | { type: 'renameSnippetCategory'; from: string; to: string }
+  | { type: 'deleteSnippetCategory'; category: string };
 
 export type ToGallery =
   | { type: 'componentList'; components: ComponentMeta[] }
+  | { type: 'snippetList'; snippets: CustomSnippet[] }
   | { type: 'indexing'; packages: string[] }
   /**
    * Per-package progress emitted from the SAME host loop that drives the
    * notification toast, so the gallery bar's package name and `done/total`
    * never diverge from the toast. `done`/`total`/`pkg` mirror the toast exactly.
    */
-  | { type: 'indexingProgress'; done: number; total: number; pkg: string };
+  | { type: 'indexingProgress'; done: number; total: number; pkg: string }
+  /** Activate a specific gallery tab from a host command (e.g. ⌃⌥⌘C / ⌃⌥⌘S). */
+  | { type: 'switchTab'; tab: 'components' | 'snippets' }
+  /** Focus the gallery search bar from a host command (⌃⌥⌘F). */
+  | { type: 'focusSearch' };
 
 export type ToProps =
   | {
@@ -249,6 +348,7 @@ export type ToSettings =
   | { type: 'hiddenPackages'; names: string[] }
   | { type: 'configStatus'; payload: ConfigStatusPayload }
   | { type: 'configImportPreview'; payload: ConfigImportPreviewPayload }
-  | { type: 'configExported'; outputPath: string };
+  | { type: 'configExported'; outputPath: string }
+  | { type: 'snippetList'; snippets: CustomSnippet[] };
 
 export const DRAG_MIME = 'application/vnd.code.tree.snapds.component';

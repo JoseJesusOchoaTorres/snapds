@@ -5,7 +5,7 @@ import {
   ROOT_ONLY_AGENTS,
   vscode,
 } from '@snapds/webview-shared';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import type { SkillFileEntry, SkillFormat, SkillsConfig } from '../types';
 import { SkillCard } from './SkillCard';
 import { Tabs } from './Tabs';
@@ -18,6 +18,73 @@ interface Props {
   updateSkills: (partial: Partial<SkillsConfig>) => void;
   toggleFormat: (fmt: SkillFormat) => void;
   activePackages: string[];
+  snippets?: { id: string; name: string }[];
+}
+
+interface SelectItem {
+  id: string;
+  label: string;
+}
+
+/**
+ * Shared "select all → hide list, otherwise show the full list to pick a subset"
+ * control used by BOTH the packages and the snippets skill-selection sections so
+ * they follow the same UX pattern.
+ */
+function SkillSelect({
+  legend,
+  items,
+  selectedIds,
+  onToggle,
+  onToggleAll,
+  emptyLabel,
+  help,
+}: {
+  legend: string;
+  items: SelectItem[];
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  onToggleAll: (all: boolean) => void;
+  emptyLabel: string;
+  help?: ReactNode;
+}) {
+  const allSelected = items.length > 0 && items.every((it) => selectedIds.has(it.id));
+  return (
+    <fieldset className="fieldset">
+      <legend>{legend}</legend>
+      {items.length === 0 ? (
+        <p className="muted skill-select-empty">{emptyLabel}</p>
+      ) : (
+        <>
+          <label className="row-checkbox">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={() => onToggleAll(!allSelected)}
+            />
+            <span>
+              Select all <span className="muted">({items.length})</span>
+            </span>
+          </label>
+          {!allSelected && (
+            <div className="skill-select-list">
+              {items.map((it) => (
+                <label key={it.id} className="row-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(it.id)}
+                    onChange={() => onToggle(it.id)}
+                  />
+                  <span>{it.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {help}
+    </fieldset>
+  );
 }
 
 /** Router first, then alphabetical — matches how the host lists files per agent. */
@@ -37,14 +104,34 @@ export function AiTab({
   updateSkills,
   toggleFormat,
   activePackages,
+  snippets = [],
 }: Props) {
   const [activeAgentTab, setActiveAgentTab] = useState<SkillFormat | null>(null);
 
+  // ── Packages (exclude model: everything included by default) ──
+  const packageSelectedIds = new Set(
+    activePackages.filter((p) => !(skills.excludedPackages ?? []).includes(p)),
+  );
   const togglePackageExclusion = (pkg: string) => {
     const excluded = skills.excludedPackages ?? [];
     const next = excluded.includes(pkg) ? excluded.filter((p) => p !== pkg) : [...excluded, pkg];
     updateSkills({ excludedPackages: next });
   };
+  const setAllPackages = (all: boolean) =>
+    updateSkills({ excludedPackages: all ? [] : [...activePackages] });
+
+  // ── Snippets (include model: nothing included by default — opt-in) ──
+  const snippetIds = new Set(snippets.map((s) => s.id));
+  const snippetSelectedIds = new Set(
+    (skills.skillSnippetIds ?? []).filter((id) => snippetIds.has(id)),
+  );
+  const toggleSnippetSkill = (id: string) => {
+    const current = snippetSelectedIds;
+    const next = current.has(id) ? [...current].filter((x) => x !== id) : [...current, id];
+    updateSkills({ skillSnippetIds: next });
+  };
+  const setAllSnippets = (all: boolean) =>
+    updateSkills({ skillSnippetIds: all ? snippets.map((s) => s.id) : [] });
 
   // Selected agents that only read config from the repo root — warn if the
   // destination points elsewhere (they'd be written where the agent can't see them).
@@ -197,23 +284,31 @@ export function AiTab({
         </label>
 
         {activePackages.length > 0 && (
-          <fieldset className="fieldset">
-            <legend>Generate skills for</legend>
-            {activePackages.map((pkg) => {
-              const excluded = skills.excludedPackages?.includes(pkg) ?? false;
-              return (
-                <label key={pkg} className="row-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={!excluded}
-                    onChange={() => togglePackageExclusion(pkg)}
-                  />
-                  <span>{pkg}</span>
-                </label>
-              );
-            })}
-          </fieldset>
+          <SkillSelect
+            legend="Components — generate skills for"
+            items={activePackages.map((p) => ({ id: p, label: p }))}
+            selectedIds={packageSelectedIds}
+            onToggle={togglePackageExclusion}
+            onToggleAll={setAllPackages}
+            emptyLabel="No packages enabled."
+          />
         )}
+
+        <SkillSelect
+          legend="Custom snippets — generate skills for"
+          items={snippets.map((s) => ({ id: s.id, label: s.name }))}
+          selectedIds={snippetSelectedIds}
+          onToggle={toggleSnippetSkill}
+          onToggleAll={setAllSnippets}
+          emptyLabel="No custom snippets yet — capture some to include them in skills."
+          help={
+            <p className="option-help">
+              Selected snippets (private and team-shared) are appended to the generated skill files
+              so coding agents know your patterns. Private snippet code is written into files that
+              are usually committed — include only what's intended.
+            </p>
+          }
+        />
 
         <fieldset className="fieldset">
           <div className="dir-head">

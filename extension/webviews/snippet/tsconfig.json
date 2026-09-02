@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.webview.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@snapds/webview-shared": ["../shared/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}
