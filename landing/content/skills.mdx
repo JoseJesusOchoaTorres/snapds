@@ -55,6 +55,24 @@ to drop the prop tables from those catalogs — keeping import + usage only — 
 always-loaded file stays small. It has no effect on the other agents, whose
 per-component detail is loaded on demand and always keeps the full props table.
 
+### Include custom snippets
+
+The AI tab lets you pick which of your [custom snippets](/docs/custom-snippets)
+are appended to the generated skills, using the same **select-all / pick-a-subset**
+control as the package selection: a **Select all** checkbox hides the list when
+every snippet is chosen; unchecking it reveals the full list so you include only
+the snippets you want. The chosen snippets are stored in `snapds.skills.skillSnippetIds`
+(empty by default — opt-in). Selected snippets appear as a **Custom Snippets**
+section in the generated router/catalog file, grouped by category, with each
+snippet's description, imports, and code, so agents can reproduce your team's
+patterns — not just the design system.
+
+<Callout type="warning">
+This can include **both** shared and private snippets. Private snippets live only
+in your workspace state, but their code is written into the generated skill files,
+which are usually committed — so include only the snippets you intend to.
+</Callout>
+
 ## Destinations
 
 Set `snapds.skills.destination`. The chosen root is shared by every selected

@@ -5,6 +5,7 @@ import type {
   ConfigExportMode,
   ConfigImportPreviewPayload,
   ConfigStatusPayload,
+  CustomSnippet,
   PackageMeta,
   SkillFileEntry,
   SkillFormat,
@@ -50,9 +51,15 @@ export function useSettingsController() {
   const [localBannerDismissed, setLocalBannerDismissed] = useState(false);
   const [importPreview, setImportPreview] = useState<ConfigImportPreviewPayload | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [snippets, setSnippets] = useState<CustomSnippet[]>([]);
 
   const packagesRef = useRef<PackageMeta[]>(packages);
   packagesRef.current = packages;
+
+  // Tracks how many saveSkillsConfig messages are in-flight to the host.
+  // When > 0, the host's skillsConfig echo is just confirming what we already
+  // set locally (optimistic update), so we skip it to avoid a visual flicker.
+  const pendingSkillSavesRef = useRef(0);
 
   // Packages already asked to (re)scan this session, so we revalidate at most once
   // even when counts were seeded from cache.
@@ -108,7 +115,13 @@ export function useSettingsController() {
           return { ...prev, [msg.pkg]: selected };
         });
       } else if (msg.type === 'skillsConfig') {
-        setSkills({ ...DEFAULT_SKILLS, ...msg.config });
+        if (pendingSkillSavesRef.current > 0) {
+          // This is the host echoing back our own save — we already applied the
+          // change optimistically, so skip it to prevent a re-render flicker.
+          pendingSkillSavesRef.current -= 1;
+        } else {
+          setSkills({ ...DEFAULT_SKILLS, ...msg.config });
+        }
       } else if (msg.type === 'saving') {
         setIsSaving(true);
       } else if (msg.type === 'saved') {
@@ -138,6 +151,8 @@ export function useSettingsController() {
         setImportPreview(msg.payload);
       } else if (msg.type === 'configExported') {
         // Nothing to update in UI state — extension shows its own notification.
+      } else if (msg.type === 'snippetList') {
+        setSnippets(msg.snippets);
       }
     };
     window.addEventListener('message', onMessage);
@@ -247,6 +262,7 @@ export function useSettingsController() {
   const updateSkills = (partial: Partial<SkillsConfig>) => {
     const next = { ...skills, ...partial };
     setSkills(next);
+    pendingSkillSavesRef.current += 1;
     vscode.postMessage({ type: 'saveSkillsConfig', config: next });
   };
 
@@ -379,6 +395,20 @@ export function useSettingsController() {
   const dismissLocalBanner = () => setLocalBannerDismissed(true);
   const clearImportPreview = () => setImportPreview(null);
 
+  // ── Custom snippets (management tab) ──
+  const requestSnippets = () => vscode.postMessage({ type: 'requestSnippets' });
+  const editSnippet = (snippetId: string) => vscode.postMessage({ type: 'editSnippet', snippetId });
+  const deleteSnippet = (snippetId: string) =>
+    vscode.postMessage({ type: 'deleteSnippet', snippetId });
+  const setSnippetScope = (snippetId: string, scope: 'local' | 'shared') =>
+    vscode.postMessage({ type: 'setSnippetScope', snippetId, scope });
+  const recategorizeSnippet = (snippetId: string, category: string) =>
+    vscode.postMessage({ type: 'recategorizeSnippet', snippetId, category });
+  const renameSnippetCategory = (from: string, to: string) =>
+    vscode.postMessage({ type: 'renameSnippetCategory', from, to });
+  const deleteSnippetCategory = (category: string) =>
+    vscode.postMessage({ type: 'deleteSnippetCategory', category });
+
   return {
     packages,
     componentsByPkg,
@@ -436,5 +466,13 @@ export function useSettingsController() {
     exportConfig,
     dismissConfigBanner,
     clearImportPreview,
+    snippets,
+    requestSnippets,
+    editSnippet,
+    deleteSnippet,
+    setSnippetScope,
+    recategorizeSnippet,
+    renameSnippetCategory,
+    deleteSnippetCategory,
   };
 }

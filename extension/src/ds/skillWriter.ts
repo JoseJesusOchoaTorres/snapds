@@ -1,8 +1,14 @@
 import * as fs from 'node:fs';
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, rmdir, unlink, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import type { ComponentMeta, SkillFileEntry, SkillFormat, SkillsConfig } from '../util/messaging';
+import type {
+  ComponentMeta,
+  CustomSnippet,
+  SkillFileEntry,
+  SkillFormat,
+  SkillsConfig,
+} from '../util/messaging';
 import { splitComponentId } from './codegen';
 import { AGENT_ORDER, AGENTS } from './skillAgents';
 import {
@@ -137,6 +143,9 @@ export function listSkillFiles(config: SkillsConfig): SkillFileEntry[] {
       if (!agent.owns(relPosix)) continue;
       seen.add(full);
       const isRouter = relPosix === agent.routerRelPath;
+      const isSnippetsRouter =
+        !!agent.snippetsRouterRelPath && relPosix === agent.snippetsRouterRelPath;
+      const isSnippets = !isSnippetsRouter && !!agent.isSnippetFile?.(relPosix);
       const dir = path.posix.dirname(relPosix);
       // Folder-per-skill agents read best labeled by their folder name.
       const label =
@@ -151,12 +160,19 @@ export function listSkillFiles(config: SkillsConfig): SkillFileEntry[] {
         title: meta.title,
         description: meta.description,
         isRouter,
+        isSnippetsRouter,
+        isSnippets,
       });
     }
   }
 
-  // Routers first, then alphabetical; the UI regroups per agent.
-  out.sort((a, b) => Number(b.isRouter) - Number(a.isRouter) || a.label.localeCompare(b.label));
+  // Component router first, snippets router second, rest alphabetical; UI regroups per agent.
+  out.sort(
+    (a, b) =>
+      Number(b.isRouter) - Number(a.isRouter) ||
+      Number(b.isSnippetsRouter) - Number(a.isSnippetsRouter) ||
+      a.label.localeCompare(b.label),
+  );
   return out;
 }
 
@@ -211,9 +227,13 @@ export async function generateSkillsToConfig(
   opts: { mode: 'full' | 'incremental'; changedIds?: Set<string> } = {
     mode: 'full',
   },
+  snippets: CustomSnippet[] = [],
 ): Promise<number> {
   const skillComponents = applyPackageExclusion(allComponents, config.excludedPackages);
-  if (!skillComponents.length || !config.formats.length) return 0;
+  const selectedIds = new Set(config.skillSnippetIds ?? []);
+  const skillSnippets = snippets.filter((s) => selectedIds.has(s.id));
+  // Generate when there's anything to write — components OR custom snippets.
+  if ((!skillComponents.length && !skillSnippets.length) || !config.formats.length) return 0;
   const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   const changedIds = opts.mode === 'incremental' ? opts.changedIds : undefined;
 
@@ -237,7 +257,11 @@ export async function generateSkillsToConfig(
       changedIds,
       guidance,
       config.compactConsolidated,
+      skillSnippets,
     );
+    // Remove snippet files that no longer correspond to any selected snippet
+    // (e.g. a snippet was renamed or de-selected since the last run).
+    await pruneObsoleteSnippetFiles(base, format, new Set(artifacts.map((a) => a.relativePath)));
     // Auto-overwrite: no modal prompt on the automated path.
     const count = await writeArtifacts(base, artifacts, { value: true });
     if (count > 0) total += count;
@@ -316,6 +340,36 @@ export function resolveWithinBase(base: string, relativePath: string): string | 
 }
 
 /**
+ * Deletes snippet skill files under `base` that are no longer in `desiredRels`.
+ * This prevents stale files from accumulating when snippets are renamed or removed.
+ * Also removes their parent folder when it becomes empty (folder-per-skill pattern).
+ * Best-effort: errors are swallowed so a permission failure never blocks a write run.
+ */
+async function pruneObsoleteSnippetFiles(
+  base: string,
+  format: SkillFormat,
+  desiredRels: Set<string>,
+): Promise<void> {
+  const agent = AGENTS[format];
+  for (const full of walkMarkdown(base)) {
+    const relPosix = path.relative(base, full).split(path.sep).join('/');
+    const isObsoleteSnippet = !!agent.isSnippetFile?.(relPosix) && !desiredRels.has(relPosix);
+    const isObsoleteRouter =
+      !!agent.snippetsRouterRelPath &&
+      relPosix === agent.snippetsRouterRelPath &&
+      !desiredRels.has(relPosix);
+    if (!isObsoleteSnippet && !isObsoleteRouter) continue;
+    try {
+      await unlink(full);
+      const dir = path.dirname(full);
+      if ((await readdir(dir)).length === 0) await rmdir(dir);
+    } catch {
+      // Best-effort: ignore if the file was already removed or access is denied.
+    }
+  }
+}
+
+/**
  * Writes artifacts under `base`. Prompts once (batch) before overwriting any
  * pre-existing files. Returns the number of files written, or -1 if aborted.
  */
@@ -349,15 +403,20 @@ async function writeArtifacts(
   return written;
 }
 
-export async function runGenerateSkills(components: ComponentMeta[]): Promise<void> {
-  if (!components.length) {
+export async function runGenerateSkills(
+  components: ComponentMeta[],
+  snippets: CustomSnippet[] = [],
+): Promise<void> {
+  const skillComponents = applyPackageExclusion(components, getSkillsConfig().excludedPackages);
+  const selectedSnippetIds = new Set(getSkillsConfig().skillSnippetIds ?? []);
+  const skillSnippets = snippets.filter((s) => selectedSnippetIds.has(s.id));
+
+  if (!skillComponents.length && !skillSnippets.length) {
     vscode.window.showWarningMessage(
-      'Snapds: no components found. Configure packages in Settings first.',
+      'Snapds: nothing to generate. Configure packages, or enable "Include custom snippets" with at least one snippet.',
     );
     return;
   }
-
-  const skillComponents = applyPackageExclusion(components, getSkillsConfig().excludedPackages);
 
   const agentPicks = await vscode.window.showQuickPick(
     AGENT_ORDER.map((id) => ({
@@ -423,6 +482,12 @@ export async function runGenerateSkills(components: ComponentMeta[]): Promise<vo
           undefined,
           guidance,
           getSkillsConfig().compactConsolidated,
+          skillSnippets,
+        );
+        await pruneObsoleteSnippetFiles(
+          base,
+          format,
+          new Set(artifacts.map((a) => a.relativePath)),
         );
         const count = await writeArtifacts(base, artifacts, confirmedOverwrite);
         if (count < 0) {

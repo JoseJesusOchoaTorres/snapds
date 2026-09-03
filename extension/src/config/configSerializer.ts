@@ -72,11 +72,18 @@ export function serializeCurrentState(
     return pkg;
   });
 
+  // Current team-shared snippets, so a bulk export snapshots (and never drops)
+  // them. Targeted promote/demote writes keep the file authoritative between
+  // exports; here we simply re-serialize whatever it currently holds.
+  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const onDisk = folder ? resolveConfig(folder)?.config : undefined;
+
   const full: SnapdsConfig = {
     version: '1',
     packages: serializedPackages,
     skills: skillsConfig,
     scopeFilters: scopeFilters.length > 0 ? scopeFilters : undefined,
+    customSnippets: onDisk?.customSnippets,
   };
 
   if (opts.mode === 'replace' || opts.mode === 'full') {
@@ -84,12 +91,8 @@ export function serializeCurrentState(
   }
 
   // 'merge' mode: diff against the existing on-disk config.
-  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  if (!folder) return full;
-  const existing = resolveConfig(folder);
-  if (!existing) return full;
-
-  return diffConfigs(existing.config, full);
+  if (!onDisk) return full;
+  return diffConfigs(onDisk, full);
 }
 
 /**
@@ -122,6 +125,11 @@ function diffConfigs(current: SnapdsConfig, next: SnapdsConfig): SnapdsConfig {
     diff.scopeFilters = next.scopeFilters;
   }
 
+  // Custom snippets: include the full list if it changed at all.
+  if (JSON.stringify(next.customSnippets) !== JSON.stringify(current.customSnippets)) {
+    diff.customSnippets = next.customSnippets;
+  }
+
   return diff;
 }
 
@@ -140,13 +148,17 @@ export async function writeConfigFile(
 ): Promise<void> {
   let toWrite = config;
 
-  if (mode === 'merge' && fs.existsSync(filePath)) {
+  let existing: SnapdsConfig | undefined;
+  if (fs.existsSync(filePath)) {
     try {
-      const existing = JSON.parse(fs.readFileSync(filePath, 'utf8')) as SnapdsConfig;
-      toWrite = mergeForWrite(existing, config);
+      existing = JSON.parse(fs.readFileSync(filePath, 'utf8')) as SnapdsConfig;
     } catch {
       // If we can't parse the existing file, fall back to replace.
     }
+  }
+
+  if (mode === 'merge' && existing) {
+    toWrite = mergeForWrite(existing, config);
   }
 
   // Remove undefined keys for clean output.

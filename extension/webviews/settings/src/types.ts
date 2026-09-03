@@ -5,6 +5,7 @@ import type {
   ConfigExportMode,
   ConfigImportPreviewPayload,
   ConfigStatusPayload,
+  CustomSnippet,
   PackageMeta,
   PropMeta,
   PropOverride,
@@ -21,6 +22,7 @@ export type {
   ConfigExportMode,
   ConfigImportPreviewPayload,
   ConfigStatusPayload,
+  CustomSnippet,
   PackageMeta,
   PropMeta,
   PropOverride,
@@ -62,7 +64,14 @@ export type FromSettings =
   | { type: 'addLocalSource' }
   | { type: 'enableLocalSource'; name: string }
   | { type: 'setHiddenPackages'; names: string[] }
-  | { type: 'removeLocalSource'; name: string };
+  | { type: 'removeLocalSource'; name: string }
+  | { type: 'requestSnippets' }
+  | { type: 'editSnippet'; snippetId: string }
+  | { type: 'deleteSnippet'; snippetId: string }
+  | { type: 'setSnippetScope'; snippetId: string; scope: 'local' | 'shared' }
+  | { type: 'recategorizeSnippet'; snippetId: string; category: string }
+  | { type: 'renameSnippetCategory'; from: string; to: string }
+  | { type: 'deleteSnippetCategory'; category: string };
 
 export type ToSettings =
   | { type: 'packageList'; packages: PackageMeta[] }
@@ -79,4 +88,5 @@ export type ToSettings =
   | { type: 'hiddenPackages'; names: string[] }
   | { type: 'configStatus'; payload: ConfigStatusPayload }
   | { type: 'configImportPreview'; payload: ConfigImportPreviewPayload }
-  | { type: 'configExported'; outputPath: string };
+  | { type: 'configExported'; outputPath: string }
+  | { type: 'snippetList'; snippets: CustomSnippet[] };

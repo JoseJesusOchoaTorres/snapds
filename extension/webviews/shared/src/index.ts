@@ -16,12 +16,16 @@ export type {
   ConfigExportMode,
   ConfigImportPreviewPayload,
   ConfigStatusPayload,
+  CustomSnippet,
+  ImportSpec,
   PackageMeta,
   PropMeta,
   PropOverride,
   SkillFileEntry,
   SkillFormat,
   SkillsConfig,
+  SnippetDraft,
+  SnippetSaveResult,
   UserOverride,
 } from './types';
 export { vscode } from './vscodeApi';

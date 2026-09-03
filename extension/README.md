@@ -24,6 +24,7 @@ Snapds is a powerful VS Code extension designed for React monorepos. It introspe
 - [Requirements](#requirements)
 - [Getting started](#getting-started)
 - [Managing packages & components](#managing-packages--components)
+- [Custom snippets](#custom-snippets)
 - [Generate skills](#generate-skills)
 - [Configuration hierarchy](#configuration-hierarchy)
 - [Extension commands](#extension-commands)
@@ -48,7 +49,8 @@ Snapds is a powerful VS Code extension designed for React monorepos. It introspe
 
 - 🧩 **Visual Component Gallery**: Browse all available components from your registered packages in a dedicated sidebar webview.
 - 🚀 **Drag and Drop JSX**: Drag a component from the gallery and drop it into your React code. Snapds automatically generates the correct JSX and handles the necessary import statements.
-- **Quick Component Search**: Press `⌃⌥⌘K` (macOS) or `Ctrl+Shift+Alt+K` (Windows/Linux) to open a spotlight-style picker. Type any component name, press `Enter`, and the JSX snippet and import are injected at the cursor — identical result to drag & drop, without touching the mouse.
+- **Insert Component or Snippet** (`⌃⌥⌘I` / `Ctrl+Shift+Alt+I`): Opens a spotlight-style Quick Pick listing design-system **components** and your **custom snippets** in two sections — type a name, press `Enter`, and the JSX/snippet plus its import(s) are injected at the cursor.
+- ✂️ **Custom Snippets**: Select any code in a React file and press `⌃⌥⌘S` (macOS) / `Ctrl+Shift+Alt+S` (Windows/Linux) — or right-click → **Save Selection as Snippet** — to save it as a reusable snippet with a name, description, and category. Snapds auto-detects the imports your selection uses so they travel with it. Saved snippets appear in a **Custom Snippets** tab in the gallery and drag/inject exactly like components. See [Custom Snippets](#custom-snippets).
 - 📦 **Smart Import Management**: Automatically injects new imports without duplicating existing ones. It correctly handles multi-line Prettier-formatted imports and updates them seamlessly.
 - ⚡ **Performance Optimized**: Uses advanced caching based on package version and config file mtime so re-opening the gallery is instant. Each package version is cached independently, so switching between versions in the props panel requires no re-parse after startup.
 - 🗂️ **Monorepo multi-version support**: In a monorepo with apps using different versions of the same package, Snapds auto-detects the right version from the file currently open in your editor and shows the matching props. A version selector in the props panel lets you override this manually, and an "Add to this app" button injects the dependency into the nearest `package.json` when the package isn't listed there yet.
@@ -89,6 +91,25 @@ Snapds works with **in-repo design systems** (shadcn or your own folder), not ju
 - **Alias-based injection.** Local components inject from their path alias (e.g. `import { Button } from '@/components/ui/button'`) instead of a package name. Exports that share a source file are merged into a single import statement.
 - **Identity & filtering.** Each source is labelled by its workspace-relative folder (e.g. `src/components/ui`), badged **LOCAL** with its alias printed beneath the name, and grouped under a dedicated **LOCAL** filter chip. (npm packages published without an `@scope`, like `lucide-react`, group under **UNSCOPED**.)
 - **Live re-index.** A file watcher re-introspects a local source as you add or edit its component files, so new components surface without a manual refresh.
+
+## Custom Snippets
+
+Beyond the design-system gallery, Snapds lets you capture **your own** code as reusable snippets — a configured pair of buttons wrapped in a `Label`, a form layout, any pattern you reach for repeatedly.
+
+**Capture.** Select the code in a React file, then either:
+
+- press `⌃⌥⌘S` (macOS) / `Ctrl+Shift+Alt+S` (Windows/Linux) when text is selected in a React file, or
+- right-click the selection → **Save Selection as Snippet**.
+
+A modal opens where you give the snippet a **name**, an optional **description**, and a **category** (pick an existing one or type a new one — blank means _Uncategorized_). Snapds parses the file and pre-fills the **imports** your selection references; confirm, edit, or add to them. Everything drops onto the snippet so injecting it later brings its imports along.
+
+**Use.** Saved snippets appear under the **Custom Snippets** tab in the gallery, grouped by category (the tab shows an onboarding hint until you have your first snippet). Drag a snippet into a React file or inject it via **Insert** (`⌃⌥⌘I`) — imports are added the same way they are for components. Captured code is inserted verbatim (safely escaped), so template literals and braces survive intact.
+
+**Manage.** Right-click affordances on each snippet row let you **edit** (reopens the modal) or **delete**. The **Snippets** tab in **Snapds Settings** gives a bulk view: toggle a snippet between private and shared, and rename, merge, or clear whole categories at once.
+
+**Where snippets live.** By default a snippet is **private** — stored in your workspace state, scoped to the repo, and never committed. Flip **Share with team** (in the save modal or the Settings tab) to promote it into `snapds.config.json`, where it is committed and shared like the rest of your Snapds config. Sharing writes the selected source into version control, so it is always an explicit choice.
+
+> Snippets are captured from and injected into React files (`javascriptreact` / `typescriptreact`) in this release.
 
 ## Generate Skills
 
@@ -222,7 +243,11 @@ When Snapds detects a config file at startup that differs from your current sett
 
 Snapds provides the following commands via the Command Palette (`Cmd+Shift+P` or `Ctrl+Shift+P`):
 
-- **`Snapds: Quick Component Search`** (`snapds.quickSearch`): Opens a spotlight-style Quick Pick populated with every indexed component. Start typing to filter, press `Enter` to inject the selected component's JSX snippet and import at the cursor — same result as drag & drop. Default shortcut: `⌃⌥⌘K` on macOS, `Ctrl+Shift+Alt+K` on Windows/Linux. Reassign via **Preferences: Open Keyboard Shortcuts**.
+- **`Snapds: Insert Component or Snippet`** (`snapds.quickSearch`): Opens a spotlight-style Quick Pick with two labeled sections — every indexed component and every custom snippet. Start typing to filter, press `Enter` to inject the selection's JSX/snippet and import(s) at the cursor — same result as drag & drop. Default shortcut: `⌃⌥⌘I` on macOS, `Ctrl+Shift+Alt+I` on Windows/Linux.
+- **`Snapds: Save Selection as Snippet`** (`snapds.saveSelectionAsSnippet`): Saves the current editor selection as a reusable custom snippet (name, description, category, auto-detected imports). Available from the editor right-click menu and bound to `⌃⌥⌘S` (macOS) / `Ctrl+Shift+Alt+S` (Windows/Linux) when text is selected in a React file — the same key opens the Snippets gallery tab in any other context. See [Custom Snippets](#custom-snippets).
+- **`Snapds: Open Gallery — Components`** (`snapds.openGalleryComponents`): Reveals the gallery with the Components tab active and focuses the search bar. Default shortcut: `⌃⌥⌘C` (macOS) / `Ctrl+Shift+Alt+C` (Windows/Linux); works from any focus.
+- **`Snapds: Open Gallery — Custom Snippets`** (`snapds.openGallerySnippets`): Reveals the gallery with the Custom Snippets tab active and focuses the search bar. Default shortcut: `⌃⌥⌘S` (macOS) / `Ctrl+Shift+Alt+S` (Windows/Linux) when NOT in a React file with a selection; works globally.
+- **`Snapds: Focus Gallery Search`** (`snapds.focusGallerySearch`): Moves focus directly to the gallery search bar (opens the gallery first if needed). Default shortcut: `⌃⌥⌘F` (macOS) / `Ctrl+Shift+Alt+F` (Windows/Linux).
 - **`Snapds: Open Settings`**: Opens the package management and configuration panel.
 - **`Snapds: Open Props Panel`**: Opens a dedicated panel for editing component properties.
 - **`Snapds: Generate Skills`**: Generates agent-consumable skill docs from your components with an interactive agent (multi-select) and destination prompt (see [Generate Skills](#generate-skills)).
@@ -232,7 +257,7 @@ Snapds provides the following commands via the Command Palette (`Cmd+Shift+P` or
 
 ## Development
 
-The extension package lives at `extension/` within the monorepo. The three webviews (gallery, props, settings) live under `extension/webviews/` as plain Vite apps — each has its own `vite.config.ts` and shares types via `extension/webviews/shared/`. Their compiled output is copied to `extension/media/` by `scripts/copy-webviews.mjs`.
+The extension package lives at `extension/` within the monorepo. The four webviews (gallery, props, settings, snippet) live under `extension/webviews/` as plain Vite apps — each has its own `vite.config.ts` and shares types via `extension/webviews/shared/`. Their compiled output is copied to `extension/media/` by `scripts/copy-webviews.mjs` (run at the end of `build:webviews`), where `getWebviewHtml` loads it from.
 
 To build and run the extension locally:
 

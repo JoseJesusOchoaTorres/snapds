@@ -11,6 +11,7 @@ const pairs = [
   ['extension/webviews/gallery/dist', 'extension/media/gallery'],
   ['extension/webviews/props/dist', 'extension/media/props'],
   ['extension/webviews/settings/dist', 'extension/media/settings'],
+  ['extension/webviews/snippet/dist', 'extension/media/snippet'],
 ];
 
 for (const [src, dst] of pairs) {

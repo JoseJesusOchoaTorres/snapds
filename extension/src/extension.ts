@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { registerQuickSearch } from './commands/quickSearch';
+import { detectImportLines, isSnippetLanguage, resultToSnippet } from './commands/saveSnippet';
 import { applyConfig, detectConfigConflict, previewImport } from './config/configImporter';
 import { resolveConfig } from './config/configResolver';
 import type { SnapdsConfig } from './config/configSchema';
@@ -11,6 +12,13 @@ import {
   serializeCurrentState,
   writeConfigFile,
 } from './config/configSerializer';
+import {
+  mergeSnippets,
+  readSharedSnippets,
+  removeSharedSnippet,
+  upsertSharedSnippet,
+} from './config/sharedSnippets';
+import { emitImport } from './ds/codegen';
 import { DsIntrospector } from './ds/dsIntrospector';
 import { applyWhitelist, type DsPackage, DsRegistry } from './ds/dsRegistry';
 import {
@@ -35,12 +43,20 @@ import {
   resolveForFile,
 } from './ds/versionResolver';
 import { registerDropProvider } from './providers/dropProvider';
+import { categoryOf, normalizeCategory, SnippetStore, UNCATEGORIZED } from './state/snippetStore';
 import { Store } from './state/store';
 import { UserOverridesStore } from './state/userOverrides';
-import type { ComponentMeta, PackageMeta } from './util/messaging';
+import type {
+  ComponentMeta,
+  CustomSnippet,
+  PackageMeta,
+  SnippetDraft,
+  SnippetSaveResult,
+} from './util/messaging';
 import { GalleryViewProvider } from './views/galleryViewProvider';
 import { PropsPanelProvider } from './views/propsPanelProvider';
 import { SettingsPanelProvider } from './views/settingsPanelProvider';
+import { SnippetEditorProvider } from './views/snippetEditorProvider';
 
 const GENERATED_IDS_KEY = 'snapds.skills.generatedIds';
 const CONFIG_HASH_PREFIX = 'snapds.configHash.';
@@ -53,6 +69,8 @@ interface ActivationCtx {
   userOverrides: UserOverridesStore;
   introspector: DsIntrospector;
   store: Store;
+  /** User-local custom snippets (workspaceState); shared ones live in config. */
+  snippetStore: SnippetStore;
   installationsMap: Map<string, PackageInstallation[]>;
   workspaceRoot: string | undefined;
   /** Tracks the last focused text editor; stable when focus moves to a webview. */
@@ -65,6 +83,7 @@ interface ActivationCtx {
   gallery: GalleryViewProvider;
   propsPanel: PropsPanelProvider;
   settingsPanel: SettingsPanelProvider;
+  snippetEditor: SnippetEditorProvider;
 }
 
 // ─── activate() ───────────────────────────────────────────────────────────────
@@ -74,6 +93,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   const userOverrides = new UserOverridesStore(ctx);
   const introspector = new DsIntrospector(ctx, userOverrides);
   const store = new Store();
+  const snippetStore = new SnippetStore(ctx);
 
   const ac = {
     vsctx: ctx,
@@ -81,6 +101,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
     userOverrides,
     introspector,
     store,
+    snippetStore,
     installationsMap: new Map<string, PackageInstallation[]>(),
     workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
     lastKnownFilePath: undefined,
@@ -90,6 +111,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   ac.propsPanel = setupPropsPanel(ctx, ac);
   ac.gallery = setupGallery(ctx, ac);
   ac.settingsPanel = setupSettingsPanel(ctx, ac);
+  ac.snippetEditor = setupSnippetEditor(ctx, ac);
 
   ctx.subscriptions.push(
     vscode.window.registerWebviewViewProvider(GalleryViewProvider.viewId, ac.gallery, {
@@ -107,8 +129,11 @@ export function activate(ctx: vscode.ExtensionContext): void {
     }),
   );
 
-  registerDropProvider(ctx, store);
-  registerQuickSearch(ctx, store);
+  registerDropProvider(ctx, store, (id) => getSnippet(ac, id));
+  registerQuickSearch(ctx, store, {
+    list: () => listSnippets(ac),
+    get: (id) => getSnippet(ac, id),
+  });
   setupCommands(ctx, ac);
 
   runStartupFlow(ctx, ac);
@@ -247,6 +272,7 @@ function setupGallery(ctx: vscode.ExtensionContext, ac: ActivationCtx): GalleryV
   return new GalleryViewProvider(ctx, {
     onReady: async () => {
       ac.gallery.postComponentList(ac.store.listComponents());
+      ac.gallery.postSnippetList(listSnippets(ac));
     },
     onSearch: (_query) => {
       // Filtering happens in the webview; reserved for future server-side filtering.
@@ -262,7 +288,316 @@ function setupGallery(ctx: vscode.ExtensionContext, ac: ActivationCtx): GalleryV
       );
       notifyVersions(vscode.window.activeTextEditor?.document.uri.fsPath, ac);
     },
+    onSnippetSelect: () => {
+      // Selection is a client-side highlight; snippets have no props panel.
+    },
+    onEditSnippet: (snippetId) => openSnippetEditorForEdit(ac, snippetId),
+    onDeleteSnippet: (snippetId) => deleteSnippet(ac, snippetId),
   });
+}
+
+// ─── setupSnippetEditor ───────────────────────────────────────────────────────
+
+function setupSnippetEditor(
+  ctx: vscode.ExtensionContext,
+  ac: ActivationCtx,
+): SnippetEditorProvider {
+  return new SnippetEditorProvider(ctx, {
+    onSave: (result) => persistSnippetResult(ac, result),
+  });
+}
+
+// ─── Custom snippets: read/list/persist ───────────────────────────────────────
+
+/** Shared snippets currently on disk (resolved config), tagged `scope:'shared'`. */
+function sharedSnippets(ac: ActivationCtx): CustomSnippet[] {
+  const config = ac.workspaceRoot ? resolveConfig(ac.workspaceRoot)?.config : undefined;
+  return readSharedSnippets(config);
+}
+
+/** The merged local + shared snippet list the gallery and quick search render. */
+function listSnippets(ac: ActivationCtx): CustomSnippet[] {
+  return mergeSnippets(ac.snippetStore.all(), sharedSnippets(ac));
+}
+
+function getSnippet(ac: ActivationCtx, id: string): CustomSnippet | undefined {
+  return listSnippets(ac).find((s) => s.id === id);
+}
+
+/** Re-pushes the current snippet list to the gallery AND settings after a change. */
+function refreshSnippets(ac: ActivationCtx): void {
+  const list = listSnippets(ac);
+  ac.gallery.postSnippetList(list);
+  ac.settingsPanel.postSnippetList(list);
+}
+
+/** Absolute path of the config file shared snippets are written to. */
+function sharedConfigPath(ac: ActivationCtx): string | undefined {
+  return ac.workspaceRoot
+    ? (resolveConfig(ac.workspaceRoot)?.owningPath ?? defaultConfigPath())
+    : undefined;
+}
+
+/**
+ * Parses the owning config file directly (no `extends` resolution) for shared
+ * snippet WRITES — so we edit only that file's own snippets and never copy
+ * extends-inherited ones down into it. Reads/listing still use the resolved config.
+ *
+ * Returns `{}` only when the file does not exist (ENOENT). Any other I/O error
+ * or a JSON parse failure is re-thrown so the caller aborts instead of
+ * silently overwriting the file with an empty config.
+ */
+function readRawConfig(filePath: string): SnapdsConfig {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw err;
+  }
+  // Separate from the read so a SyntaxError propagates to the caller
+  // rather than silently returning {}, which would overwrite the file.
+  return JSON.parse(raw) as SnapdsConfig;
+}
+
+/**
+ * Persists a snippet from the capture/edit modal. Routes it to the right store
+ * based on `scope`, moving it between tiers when the scope changed on edit.
+ */
+async function persistSnippetResult(ac: ActivationCtx, result: SnippetSaveResult): Promise<void> {
+  const previous = result.id ? getSnippet(ac, result.id) : undefined;
+  const snippet = resultToSnippet(result, {
+    languageId: previous?.languageId ?? activeLanguageId() ?? 'typescriptreact',
+    createdAt: previous?.createdAt ?? new Date().toISOString(),
+  });
+
+  // Remove any prior copy from the tier it used to live in (handles scope flips).
+  if (previous) await removeSnippetFromStores(ac, previous);
+
+  if (snippet.scope === 'shared') {
+    const ok = await writeSharedSnippet(ac, snippet);
+    if (!ok) {
+      // No workspace/config to share into — fall back to local so work isn't lost.
+      await ac.snippetStore.save(snippet);
+      vscode.window.showWarningMessage(
+        'Snapds: No workspace config found — saved the snippet privately instead.',
+      );
+    }
+  } else {
+    await ac.snippetStore.save(snippet);
+  }
+
+  refreshSnippets(ac);
+}
+
+/** Writes/updates a shared snippet in snapds.config.json. Returns false if none exists. */
+async function writeSharedSnippet(ac: ActivationCtx, snippet: CustomSnippet): Promise<boolean> {
+  const filePath = sharedConfigPath(ac);
+  if (!filePath) return false;
+  let raw: SnapdsConfig;
+  try {
+    raw = readRawConfig(filePath);
+  } catch {
+    vscode.window.showErrorMessage(
+      'Snapds: snapds.config.json contains invalid JSON — fix it before saving snippets.',
+    );
+    return false;
+  }
+  const next = upsertSharedSnippet(raw, snippet);
+  // 'replace': `next` is the full owning file with customSnippets set exactly, so
+  // this writes the authoritative list (a merge can't express a removal-to-empty).
+  await writeConfigFile(next, filePath, 'replace');
+  return true;
+}
+
+/** Removes a snippet from whichever tier holds it. */
+async function removeSnippetFromStores(ac: ActivationCtx, snippet: CustomSnippet): Promise<void> {
+  if (ac.snippetStore.get(snippet.id)) await ac.snippetStore.remove(snippet.id);
+  const filePath = sharedConfigPath(ac);
+  if (!filePath) return;
+  let raw: SnapdsConfig;
+  try {
+    raw = readRawConfig(filePath);
+  } catch {
+    vscode.window.showErrorMessage(
+      'Snapds: snapds.config.json contains invalid JSON — fix it to remove shared snippets.',
+    );
+    return;
+  }
+  if (raw.customSnippets?.some((s) => s.id === snippet.id)) {
+    await writeConfigFile(removeSharedSnippet(raw, snippet.id), filePath, 'replace');
+  }
+}
+
+async function deleteSnippet(ac: ActivationCtx, snippetId: string): Promise<void> {
+  const snippet = getSnippet(ac, snippetId);
+  if (!snippet) return;
+  const choice = await vscode.window.showWarningMessage(
+    `Delete snippet "${snippet.name}"?`,
+    { modal: true },
+    'Delete',
+  );
+  if (choice !== 'Delete') return;
+  await removeSnippetFromStores(ac, snippet);
+  refreshSnippets(ac);
+}
+
+/** Moves a snippet between the private (workspaceState) and shared (config) tiers. */
+async function setSnippetScope(
+  ac: ActivationCtx,
+  snippetId: string,
+  scope: 'local' | 'shared',
+): Promise<void> {
+  const snippet = getSnippet(ac, snippetId);
+  if (!snippet || snippet.scope === scope) return;
+  await removeSnippetFromStores(ac, snippet);
+  const moved = { ...snippet, scope };
+  if (scope === 'shared') {
+    const ok = await writeSharedSnippet(ac, moved);
+    if (!ok) {
+      await ac.snippetStore.save(moved);
+      vscode.window.showWarningMessage(
+        'Snapds: No workspace config found — kept the snippet private.',
+      );
+    }
+  } else {
+    await ac.snippetStore.save(moved);
+  }
+  refreshSnippets(ac);
+}
+
+/**
+ * Renames (or merges) a category across BOTH tiers. Passing an empty/uncategorized
+ * `to` moves the category's snippets to the reserved Uncategorized bucket.
+ */
+async function renameSnippetCategory(ac: ActivationCtx, from: string, to: string): Promise<void> {
+  const next = normalizeCategory(to);
+  await ac.snippetStore.renameCategory(from, next);
+
+  const filePath = sharedConfigPath(ac);
+  if (filePath) {
+    let raw: SnapdsConfig;
+    try {
+      raw = readRawConfig(filePath);
+    } catch {
+      vscode.window.showErrorMessage(
+        'Snapds: snapds.config.json contains invalid JSON — fix it to rename categories.',
+      );
+      return;
+    }
+    if (raw.customSnippets?.length) {
+      const fromKey = normalizeCategory(from) ?? UNCATEGORIZED;
+      const updated = raw.customSnippets.map((s) =>
+        (normalizeCategory(s.category) ?? UNCATEGORIZED) === fromKey ? { ...s, category: next } : s,
+      );
+      await writeConfigFile({ ...raw, customSnippets: updated }, filePath, 'replace');
+    }
+  }
+  refreshSnippets(ac);
+}
+
+/** Moves a single snippet to a different category, in whichever tier it lives. */
+async function recategorizeSnippet(
+  ac: ActivationCtx,
+  snippetId: string,
+  category: string,
+): Promise<void> {
+  const snippet = getSnippet(ac, snippetId);
+  if (!snippet) return;
+  const cat = normalizeCategory(category);
+  if (categoryOf(snippet) === (cat ?? UNCATEGORIZED)) return;
+
+  if (snippet.scope === 'shared') {
+    const filePath = sharedConfigPath(ac);
+    if (filePath) {
+      let raw: SnapdsConfig;
+      try {
+        raw = readRawConfig(filePath);
+      } catch {
+        vscode.window.showErrorMessage(
+          'Snapds: snapds.config.json contains invalid JSON — fix it to move snippets.',
+        );
+        return;
+      }
+      const updated = (raw.customSnippets ?? []).map((s) =>
+        s.id === snippetId ? { ...s, category: cat } : s,
+      );
+      await writeConfigFile({ ...raw, customSnippets: updated }, filePath, 'replace');
+    }
+  } else {
+    await ac.snippetStore.recategorize(snippetId, cat);
+  }
+  refreshSnippets(ac);
+}
+
+/** Opens the modal to edit an existing snippet, re-deriving its import lines. */
+function openSnippetEditorForEdit(ac: ActivationCtx, snippetId: string): void {
+  const snippet = getSnippet(ac, snippetId);
+  if (!snippet) return;
+  const draft: SnippetDraft = {
+    id: snippet.id,
+    name: snippet.name,
+    description: snippet.description ?? '',
+    category: snippet.category ?? '',
+    code: snippet.code,
+    languageId: snippet.languageId,
+    scope: snippet.scope,
+    importLines: snippet.imports.map(emitImport),
+    existingCategories: snippetCategories(ac),
+    mode: 'edit',
+    canShare: sharedConfigPath(ac) !== undefined,
+  };
+  ac.snippetEditor.open(draft);
+}
+
+/** Distinct categories across all snippets, for the modal's pick-or-create list. */
+function snippetCategories(ac: ActivationCtx): string[] {
+  const set = new Set<string>();
+  for (const s of listSnippets(ac)) {
+    const c = s.category?.trim();
+    if (c) set.add(c);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+function activeLanguageId(): string | undefined {
+  return vscode.window.activeTextEditor?.document.languageId;
+}
+
+/** Command: capture the current editor selection as a new snippet. */
+async function captureSelectionAsSnippet(ac: ActivationCtx): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showWarningMessage(
+      'Snapds: Open a React file and select code to save a snippet.',
+    );
+    return;
+  }
+  if (!isSnippetLanguage(editor.document.languageId)) {
+    vscode.window.showWarningMessage(
+      'Snapds: Snippets can only be captured from React (.jsx/.tsx) files.',
+    );
+    return;
+  }
+  const code = editor.document.getText(editor.selection);
+  if (!code.trim()) {
+    vscode.window.showWarningMessage('Snapds: Select the code you want to save as a snippet.');
+    return;
+  }
+
+  const draft: SnippetDraft = {
+    name: '',
+    description: '',
+    category: '',
+    code,
+    languageId: editor.document.languageId,
+    scope: 'local',
+    importLines: detectImportLines(editor.document.getText(), code),
+    existingCategories: snippetCategories(ac),
+    mode: 'create',
+    canShare: sharedConfigPath(ac) !== undefined,
+  };
+  ac.snippetEditor.open(draft);
 }
 
 // ─── setupSettingsPanel ───────────────────────────────────────────────────────
@@ -274,7 +609,7 @@ function setupSettingsPanel(
   const onGenerateSkills = async () => {
     try {
       const components = await collectComponents(ac);
-      await runGenerateSkills(components);
+      await runGenerateSkills(components, listSnippets(ac));
       await ctx.globalState.update(
         GENERATED_IDS_KEY,
         components.map((c) => c.id),
@@ -300,6 +635,7 @@ function setupSettingsPanel(
         ctx.workspaceState.get<string[]>('snapds.hiddenPackages') ?? [],
       );
       ac.settingsPanel.postConfigStatus(detectConfigConflict(ac.registry, ctx));
+      ac.settingsPanel.postSnippetList(listSnippets(ac));
       // Populate Active card counts without waiting for a per-card click. Runs
       // after the package list is posted so the webview has each package's
       // excluded/manual context before the component names arrive.
@@ -509,6 +845,15 @@ function setupSettingsPanel(
       setupLocalWatchers(ac);
       ac.settingsPanel.postPackageList(await buildPackageList(ac));
     },
+    onRequestSnippets: () => {
+      ac.settingsPanel.postSnippetList(listSnippets(ac));
+    },
+    onEditSnippet: (id) => openSnippetEditorForEdit(ac, id),
+    onDeleteSnippet: (id) => deleteSnippet(ac, id),
+    onSetSnippetScope: (id, scope) => setSnippetScope(ac, id, scope),
+    onRecategorizeSnippet: (id, category) => recategorizeSnippet(ac, id, category),
+    onRenameSnippetCategory: (from, to) => renameSnippetCategory(ac, from, to),
+    onDeleteSnippetCategory: (category) => renameSnippetCategory(ac, category, ''),
     onSaveUserOverride: async ({ pkg, component, override }) => {
       await ac.userOverrides.set(pkg, component, override);
       await reintrospectAndBroadcast(pkg, ac);
@@ -707,7 +1052,7 @@ function setupCommands(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
   const onGenerateSkills = async () => {
     try {
       const components = await collectComponents(ac);
-      await runGenerateSkills(components);
+      await runGenerateSkills(components, listSnippets(ac));
       await ctx.globalState.update(
         GENERATED_IDS_KEY,
         components.map((c) => c.id),
@@ -728,6 +1073,37 @@ function setupCommands(ctx: vscode.ExtensionContext, ac: ActivationCtx): void {
 
     vscode.commands.registerCommand('snapds.openPropsPanel', () => {
       ac.propsPanel.show();
+    }),
+
+    vscode.commands.registerCommand('snapds.saveSelectionAsSnippet', () =>
+      captureSelectionAsSnippet(ac),
+    ),
+
+    // Open gallery with the Components tab active (⌃⌥⌘C / Ctrl+Shift+Alt+C).
+    // Reveals + focuses the view from any context, then tells the webview which
+    // tab to switch to and to focus the search bar.
+    vscode.commands.registerCommand('snapds.openGalleryComponents', () => {
+      void vscode.commands.executeCommand('snapds.gallery.focus').then(() => {
+        ac.gallery.postSwitchTab('components');
+        ac.gallery.postFocusSearch();
+      });
+    }),
+
+    // Open gallery with the Snippets tab active (⌃⌥⌘S / Ctrl+Shift+Alt+S when
+    // NOT in a React file with a selection — that context saves a snippet instead).
+    vscode.commands.registerCommand('snapds.openGallerySnippets', () => {
+      void vscode.commands.executeCommand('snapds.gallery.focus').then(() => {
+        ac.gallery.postSwitchTab('snippets');
+        ac.gallery.postFocusSearch();
+      });
+    }),
+
+    // Focus the gallery search bar without switching tabs (⌃⌥⌘F / Ctrl+Shift+Alt+F).
+    // Opens the gallery first if it isn't already visible.
+    vscode.commands.registerCommand('snapds.focusGallerySearch', () => {
+      void vscode.commands.executeCommand('snapds.gallery.focus').then(() => {
+        ac.gallery.postFocusSearch();
+      });
     }),
 
     vscode.commands.registerCommand('snapds.generateSkills', onGenerateSkills),
@@ -1179,7 +1555,7 @@ async function autoGenerateForNew(all: ComponentMeta[], ac: ActivationCtx): Prom
   const prev = new Set(ac.vsctx.globalState.get<string[]>(GENERATED_IDS_KEY) ?? []);
   const changedIds = new Set(all.filter((c) => !prev.has(c.id)).map((c) => c.id));
   if (!changedIds.size) return;
-  await generateSkillsToConfig(all, cfg, { mode: 'incremental', changedIds });
+  await generateSkillsToConfig(all, cfg, { mode: 'incremental', changedIds }, listSnippets(ac));
   await ac.vsctx.globalState.update(
     GENERATED_IDS_KEY,
     all.map((c) => c.id),
@@ -1224,7 +1600,7 @@ async function clearIntrospectionCache(ac: ActivationCtx): Promise<void> {
 async function regenerateAll(ac: ActivationCtx): Promise<void> {
   const cfg = getSkillsConfig();
   const all = await collectWhitelistedComponents(ac);
-  const n = await generateSkillsToConfig(all, cfg, { mode: 'full' });
+  const n = await generateSkillsToConfig(all, cfg, { mode: 'full' }, listSnippets(ac));
   await ac.vsctx.globalState.update(
     GENERATED_IDS_KEY,
     all.map((c) => c.id),

@@ -26,6 +26,14 @@ alone misses. They appear as chips; add overrides to give them props.
 Per package under `snapds.packages` as `excluded` and `manual` lists. Snapds
 never persists a full allow-list, so new upstream components always surface.
 
+## Where are my custom snippets stored?
+
+By default a [custom snippet](/docs/custom-snippets) is **private** — kept in your
+VS Code workspace state, scoped to the repo, and never committed. Choosing **Share
+with team** promotes it into `snapds.config.json` (`customSnippets`), which is
+committed and shared like the rest of your Snapds config. Sharing writes the
+captured source into version control, so it's always an explicit opt-in.
+
 ## Can I pin a component to a specific version?
 
 Imports are bare specifiers (e.g. `import { Button } from '@acme/ui'`), so the
