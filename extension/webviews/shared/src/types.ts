@@ -153,8 +153,12 @@ export interface SkillFileEntry {
   format: SkillFormat;
   title?: string;
   description?: string;
-  /** True for the agent's main dictionary/router file (rendered first + distinct). */
+  /** True for the agent's main component dictionary/router file (rendered first + distinct). */
   isRouter?: boolean;
+  /** True for the dedicated snippets router/index file (links to per-snippet detail files). */
+  isSnippetsRouter?: boolean;
+  /** True for a per-snippet detail file (one per captured snippet). */
+  isSnippets?: boolean;
 }
 
 // ─── Component detail (settings modals) ─────────────────────────────────────

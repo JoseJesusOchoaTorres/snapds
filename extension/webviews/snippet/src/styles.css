@@ -343,3 +343,6 @@ textarea:focus {
 .btn-secondary:hover {
   background: var(--vscode-button-secondaryHoverBackground, var(--snapds-overlay-faint));
 }
+.import-list {
+  padding-top: 0.8rem;
+}

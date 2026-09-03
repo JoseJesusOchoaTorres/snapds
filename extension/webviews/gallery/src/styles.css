@@ -36,8 +36,8 @@ header {
 
 .search input {
   width: 100%;
-  /* extra right padding leaves room for the clear button */
-  padding: 4px 24px 4px 6px;
+  /* extra right padding leaves room for the clear button or the shortcut badge */
+  padding: 4px 42px 4px 6px;
   background: var(--vscode-input-background);
   color: var(--vscode-input-foreground);
   border: 1px solid var(--vscode-input-border, transparent);
@@ -81,6 +81,23 @@ header {
 .search-clear svg {
   width: 12px;
   height: 12px;
+}
+
+/* Keyboard shortcut hint shown on the right of the search input when it is empty */
+.search-shortcut {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.68rem;
+  padding: 0 3px;
+  border: 1px solid color-mix(in srgb, var(--vscode-input-foreground) 40%, transparent);
+  border-radius: 3px;
+  opacity: 0.6;
+  white-space: nowrap;
+  pointer-events: none;
+  line-height: 1.5;
 }
 
 input::placeholder,
@@ -425,6 +442,7 @@ textarea::placeholder {
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
 }
 
@@ -466,6 +484,24 @@ textarea::placeholder {
   font-size: 0.78rem;
   opacity: 0.6;
   font-variant-numeric: tabular-nums;
+}
+
+/* Keyboard shortcut badge inside each tab button — hidden until the tab is hovered */
+.tab-shortcut {
+  display: inline-block;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.68rem;
+  padding: 0 4px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  opacity: 0;
+  white-space: nowrap;
+  line-height: 1.5;
+  transition: opacity 0.15s;
+}
+
+.tab:hover .tab-shortcut {
+  opacity: 0.6;
 }
 
 /* ─── Snippet rows ───────────────────────────────────────────────────────── */

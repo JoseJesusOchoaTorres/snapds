@@ -549,6 +549,37 @@ span.scope-chip-inline:hover {
   opacity: 0.8;
 }
 
+/* Snippet router card — same accent as snippet detail cards but slightly more prominent */
+.skill-card--snippets-router {
+  border-left: 3px solid var(--vscode-symbolIcon-snippetForeground, var(--snapds-brand));
+  padding-left: 8px;
+  opacity: 0.92;
+}
+
+/* Per-snippet detail card — left accent strip to distinguish from component skills */
+.skill-card--snippets {
+  border-left: 3px solid var(--vscode-symbolIcon-snippetForeground, var(--snapds-brand));
+  padding-left: 8px;
+}
+
+/* Sections wrapper — adds vertical spacing between router / components / snippets groups */
+.skill-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Label between groups ("Components" / "Snippets") */
+.skill-section-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+  padding: 2px 0;
+}
+
 /* Short path hint next to an agent name in the picker. */
 .agent-hint {
   font-size: 0.8em;

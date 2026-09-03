@@ -5,6 +5,9 @@ import {
   buildArtifacts,
   buildComponentSkillMarkdown,
   buildMainSkillMarkdown,
+  buildSnippetDetailMarkdown,
+  buildSnippetsRouterMarkdown,
+  buildSnippetsSkillMarkdown,
   expectedSkillRelPath,
   kebab,
   resolveGuidance,
@@ -24,29 +27,49 @@ const snip = (over: Partial<CustomSnippet> & { id: string; name: string }): Cust
 });
 const paths = (a: { relativePath: string }[]) => a.map((x) => x.relativePath);
 
-test('buildMainSkillMarkdown appends a Custom Snippets section grouped by category', () => {
+const testSnip = snip({
+  id: 'snippet:1',
+  name: 'Labeled pair',
+  category: 'Forms',
+  description: 'Two buttons in a label',
+  code: '<Label><Button /></Label>',
+  imports: [{ kind: 'named', specifier: '@acme/ui', names: ['Button', 'Label'] }],
+});
+
+// ── Router snippet behaviour ──────────────────────────────────────────────────
+
+test('buildMainSkillMarkdown adds a router link (not inline content) for non-consolidated agents', () => {
+  // Augment has a snippetsRouterRelPath — the router must link to the file, not inline the catalog.
   const md = buildMainSkillMarkdown(
     [comp('Button')],
     'augment',
     new Map([['@acme/ui#Button', 'button']]),
     undefined,
     false,
-    [
-      snip({
-        id: 'snippet:1',
-        name: 'Labeled pair',
-        category: 'Forms',
-        description: 'Two buttons in a label',
-        code: '<Label><Button /></Label>',
-        imports: [{ kind: 'named', specifier: '@acme/ui', names: ['Button', 'Label'] }],
-      }),
-    ],
+    [testSnip],
+  );
+  assert.ok(md.includes('## Custom Snippets'), 'has the snippets heading');
+  assert.ok(md.includes('snapds-snippets'), 'links to the snippets router skill');
+  // The full catalog content must NOT be inlined into the component router.
+  assert.ok(!md.includes('#### Labeled pair'), 'snippet details are not inlined in the router');
+  assert.ok(!md.includes('### Forms'), 'category not inlined in the router');
+});
+
+test('buildMainSkillMarkdown inlines snippets for consolidated agents', () => {
+  // Copilot has no snippetsRouterRelPath — snippets must be inlined into the catalog file.
+  const md = buildMainSkillMarkdown(
+    [comp('Button')],
+    'copilot',
+    new Map([['@acme/ui#Button', 'button']]),
+    undefined,
+    false,
+    [testSnip],
   );
   assert.ok(md.includes('## Custom Snippets'), 'has the snippets section');
-  assert.ok(md.includes('### Forms'), 'groups by category');
-  assert.ok(md.includes('#### Labeled pair'), 'lists the snippet name');
-  assert.ok(md.includes("import { Button, Label } from '@acme/ui';"), 'renders imports');
-  assert.ok(md.includes('<Label><Button /></Label>'), 'renders the code');
+  assert.ok(md.includes('### Forms'), 'groups by category inline');
+  assert.ok(md.includes('#### Labeled pair'), 'lists the snippet name inline');
+  assert.ok(md.includes("import { Button, Label } from '@acme/ui';"), 'renders imports inline');
+  assert.ok(md.includes('<Label><Button /></Label>'), 'renders the code inline');
 });
 
 test('buildMainSkillMarkdown omits the snippets section when none are given', () => {
@@ -56,6 +79,94 @@ test('buildMainSkillMarkdown omits the snippets section when none are given', ()
     new Map([['@acme/ui#Button', 'button']]),
   );
   assert.ok(!md.includes('## Custom Snippets'));
+});
+
+// ── buildSnippetsRouterMarkdown ───────────────────────────────────────────────
+
+test('buildSnippetsRouterMarkdown produces a router that links to per-snippet detail files', () => {
+  const slugs = new Map([['snippet:1', 'labeled-pair']]);
+  const md = buildSnippetsRouterMarkdown([testSnip], slugs, 'augment');
+  assert.ok(md.includes('name: snapds-snippets'), 'carries augment router frontmatter');
+  assert.ok(md.includes('# Custom Snippets'), 'has the top-level heading');
+  assert.ok(md.includes('## Forms'), 'groups by category');
+  assert.ok(md.includes('Labeled pair'), 'lists the snippet name');
+  // Router links to detail file, not inline code
+  assert.ok(md.includes('snapds-snippet-labeled-pair'), 'links to the per-snippet detail file');
+  assert.ok(!md.includes('import { Button'), 'does NOT inline the snippet code');
+});
+
+test('buildSnippetsRouterMarkdown for cursor lists skill names (flat-lazy)', () => {
+  const slugs = new Map([['snippet:1', 'labeled-pair']]);
+  const md = buildSnippetsRouterMarkdown([testSnip], slugs, 'cursor');
+  assert.ok(md.includes('snapds-snippet-labeled-pair'), 'lists the snippet rule name');
+  assert.ok(!md.includes('import {'), 'does NOT inline snippet code');
+});
+
+test('buildSnippetsRouterMarkdown for windsurf carries trigger: model_decision', () => {
+  const slugs = new Map([['snippet:1', 'labeled-pair']]);
+  const md = buildSnippetsRouterMarkdown([testSnip], slugs, 'windsurf');
+  assert.ok(md.includes('trigger: model_decision'));
+});
+
+// ── buildSnippetDetailMarkdown ────────────────────────────────────────────────
+
+test('buildSnippetDetailMarkdown produces a per-snippet detail file with code and frontmatter', () => {
+  const md = buildSnippetDetailMarkdown(testSnip, 'labeled-pair', 'augment');
+  assert.ok(md.includes('name: snapds-snippet-labeled-pair'), 'carries per-snippet frontmatter');
+  assert.ok(md.includes('# Labeled pair'), 'has the snippet name as heading');
+  assert.ok(md.includes('**Category:** Forms'), 'includes the category');
+  assert.ok(md.includes('Two buttons in a label'), 'includes the description');
+  assert.ok(md.includes("import { Button, Label } from '@acme/ui';"), 'renders imports');
+  assert.ok(md.includes('<Label><Button /></Label>'), 'renders the code');
+});
+
+// ── buildSnippetsSkillMarkdown (compat wrapper) ───────────────────────────────
+
+test('buildSnippetsSkillMarkdown (compat) delegates to buildSnippetsRouterMarkdown', () => {
+  const md = buildSnippetsSkillMarkdown([testSnip], 'augment');
+  // Should produce a router (links to detail files) not inline code
+  assert.ok(md.includes('name: snapds-snippets'), 'carries augment frontmatter');
+  assert.ok(md.includes('# Custom Snippets'), 'has the top-level heading');
+  assert.ok(md.includes('snapds-snippet-labeled-pair'), 'links to per-snippet detail files');
+});
+
+// ── buildArtifacts — snippets files ──────────────────────────────────────────
+
+test('buildArtifacts emits a snippets router + per-snippet detail for augment when snippets are given', () => {
+  const artifacts = buildArtifacts([comp('Button')], 'augment', undefined, undefined, false, [
+    testSnip,
+  ]);
+  const relPaths = paths(artifacts);
+  assert.ok(relPaths.includes('snapds-snippets/SKILL.md'), 'snippets router present');
+  assert.ok(
+    relPaths.includes('snapds-snippet-labeled-pair/SKILL.md'),
+    'per-snippet detail present',
+  );
+  assert.ok(relPaths.includes('snapds/SKILL.md'), 'component router still present');
+});
+
+test('buildArtifacts emits a snippets router + per-snippet detail for cursor when snippets are given', () => {
+  const artifacts = buildArtifacts([comp('Button')], 'cursor', undefined, undefined, false, [
+    testSnip,
+  ]);
+  const relPaths = paths(artifacts);
+  assert.ok(relPaths.includes('snapds-snippets.mdc'), 'snippets router present');
+  assert.ok(relPaths.includes('snapds-snippet-labeled-pair.mdc'), 'per-snippet detail present');
+});
+
+test('buildArtifacts does NOT emit snippets files for consolidated agents', () => {
+  const copilot = buildArtifacts([comp('Button')], 'copilot', undefined, undefined, false, [
+    testSnip,
+  ]);
+  assert.deepEqual(paths(copilot), ['instructions/snapds.instructions.md']);
+  const cline = buildArtifacts([comp('Button')], 'cline', undefined, undefined, false, [testSnip]);
+  assert.deepEqual(paths(cline), ['snapds.md']);
+});
+
+test('buildArtifacts does NOT emit snippets files when no snippets are given', () => {
+  const artifacts = buildArtifacts([comp('Button')], 'augment');
+  assert.ok(!paths(artifacts).includes('snapds-snippets/SKILL.md'));
+  assert.ok(!paths(artifacts).some((p) => p.includes('snippet-')));
 });
 
 test('kebab converts PascalCase and separators to kebab-case', () => {

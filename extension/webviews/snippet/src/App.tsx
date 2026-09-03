@@ -232,39 +232,41 @@ export default function App() {
       </div>
 
       <fieldset className="field imports">
-        <legend className="field-label pb-2">
+        <legend className="field-label">
           Imports <span className="hint">— injected with the snippet</span>
         </legend>
-        {imports.length === 0 && (
-          <p className="hint">No imports detected. Add any the snippet needs.</p>
-        )}
-        {imports.map((row, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and editable in place
-          <div className="import-row" key={i}>
-            <input
-              type="checkbox"
-              checked={row.include}
-              aria-label={`Include import ${i + 1}`}
-              onChange={() => toggleImport(i)}
-            />
-            <input
-              type="text"
-              className="import-line"
-              value={row.line}
-              spellCheck={false}
-              onChange={(e) => setImportLine(i, e.target.value)}
-            />
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label={`Remove import ${i + 1}`}
-              title="Remove"
-              onClick={() => removeImport(i)}
-            >
-              ×
-            </button>
-          </div>
-        ))}
+        <div className="import-list">
+          {imports.length === 0 && (
+            <p className="hint">No imports detected. Add any the snippet needs.</p>
+          )}
+          {imports.map((row, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional and editable in place
+            <div className="import-row" key={i}>
+              <input
+                type="checkbox"
+                checked={row.include}
+                aria-label={`Include import ${i + 1}`}
+                onChange={() => toggleImport(i)}
+              />
+              <input
+                type="text"
+                className="import-line"
+                value={row.line}
+                spellCheck={false}
+                onChange={(e) => setImportLine(i, e.target.value)}
+              />
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={`Remove import ${i + 1}`}
+                title="Remove"
+                onClick={() => removeImport(i)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
         <button type="button" className="add-import" onClick={addImport}>
           + Add import
         </button>

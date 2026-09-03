@@ -9,6 +9,11 @@ import type { ComponentMeta, CustomSnippet, ToGallery } from './types';
 const UNCATEGORIZED = 'Uncategorized';
 type Tab = 'components' | 'snippets';
 
+/** True when running on macOS — used to show platform-appropriate shortcut labels. */
+const isMac = typeof navigator !== 'undefined' && navigator.platform.startsWith('Mac');
+/** Returns the Mac or Win/Linux shortcut string. */
+const kb = (mac: string, win: string) => (isMac ? mac : win);
+
 export default function App() {
   const [components, setComponents] = useState<ComponentMeta[]>([]);
   const [snippets, setSnippets] = useState<CustomSnippet[]>([]);
@@ -179,25 +184,34 @@ export default function App() {
           role="tab"
           aria-selected={showComponents}
           className={`tab${showComponents ? ' active' : ''}`}
+          title={`Open Components (${kb('⌃⌥⌘C', 'Ctrl+Shift+Alt+C')})`}
           onClick={() => setActiveTab('components')}
         >
           Components
           {components.length > 0 && <span className="tab-count">{components.length}</span>}
+          <kbd className="tab-shortcut">{kb('⌃⌥⌘C', '⌃⇧⎇C')}</kbd>
         </button>
         <button
           type="button"
           role="tab"
           aria-selected={!showComponents}
           className={`tab${!showComponents ? ' active' : ''}`}
+          title={`Open Custom Snippets (${kb('⌃⌥⌘S', 'Ctrl+Shift+Alt+S')})`}
           onClick={() => setActiveTab('snippets')}
         >
           Custom Snippets
           {snippets.length > 0 && <span className="tab-count">{snippets.length}</span>}
+          <kbd className="tab-shortcut">{kb('⌃⌥⌘S', '⌃⇧⎇S')}</kbd>
         </button>
       </div>
 
       <div className="toolbar-row" ref={toolbarRef}>
-        <SearchBar ref={searchBarRef} value={query} onChange={setQuery} />
+        <SearchBar
+          ref={searchBarRef}
+          value={query}
+          onChange={setQuery}
+          shortcutHint={kb('⌃⌥⌘F', '⌃⇧⎇F')}
+        />
         {activeCount > 0 && (
           <>
             <button

@@ -143,6 +143,9 @@ export function listSkillFiles(config: SkillsConfig): SkillFileEntry[] {
       if (!agent.owns(relPosix)) continue;
       seen.add(full);
       const isRouter = relPosix === agent.routerRelPath;
+      const isSnippetsRouter =
+        !!agent.snippetsRouterRelPath && relPosix === agent.snippetsRouterRelPath;
+      const isSnippets = !isSnippetsRouter && !!agent.isSnippetFile?.(relPosix);
       const dir = path.posix.dirname(relPosix);
       // Folder-per-skill agents read best labeled by their folder name.
       const label =
@@ -157,12 +160,19 @@ export function listSkillFiles(config: SkillsConfig): SkillFileEntry[] {
         title: meta.title,
         description: meta.description,
         isRouter,
+        isSnippetsRouter,
+        isSnippets,
       });
     }
   }
 
-  // Routers first, then alphabetical; the UI regroups per agent.
-  out.sort((a, b) => Number(b.isRouter) - Number(a.isRouter) || a.label.localeCompare(b.label));
+  // Component router first, snippets router second, rest alphabetical; UI regroups per agent.
+  out.sort(
+    (a, b) =>
+      Number(b.isRouter) - Number(a.isRouter) ||
+      Number(b.isSnippetsRouter) - Number(a.isSnippetsRouter) ||
+      a.label.localeCompare(b.label),
+  );
   return out;
 }
 

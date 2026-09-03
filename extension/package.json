@@ -49,7 +49,7 @@
       "snapdsSidebar": [
         {
           "id": "snapds.gallery",
-          "name": "Components",
+          "name": "Gallery",
           "type": "webview",
           "contextualTitle": "Snapds"
         }

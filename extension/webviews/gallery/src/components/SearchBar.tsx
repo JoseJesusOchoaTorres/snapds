@@ -4,6 +4,8 @@ import { ClearIcon } from './icons';
 interface Props {
   value: string;
   onChange: (v: string) => void;
+  /** Optional keyboard shortcut hint shown when the search field is empty. */
+  shortcutHint?: string;
 }
 
 export interface SearchBarHandle {
@@ -11,7 +13,7 @@ export interface SearchBarHandle {
 }
 
 export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
-  { value, onChange },
+  { value, onChange, shortcutHint },
   ref,
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -42,7 +44,7 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
           }
         }}
       />
-      {value && (
+      {value ? (
         <button
           type="button"
           className="search-clear"
@@ -52,6 +54,8 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
         >
           <ClearIcon />
         </button>
+      ) : (
+        shortcutHint && <kbd className="search-shortcut">{shortcutHint}</kbd>
       )}
     </div>
   );

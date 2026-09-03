@@ -7,7 +7,7 @@ import type {
   SkillsConfig,
 } from '../util/messaging';
 import { emitImport, generateExampleJSX, generateImport, splitComponentId } from './codegen';
-import { AGENTS } from './skillAgents';
+import { AGENTS, type SnippetFrontmatterCtx } from './skillAgents';
 
 export type { SkillFormat };
 
@@ -77,6 +77,21 @@ function resolveSlugs(components: ComponentMeta[]): Map<string, string> {
     while (used.has(candidate)) candidate = `${base}-${n++}`;
     used.add(candidate);
     map.set(meta.id, candidate);
+  }
+  return map;
+}
+
+/** Resolves a unique kebab-case slug per snippet by name, deduping collisions with -2, -3, … */
+function resolveSnippetSlugs(snippets: CustomSnippet[]): Map<string, string> {
+  const used = new Set<string>();
+  const map = new Map<string, string>();
+  for (const s of snippets) {
+    const base = kebab(s.name) || 'snippet';
+    let candidate = base;
+    let n = 2;
+    while (used.has(candidate)) candidate = `${base}-${n++}`;
+    used.add(candidate);
+    map.set(s.id, candidate);
   }
   return map;
 }
@@ -200,20 +215,117 @@ function buildCatalogEntry(meta: ComponentMeta, guidance = '', compact = false):
 }
 
 /**
- * Renders the "Custom Snippets" section appended to the router/main file when
- * snippet-skill generation is enabled. Grouped by category; each snippet shows
- * its description, required imports, and code so an agent can reproduce it.
+ * Builds the snippets router file for non-consolidated agents. It plays the same
+ * role as the component router but for snippets: a lightweight always-loadable index
+ * that lists every snippet and links to its per-snippet detail file.
  */
-function buildSnippetsSection(snippets: CustomSnippet[]): string[] {
-  if (snippets.length === 0) return [];
+export function buildSnippetsRouterMarkdown(
+  snippets: CustomSnippet[],
+  slugs: Map<string, string>,
+  format: SkillFormat,
+): string {
+  const agent = AGENTS[format];
+  const parts: string[] = [];
+  const fm = agent.snippetsRouterFrontmatter?.();
+  if (fm) parts.push(fm);
+  parts.push(
+    AUTOGEN_HEADER,
+    '',
+    '# Custom Snippets',
+    '',
+    'Team code snippets captured with Snapds. Load a snippet sub-skill when you need a pattern similar to what it describes.',
+    '',
+  );
+
   const byCat = new Map<string, CustomSnippet[]>();
   for (const s of snippets) {
-    const cat = s.category?.trim() || '(Uncategorized)';
+    const cat = s.category?.trim() || 'Uncategorized';
     const list = byCat.get(cat);
     if (list) list.push(s);
     else byCat.set(cat, [s]);
   }
 
+  if (agent.layout === 'flat-lazy') {
+    // Name-only discovery: agent loads the matching rule file on demand.
+    parts.push('- Load a snippet rule by its name when building a similar pattern.', '');
+    for (const [cat, list] of byCat) {
+      parts.push(`## ${cat}`, '');
+      // biome-ignore lint/style/noNonNullAssertion: list derives from snippets, the same array used to build slugs
+      parts.push(list.map((s) => `snapds-snippet-${slugs.get(s.id)!}`).join(', '), '');
+    }
+    return parts.join('\n');
+  }
+
+  // folder / generic: table with links to each detail file.
+  const snippetsRouterRelPath = agent.snippetsRouterRelPath ?? agent.routerRelPath;
+  const from = path.posix.dirname(snippetsRouterRelPath);
+
+  for (const [cat, list] of byCat) {
+    parts.push(`## ${cat}`, '', '| Snippet | Skill |', '|---------|-------|');
+    for (const s of list) {
+      // biome-ignore lint/style/noNonNullAssertion: list derives from snippets, same array as slugs
+      const slug = slugs.get(s.id)!;
+      const relPath = agent.snippetRelPath?.(slug) ?? slug;
+      const target = path.posix.relative(from, relPath) || relPath;
+      const href = target.startsWith('.') ? target : `./${target}`;
+      parts.push(`| ${s.name} | [snapds-snippet-${slug}](${href}) |`);
+    }
+    parts.push('');
+  }
+  return parts.join('\n');
+}
+
+/**
+ * Builds the per-snippet detail file for non-consolidated agents.
+ * Contains frontmatter, description, category, and the full snippet code.
+ */
+export function buildSnippetDetailMarkdown(
+  snippet: CustomSnippet,
+  slug: string,
+  format: SkillFormat,
+): string {
+  const agent = AGENTS[format];
+  const ctx: SnippetFrontmatterCtx = {
+    name: snippet.name,
+    slug,
+    category: snippet.category?.trim() || 'Uncategorized',
+    description: snippet.description?.trim() || '',
+  };
+  const parts: string[] = [];
+  const fm = agent.snippetFrontmatter?.(ctx);
+  if (fm) parts.push(fm);
+  parts.push(AUTOGEN_HEADER, '', `# ${snippet.name}`, '');
+  if (ctx.category) parts.push(`**Category:** ${ctx.category}`, '');
+  if (ctx.description) parts.push(ctx.description, '');
+  const lang = snippet.languageId === 'javascriptreact' ? 'jsx' : 'tsx';
+  const importLines = snippet.imports.map(emitImport);
+  const body = importLines.length > 0 ? [...importLines, '', snippet.code] : [snippet.code];
+  parts.push(`\`\`\`${lang}`, ...body, '```', '');
+  return parts.join('\n');
+}
+
+/**
+ * @deprecated Renamed to buildSnippetsRouterMarkdown.
+ * Kept as a thin wrapper so existing tests that import this name still compile.
+ */
+export function buildSnippetsSkillMarkdown(snippets: CustomSnippet[], format: SkillFormat): string {
+  return buildSnippetsRouterMarkdown(snippets, resolveSnippetSlugs(snippets), format);
+}
+
+/**
+ * Inline snippets section — used only by consolidated agents (copilot, cline)
+ * that have no per-file lazy loading. Non-consolidated agents get a dedicated
+ * snippets router + per-snippet detail files.
+ */
+function buildSnippetsInline(snippets: CustomSnippet[]): string[] {
+  if (snippets.length === 0) return [];
+  const byCat = new Map<string, CustomSnippet[]>();
+  for (const s of snippets) {
+    const cat = s.category?.trim() || 'Uncategorized';
+    const list = byCat.get(cat);
+    if (list) list.push(s);
+    else byCat.set(cat, [s]);
+  }
   const parts = [
     '',
     '## Custom Snippets',
@@ -236,6 +348,44 @@ function buildSnippetsSection(snippets: CustomSnippet[]): string[] {
 }
 
 /**
+ * Component router reference block pointing at the snippets router file.
+ * Inserted after the components section so the agent knows a snippets router
+ * exists and can load it (and from it, per-snippet detail files) on demand.
+ */
+function buildSnippetsRouterRef(format: SkillFormat): string[] {
+  const agent = AGENTS[format];
+  if (!agent.snippetsRouterRelPath) return [];
+
+  const parts = ['', '## Custom Snippets', ''];
+
+  if (agent.layout === 'flat-lazy') {
+    // Flat-lazy: list the snippets router skill name for on-demand discovery.
+    parts.push(
+      '- Snippet patterns live beside this file; load `snapds-snippets` when you need a captured team pattern.',
+      '',
+      'snapds-snippets',
+      '',
+    );
+    return parts;
+  }
+
+  // folder / generic — link relative to the component router file
+  const from = path.posix.dirname(agent.routerRelPath);
+  const target =
+    path.posix.relative(from, agent.snippetsRouterRelPath) || agent.snippetsRouterRelPath;
+  const href = target.startsWith('.') ? target : `./${target}`;
+  parts.push(
+    'Team code patterns captured with Snapds — load when you need a pattern similar to these snippets.',
+    '',
+    '| Skill |',
+    '|-------|',
+    `| [snapds-snippets](${href}) |`,
+    '',
+  );
+  return parts;
+}
+
+/**
  * Builds the router/main file. Its shape adapts to the agent's layout so that
  * always-loaded routers (flat-lazy, consolidated) stay token-cheap:
  * - folder/generic: full component table linking to each detail file.
@@ -251,7 +401,13 @@ export function buildMainSkillMarkdown(
   snippets: CustomSnippet[] = [],
 ): string {
   const agent = AGENTS[format];
-  const snippetSection = buildSnippetsSection(snippets);
+  // Consolidated agents (no lazy loading) inline snippets; others link to the
+  // dedicated snippets router so the component router stays token-cheap.
+  const snippetSection = agent.snippetsRouterRelPath
+    ? snippets.length > 0
+      ? buildSnippetsRouterRef(format)
+      : []
+    : buildSnippetsInline(snippets);
   const pkgs = Array.from(
     new Set(components.map((c) => splitComponentId(c.id).pkg).filter(Boolean)),
   );
@@ -338,6 +494,27 @@ export function buildArtifacts(
       contents: buildMainSkillMarkdown(components, format, slugs, guidance, compact, snippets),
     },
   ];
+
+  // Non-consolidated agents: emit a snippets router + one detail file per snippet,
+  // mirroring the component router + per-component detail file pattern.
+  if (agent.snippetsRouterRelPath && snippets.length > 0) {
+    const snippetSlugs = resolveSnippetSlugs(snippets);
+    artifacts.push({
+      relativePath: agent.snippetsRouterRelPath,
+      contents: buildSnippetsRouterMarkdown(snippets, snippetSlugs, format),
+    });
+    if (agent.snippetRelPath) {
+      for (const snippet of snippets) {
+        // biome-ignore lint/style/noNonNullAssertion: snippet is from snippets, same array as snippetSlugs
+        const slug = snippetSlugs.get(snippet.id)!;
+        artifacts.push({
+          relativePath: agent.snippetRelPath(slug),
+          contents: buildSnippetDetailMarkdown(snippet, slug, format),
+        });
+      }
+    }
+  }
+
   if (!agent.componentRelPath) return artifacts;
   for (const meta of components) {
     if (changedIds && !changedIds.has(meta.id)) continue;

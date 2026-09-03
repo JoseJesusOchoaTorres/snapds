@@ -87,11 +87,13 @@ function SkillSelect({
   );
 }
 
-/** Router first, then alphabetical — matches how the host lists files per agent. */
+/** Component router → snippets router → rest alphabetical — matches the host's sort order. */
 function sortForDisplay(files: SkillFileEntry[]): SkillFileEntry[] {
   return [...files].sort(
     (a, b) =>
-      Number(b.isRouter ?? false) - Number(a.isRouter ?? false) || a.label.localeCompare(b.label),
+      Number(b.isRouter ?? false) - Number(a.isRouter ?? false) ||
+      Number(b.isSnippetsRouter ?? false) - Number(a.isSnippetsRouter ?? false) ||
+      a.label.localeCompare(b.label),
   );
 }
 
@@ -143,20 +145,68 @@ export function AiTab({
   // One group per selected agent that actually has files on disk, in display order.
   const groups = AGENT_META.map((a) => a.id)
     .filter((id) => skills.formats.includes(id))
-    .map((id) => ({ id, files: sortForDisplay(skillFiles.filter((f) => f.format === id)) }))
+    .map((id) => ({
+      id,
+      files: sortForDisplay(skillFiles.filter((f) => f.format === id)),
+    }))
     .filter((g) => g.files.length > 0);
 
-  const renderGrid = (files: SkillFileEntry[]) => (
+  const openSkill = (path: string) => vscode.postMessage({ type: 'openSkill', path });
+
+  /** Renders a flat grid of cards (used within a section). */
+  const renderCards = (files: SkillFileEntry[]) => (
     <div className="skill-card-grid">
       {files.map((f) => (
-        <SkillCard
-          key={f.path}
-          file={f}
-          onOpen={(path) => vscode.postMessage({ type: 'openSkill', path })}
-        />
+        <SkillCard key={f.path} file={f} onOpen={openSkill} />
       ))}
     </div>
   );
+
+  /**
+   * Renders one agent's files split into four labelled groups:
+   * Router → Components → Snippet Router → Snippets.
+   * Every non-empty group gets a label so the UI is consistent regardless
+   * of which groups are present — all four or just two.
+   */
+  const renderGrid = (files: SkillFileEntry[]) => {
+    const routerFiles = files.filter((f) => f.isRouter);
+    const componentFiles = files.filter((f) => !f.isRouter && !f.isSnippetsRouter && !f.isSnippets);
+    const snippetsRouterFiles = files.filter((f) => f.isSnippetsRouter);
+    const snippetFiles = files.filter((f) => f.isSnippets);
+    const nonEmptyGroups = [routerFiles, componentFiles, snippetsRouterFiles, snippetFiles].filter(
+      (g) => g.length > 0,
+    ).length;
+    const showLabels = nonEmptyGroups > 1;
+
+    return (
+      <div className="skill-sections">
+        {routerFiles.length > 0 && (
+          <>
+            {showLabels && <span className="skill-section-label">Components Router</span>}
+            {renderCards(routerFiles)}
+          </>
+        )}
+        {componentFiles.length > 0 && (
+          <>
+            {showLabels && <span className="skill-section-label">Components</span>}
+            {renderCards(componentFiles)}
+          </>
+        )}
+        {snippetsRouterFiles.length > 0 && (
+          <>
+            {showLabels && <span className="skill-section-label">Snippet Router</span>}
+            {renderCards(snippetsRouterFiles)}
+          </>
+        )}
+        {snippetFiles.length > 0 && (
+          <>
+            {showLabels && <span className="skill-section-label">Snippets</span>}
+            {renderCards(snippetFiles)}
+          </>
+        )}
+      </div>
+    );
+  };
 
   const activeId = groups.some((g) => g.id === activeAgentTab) ? activeAgentTab : groups[0]?.id;
 
