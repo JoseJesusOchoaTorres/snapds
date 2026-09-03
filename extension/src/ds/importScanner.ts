@@ -43,7 +43,12 @@ export function parseImportsToSpecs(text: string): ImportSpec[] {
   const specs: ImportSpec[] = [];
   for (const p of parseImports(text)) {
     if (p.named.length > 0) {
-      specs.push({ kind: 'named', specifier: p.specifier, names: p.named.map((b) => b.text) });
+      specs.push({
+        kind: 'named',
+        specifier: p.specifier,
+        names: p.named.map((b) => b.text),
+        typeOnly: p.typeOnly,
+      });
     }
     if (p.default) specs.push({ kind: 'default', specifier: p.specifier, local: p.default });
     if (p.namespace) specs.push({ kind: 'namespace', specifier: p.specifier, local: p.namespace });
@@ -61,7 +66,10 @@ export function usedIdentifiers(text: string): Set<string> {
 interface NamedBinding {
   /** Local name to match against usage (the alias when `X as Y`, else the name). */
   local: string;
-  /** Text to re-emit inside the braces (`X` or `X as Y`). */
+  /**
+   * Text to re-emit inside the braces (`X`, `X as Y`, `type X`, or `type X as Y`).
+   * Preserves any leading `type` modifier so round-tripping keeps it.
+   */
   text: string;
 }
 
@@ -70,18 +78,31 @@ interface ParsedImport {
   default?: string;
   namespace?: string;
   named: NamedBinding[];
+  /** True when the import declaration starts with `import type …` (declaration-level). */
+  typeOnly?: boolean;
 }
 
 /** Extracts structured import statements from source. Side-effect imports are ignored. */
 export function parseImports(fileText: string): ParsedImport[] {
   const result: ParsedImport[] = [];
+  // Pre-strip bare side-effect imports (`import './reset.css'`) before the main
+  // regex runs, so they can't bridge into a subsequent real import via the lazy
+  // `[\s\S]*?` clause.  The replacement preserves the line so line-numbers stay
+  // stable and subsequent `\n`-based splits still work.
+  const cleanText = fileText.replace(/^\s*import\s+['"`][^'"`]*['"`]\s*;?[ \t]*/gm, '');
   // `import <clause> from '<specifier>'`. The clause is captured lazily so the
   // first following `from '...'` terminates it (handles multi-line clauses).
   const re = /import\s+(?:type\s+)?([\s\S]*?)\s+from\s+['"]([^'"]+)['"]/g;
-  for (const m of fileText.matchAll(re)) {
+  for (const m of cleanText.matchAll(re)) {
     const clause = m[1].trim();
     const specifier = m[2];
-    const parsed: ParsedImport = { specifier, named: [] };
+
+    // Belt-and-suspenders guard: if the clause still starts with a quote the
+    // regex somehow merged two imports — skip the bad match.
+    if (/^['"`]/.test(clause)) continue;
+
+    const typeOnly = /^import\s+type\s+/.test(m[0]);
+    const parsed: ParsedImport = { specifier, named: [], typeOnly };
 
     const namespaceMatch = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
     if (namespaceMatch) parsed.namespace = namespaceMatch[1];
@@ -89,12 +110,16 @@ export function parseImports(fileText: string): ParsedImport[] {
     const bracesMatch = clause.match(/\{([\s\S]*)\}/);
     if (bracesMatch) {
       for (const raw of bracesMatch[1].split(',')) {
-        const binding = raw.trim().replace(/^type\s+/, '');
-        if (!binding) continue;
+        const rawTrimmed = raw.trim();
+        if (!rawTrimmed) continue;
+        // Strip `type ` for the local name (usage matching) but keep the full
+        // text for re-emission so inline type modifiers round-trip correctly.
+        const binding = rawTrimmed.replace(/^type\s+/, '');
         const asMatch = binding.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/);
-        if (asMatch) parsed.named.push({ local: asMatch[2], text: binding });
-        else if (/^[A-Za-z_$][\w$]*$/.test(binding)) {
-          parsed.named.push({ local: binding, text: binding });
+        if (asMatch) {
+          parsed.named.push({ local: asMatch[2], text: rawTrimmed });
+        } else if (/^[A-Za-z_$][\w$]*$/.test(binding)) {
+          parsed.named.push({ local: binding, text: rawTrimmed });
         }
       }
     }

@@ -6,6 +6,10 @@ interface Props {
   onChange: (v: string) => void;
   /** Optional keyboard shortcut hint shown when the search field is empty. */
   shortcutHint?: string;
+  /** Accessible label for the input; defaults to 'Search'. */
+  ariaLabel?: string;
+  /** Visible placeholder text; defaults to 'Search…'. */
+  placeholder?: string;
 }
 
 export interface SearchBarHandle {
@@ -13,7 +17,7 @@ export interface SearchBarHandle {
 }
 
 export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
-  { value, onChange, shortcutHint },
+  { value, onChange, shortcutHint, ariaLabel = 'Search', placeholder = 'Search…' },
   ref,
 ) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -30,8 +34,8 @@ export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
       <input
         ref={inputRef}
         type="text"
-        aria-label="Search components"
-        placeholder="Search components…"
+        aria-label={ariaLabel}
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {

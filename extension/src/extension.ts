@@ -342,13 +342,22 @@ function sharedConfigPath(ac: ActivationCtx): string | undefined {
  * Parses the owning config file directly (no `extends` resolution) for shared
  * snippet WRITES — so we edit only that file's own snippets and never copy
  * extends-inherited ones down into it. Reads/listing still use the resolved config.
+ *
+ * Returns `{}` only when the file does not exist (ENOENT). Any other I/O error
+ * or a JSON parse failure is re-thrown so the caller aborts instead of
+ * silently overwriting the file with an empty config.
  */
 function readRawConfig(filePath: string): SnapdsConfig {
+  let raw: string;
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8')) as SnapdsConfig;
-  } catch {
-    return {};
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw err;
   }
+  // Separate from the read so a SyntaxError propagates to the caller
+  // rather than silently returning {}, which would overwrite the file.
+  return JSON.parse(raw) as SnapdsConfig;
 }
 
 /**
@@ -385,7 +394,16 @@ async function persistSnippetResult(ac: ActivationCtx, result: SnippetSaveResult
 async function writeSharedSnippet(ac: ActivationCtx, snippet: CustomSnippet): Promise<boolean> {
   const filePath = sharedConfigPath(ac);
   if (!filePath) return false;
-  const next = upsertSharedSnippet(readRawConfig(filePath), snippet);
+  let raw: SnapdsConfig;
+  try {
+    raw = readRawConfig(filePath);
+  } catch {
+    vscode.window.showErrorMessage(
+      'Snapds: snapds.config.json contains invalid JSON — fix it before saving snippets.',
+    );
+    return false;
+  }
+  const next = upsertSharedSnippet(raw, snippet);
   // 'replace': `next` is the full owning file with customSnippets set exactly, so
   // this writes the authoritative list (a merge can't express a removal-to-empty).
   await writeConfigFile(next, filePath, 'replace');
@@ -397,7 +415,15 @@ async function removeSnippetFromStores(ac: ActivationCtx, snippet: CustomSnippet
   if (ac.snippetStore.get(snippet.id)) await ac.snippetStore.remove(snippet.id);
   const filePath = sharedConfigPath(ac);
   if (!filePath) return;
-  const raw = readRawConfig(filePath);
+  let raw: SnapdsConfig;
+  try {
+    raw = readRawConfig(filePath);
+  } catch {
+    vscode.window.showErrorMessage(
+      'Snapds: snapds.config.json contains invalid JSON — fix it to remove shared snippets.',
+    );
+    return;
+  }
   if (raw.customSnippets?.some((s) => s.id === snippet.id)) {
     await writeConfigFile(removeSharedSnippet(raw, snippet.id), filePath, 'replace');
   }
@@ -450,7 +476,15 @@ async function renameSnippetCategory(ac: ActivationCtx, from: string, to: string
 
   const filePath = sharedConfigPath(ac);
   if (filePath) {
-    const raw = readRawConfig(filePath);
+    let raw: SnapdsConfig;
+    try {
+      raw = readRawConfig(filePath);
+    } catch {
+      vscode.window.showErrorMessage(
+        'Snapds: snapds.config.json contains invalid JSON — fix it to rename categories.',
+      );
+      return;
+    }
     if (raw.customSnippets?.length) {
       const fromKey = normalizeCategory(from) ?? UNCATEGORIZED;
       const updated = raw.customSnippets.map((s) =>
@@ -476,7 +510,15 @@ async function recategorizeSnippet(
   if (snippet.scope === 'shared') {
     const filePath = sharedConfigPath(ac);
     if (filePath) {
-      const raw = readRawConfig(filePath);
+      let raw: SnapdsConfig;
+      try {
+        raw = readRawConfig(filePath);
+      } catch {
+        vscode.window.showErrorMessage(
+          'Snapds: snapds.config.json contains invalid JSON — fix it to move snippets.',
+        );
+        return;
+      }
       const updated = (raw.customSnippets ?? []).map((s) =>
         s.id === snippetId ? { ...s, category: cat } : s,
       );

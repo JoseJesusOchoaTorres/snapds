@@ -85,11 +85,17 @@ test('parseImports reads a multi-line named clause', () => {
   );
 });
 
-test('parseImports strips a per-binding type modifier', () => {
+test('parseImports preserves a per-binding type modifier in text for round-tripping', () => {
   const file = "import { type Props, Button } from '@acme/ui';";
   const parsed = parseImports(file);
+  // `text` keeps `type Props` verbatim so emitImport can reproduce it;
+  // `local` strips the modifier so usage matching still works.
   assert.deepEqual(
     parsed[0].named.map((b) => b.text),
+    ['type Props', 'Button'],
+  );
+  assert.deepEqual(
+    parsed[0].named.map((b) => b.local),
     ['Props', 'Button'],
   );
 });
@@ -101,8 +107,8 @@ test('parseImportsToSpecs converts confirmed import lines back into specs', () =
     "import * as styles from './x.css';",
   ].join('\n');
   assert.deepEqual(parseImportsToSpecs(text), [
-    { kind: 'named', specifier: '@acme/ui', names: ['Button', 'Label'] },
-    { kind: 'named', specifier: 'react', names: ['useState'] },
+    { kind: 'named', specifier: '@acme/ui', names: ['Button', 'Label'], typeOnly: false },
+    { kind: 'named', specifier: 'react', names: ['useState'], typeOnly: false },
     { kind: 'default', specifier: 'react', local: 'React' },
     { kind: 'namespace', specifier: './x.css', local: 'styles' },
   ]);
@@ -110,5 +116,7 @@ test('parseImportsToSpecs converts confirmed import lines back into specs', () =
 
 test('parseImportsToSpecs round-trips through emitImport-style lines', () => {
   const specs = parseImportsToSpecs("import { Button as Btn } from '@acme/ui';");
-  assert.deepEqual(specs, [{ kind: 'named', specifier: '@acme/ui', names: ['Button as Btn'] }]);
+  assert.deepEqual(specs, [
+    { kind: 'named', specifier: '@acme/ui', names: ['Button as Btn'], typeOnly: false },
+  ]);
 });

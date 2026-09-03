@@ -6,14 +6,14 @@ afterEach(cleanup);
 
 describe('SearchBar', () => {
   it('exposes an accessible, labelled search input', () => {
-    render(<SearchBar value="" onChange={() => {}} />);
+    render(<SearchBar value="" onChange={() => {}} ariaLabel="Search components" />);
     const input = screen.getByRole('textbox', { name: 'Search components' });
     expect(input).toBeTruthy();
   });
 
   it('calls onChange with the typed value', () => {
     const onChange = vi.fn();
-    render(<SearchBar value="" onChange={onChange} />);
+    render(<SearchBar value="" onChange={onChange} ariaLabel="Search components" />);
     const input = screen.getByRole('textbox', { name: 'Search components' });
     fireEvent.change(input, { target: { value: 'button' } });
     expect(onChange).toHaveBeenCalledWith('button');
@@ -34,7 +34,7 @@ describe('SearchBar', () => {
 
   it('clears the query when Escape is pressed with text present', () => {
     const onChange = vi.fn();
-    render(<SearchBar value="button" onChange={onChange} />);
+    render(<SearchBar value="button" onChange={onChange} ariaLabel="Search components" />);
     const input = screen.getByRole('textbox', { name: 'Search components' });
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(onChange).toHaveBeenCalledWith('');
@@ -42,7 +42,7 @@ describe('SearchBar', () => {
 
   it('does not fire onChange on Escape when the query is already empty', () => {
     const onChange = vi.fn();
-    render(<SearchBar value="" onChange={onChange} />);
+    render(<SearchBar value="" onChange={onChange} ariaLabel="Search components" />);
     const input = screen.getByRole('textbox', { name: 'Search components' });
     fireEvent.keyDown(input, { key: 'Escape' });
     expect(onChange).not.toHaveBeenCalled();

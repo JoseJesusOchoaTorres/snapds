@@ -90,6 +90,12 @@ function findLastImportEnd(text: string): number {
 export function emitImport(spec: ImportSpec): string {
   switch (spec.kind) {
     case 'named':
+      // Declaration-level type import: `import type { Foo, Bar }`.
+      // Inline type modifiers (`import { type Foo, Bar }`) are preserved as-is
+      // in the names strings, so no special handling is needed for that form.
+      if (spec.typeOnly) {
+        return `import type { ${spec.names.join(', ')} } from '${spec.specifier}';`;
+      }
       return `import { ${spec.names.join(', ')} } from '${spec.specifier}';`;
     case 'default':
       return `import ${spec.local} from '${spec.specifier}';`;

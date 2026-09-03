@@ -21,6 +21,13 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
   /** Last per-package progress, replayed alongside `activeIndexing` so a view that
    *  opens mid-indexing shows the correct counter/name instead of a stale 0/N. */
   private lastProgress: { done: number; total: number; pkg: string } | null = null;
+  /**
+   * True once the webview's React app has sent its `ready` message and registered
+   * its message listener. Messages posted before that point are queued below.
+   */
+  private isReady = false;
+  private pendingTab: 'components' | 'snippets' | undefined;
+  private pendingFocusSearch = false;
 
   constructor(
     private ctx: vscode.ExtensionContext,
@@ -38,6 +45,7 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage((msg: FromGallery) => {
       switch (msg.type) {
         case 'ready': {
+          this.isReady = true;
           // Replay the indexing state so the gallery shows skeletons even when
           // the view first became visible after indexing had already started.
           // Capture progress first: postIndexing() clears it.
@@ -51,6 +59,15 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
                 replayProgress.pkg,
               );
             }
+          }
+          // Flush any tab/search-focus commands that arrived before React mounted.
+          if (this.pendingTab) {
+            this.post({ type: 'switchTab', tab: this.pendingTab });
+            this.pendingTab = undefined;
+          }
+          if (this.pendingFocusSearch) {
+            this.post({ type: 'focusSearch' });
+            this.pendingFocusSearch = false;
           }
           void this.handlers.onReady();
           break;
@@ -74,6 +91,7 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
     });
 
     webviewView.onDidDispose(() => {
+      this.isReady = false;
       this.view = undefined;
     });
   }
@@ -87,11 +105,20 @@ export class GalleryViewProvider implements vscode.WebviewViewProvider {
   }
 
   postSwitchTab(tab: 'components' | 'snippets'): void {
-    this.post({ type: 'switchTab', tab });
+    if (this.isReady) {
+      this.post({ type: 'switchTab', tab });
+    } else {
+      // Queue for delivery when the webview's React app signals ready.
+      this.pendingTab = tab;
+    }
   }
 
   postFocusSearch(): void {
-    this.post({ type: 'focusSearch' });
+    if (this.isReady) {
+      this.post({ type: 'focusSearch' });
+    } else {
+      this.pendingFocusSearch = true;
+    }
   }
 
   postIndexing(packages: string[]): void {

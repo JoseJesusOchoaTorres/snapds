@@ -1,9 +1,11 @@
+import * as fs from 'node:fs';
 import * as vscode from 'vscode';
 import type { DsPackage, DsRegistry } from '../ds/dsRegistry';
 import { getSkillsConfig, setSkillsConfig } from '../ds/skillWriter';
 import type { UserOverridesStore } from '../state/userOverrides';
 import { normalizePackage, resolveConfig } from './configResolver';
 import type { ImportChangeSummary, SnapdsConfig } from './configSchema';
+import { writeConfigFile } from './configSerializer';
 import { diffSharedSnippets, readSharedSnippets } from './sharedSnippets';
 
 const SCOPE_FILTERS_KEY = 'snapds.scopeFilters';
@@ -130,6 +132,27 @@ export async function applyConfig(
       for (const [compName, override] of Object.entries(pkg.overrides)) {
         await userOverrides.set(pkg.name, compName, override);
       }
+    }
+  }
+
+  // Persist shared snippets to the owning config file so the import transaction
+  // is complete. We write only when customSnippets is explicitly set (including
+  // an empty array — that means "remove all shared snippets").
+  if (incoming.customSnippets !== undefined) {
+    const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const owningPath = folder ? resolveConfig(folder)?.owningPath : undefined;
+    if (owningPath) {
+      let rawConfig: SnapdsConfig = {};
+      try {
+        rawConfig = JSON.parse(fs.readFileSync(owningPath, 'utf8')) as SnapdsConfig;
+      } catch {
+        // File missing or unreadable → write from scratch.
+      }
+      await writeConfigFile(
+        { ...rawConfig, customSnippets: incoming.customSnippets },
+        owningPath,
+        'replace',
+      );
     }
   }
 }

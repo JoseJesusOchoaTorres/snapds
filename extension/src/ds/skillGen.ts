@@ -16,6 +16,23 @@ export interface SkillArtifact {
   contents: string;
 }
 
+/**
+ * Returns a fenced code block string whose delimiter is always longer than any
+ * consecutive backtick run inside `bodyLines`. This prevents snippet code that
+ * contains template literals or embedded Markdown from closing the fence early.
+ *
+ * @param lang  language identifier appended to the opening fence (e.g. `tsx`)
+ */
+function codeFence(bodyLines: string[], lang: string): string[] {
+  const content = bodyLines.join('\n');
+  let max = 2;
+  for (const m of content.matchAll(/`+/g)) {
+    if (m[0].length > max) max = m[0].length;
+  }
+  const fence = '`'.repeat(max + 1);
+  return [`${fence}${lang}`, ...bodyLines, fence, ''];
+}
+
 /** A generated skill file that exists on disk for a single component. */
 export interface ComponentSkillFile {
   path: string;
@@ -300,7 +317,7 @@ export function buildSnippetDetailMarkdown(
   const lang = snippet.languageId === 'javascriptreact' ? 'jsx' : 'tsx';
   const importLines = snippet.imports.map(emitImport);
   const body = importLines.length > 0 ? [...importLines, '', snippet.code] : [snippet.code];
-  parts.push(`\`\`\`${lang}`, ...body, '```', '');
+  parts.push(...codeFence(body, lang));
   return parts.join('\n');
 }
 
@@ -341,7 +358,7 @@ function buildSnippetsInline(snippets: CustomSnippet[]): string[] {
       const lang = s.languageId === 'javascriptreact' ? 'jsx' : 'tsx';
       const importLines = s.imports.map(emitImport);
       const body = importLines.length > 0 ? [...importLines, '', s.code] : [s.code];
-      parts.push(`\`\`\`${lang}`, ...body, '```', '');
+      parts.push(...codeFence(body, lang));
     }
   }
   return parts;

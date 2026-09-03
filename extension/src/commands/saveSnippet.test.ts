@@ -41,8 +41,8 @@ test('resultToSnippet mints an id when capturing and parses import lines to spec
   assert.equal(snip.languageId, 'typescriptreact');
   assert.equal(snip.createdAt, 'T');
   assert.deepEqual(snip.imports, [
-    { kind: 'named', specifier: '@acme/ui', names: ['Button'] },
-    { kind: 'named', specifier: '@acme/forms', names: ['Label'] },
+    { kind: 'named', specifier: '@acme/ui', names: ['Button'], typeOnly: false },
+    { kind: 'named', specifier: '@acme/forms', names: ['Label'], typeOnly: false },
   ]);
 });
 

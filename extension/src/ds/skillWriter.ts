@@ -1,5 +1,5 @@
 import * as fs from 'node:fs';
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, rmdir, unlink, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type {
@@ -259,6 +259,9 @@ export async function generateSkillsToConfig(
       config.compactConsolidated,
       skillSnippets,
     );
+    // Remove snippet files that no longer correspond to any selected snippet
+    // (e.g. a snippet was renamed or de-selected since the last run).
+    await pruneObsoleteSnippetFiles(base, format, new Set(artifacts.map((a) => a.relativePath)));
     // Auto-overwrite: no modal prompt on the automated path.
     const count = await writeArtifacts(base, artifacts, { value: true });
     if (count > 0) total += count;
@@ -334,6 +337,36 @@ export function resolveWithinBase(base: string, relativePath: string): string | 
   const rel = path.relative(resolvedBase, full);
   if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) return undefined;
   return full;
+}
+
+/**
+ * Deletes snippet skill files under `base` that are no longer in `desiredRels`.
+ * This prevents stale files from accumulating when snippets are renamed or removed.
+ * Also removes their parent folder when it becomes empty (folder-per-skill pattern).
+ * Best-effort: errors are swallowed so a permission failure never blocks a write run.
+ */
+async function pruneObsoleteSnippetFiles(
+  base: string,
+  format: SkillFormat,
+  desiredRels: Set<string>,
+): Promise<void> {
+  const agent = AGENTS[format];
+  for (const full of walkMarkdown(base)) {
+    const relPosix = path.relative(base, full).split(path.sep).join('/');
+    const isObsoleteSnippet = !!agent.isSnippetFile?.(relPosix) && !desiredRels.has(relPosix);
+    const isObsoleteRouter =
+      !!agent.snippetsRouterRelPath &&
+      relPosix === agent.snippetsRouterRelPath &&
+      !desiredRels.has(relPosix);
+    if (!isObsoleteSnippet && !isObsoleteRouter) continue;
+    try {
+      await unlink(full);
+      const dir = path.dirname(full);
+      if ((await readdir(dir)).length === 0) await rmdir(dir);
+    } catch {
+      // Best-effort: ignore if the file was already removed or access is denied.
+    }
+  }
 }
 
 /**
@@ -450,6 +483,11 @@ export async function runGenerateSkills(
           guidance,
           getSkillsConfig().compactConsolidated,
           skillSnippets,
+        );
+        await pruneObsoleteSnippetFiles(
+          base,
+          format,
+          new Set(artifacts.map((a) => a.relativePath)),
         );
         const count = await writeArtifacts(base, artifacts, confirmedOverwrite);
         if (count < 0) {

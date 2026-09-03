@@ -41,7 +41,18 @@ export interface ComponentMeta {
  * import is derived from its `pkg#Name` id.
  */
 export type ImportSpec =
-  | { kind: 'named'; specifier: string; names: string[] }
+  | {
+      kind: 'named';
+      specifier: string;
+      names: string[];
+      /**
+       * True when the original import used a declaration-level `type` modifier
+       * (`import type { Foo }`). When false, individual names may still carry
+       * inline `type` prefixes (`import { type Foo, Bar }`) — those are preserved
+       * verbatim in the `names` strings and round-trip through `emitImport`.
+       */
+      typeOnly?: boolean;
+    }
   | { kind: 'default'; specifier: string; local: string }
   | { kind: 'namespace'; specifier: string; local: string };
 

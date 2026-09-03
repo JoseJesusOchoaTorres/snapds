@@ -59,7 +59,14 @@ export class SnippetEditorProvider {
           this.flushPending();
           break;
         case 'save':
-          void Promise.resolve(this.handlers.onSave(msg.result)).finally(() => panel.dispose());
+          void Promise.resolve(this.handlers.onSave(msg.result)).then(
+            () => panel.dispose(),
+            (err: unknown) => {
+              const detail = err instanceof Error ? err.message : String(err);
+              vscode.window.showErrorMessage(`Snapds: failed to save snippet — ${detail}`);
+              // Leave the panel open so the user can retry without losing their draft.
+            },
+          );
           break;
         case 'cancel':
           this.handlers.onCancel?.();

@@ -211,6 +211,8 @@ export default function App() {
           value={query}
           onChange={setQuery}
           shortcutHint={kb('⌃⌥⌘F', '⌃⇧⎇F')}
+          ariaLabel={showComponents ? 'Search components' : 'Search snippets'}
+          placeholder={showComponents ? 'Search components…' : 'Search snippets…'}
         />
         {activeCount > 0 && (
           <>

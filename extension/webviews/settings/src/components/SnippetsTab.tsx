@@ -55,7 +55,7 @@ export function SnippetsTab({
       <div className="snip-empty">
         <p>No custom snippets yet.</p>
         <p className="snip-hint">
-          Select code in a React file and press <kbd>⌃⌥⌘N</kbd> (or right-click → “Save Selection as
+          Select code in a React file and press <kbd>⌃⌥⌘S</kbd> (or right-click → “Save Selection as
           Snippet”) to capture one.
         </p>
       </div>
