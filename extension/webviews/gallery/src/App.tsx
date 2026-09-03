@@ -1,32 +1,39 @@
 import { DRAG_MIME, vscode } from '@snapds/webview-shared';
 import { type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { ComponentRow } from './components/ComponentRow';
-import { CollapseAllIcon, ExpandAllIcon, FolderIcon } from './components/icons';
-import { SearchBar } from './components/SearchBar';
-import type { ComponentMeta, ToGallery } from './types';
+import { CollapseAllIcon, ExpandAllIcon, FolderIcon, TagIcon } from './components/icons';
+import { SearchBar, type SearchBarHandle } from './components/SearchBar';
+import { SnippetRow } from './components/SnippetRow';
+import type { ComponentMeta, CustomSnippet, ToGallery } from './types';
+
+const UNCATEGORIZED = 'Uncategorized';
+type Tab = 'components' | 'snippets';
+
+/** True when running on macOS — used to show platform-appropriate shortcut labels. */
+const isMac = typeof navigator !== 'undefined' && navigator.platform.startsWith('Mac');
+/** Returns the Mac or Win/Linux shortcut string. */
+const kb = (mac: string, win: string) => (isMac ? mac : win);
 
 export default function App() {
   const [components, setComponents] = useState<ComponentMeta[]>([]);
+  const [snippets, setSnippets] = useState<CustomSnippet[]>([]);
+  const [activeTab, setActiveTab] = useState<Tab>('components');
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Category groups get their OWN collapse map so category names can't collide
+  // with package names in the components tab.
+  const [snippetCollapsed, setSnippetCollapsed] = useState<Record<string, boolean>>({});
   const [pendingPackages, setPendingPackages] = useState<Set<string>>(new Set());
   const [totalIndexing, setTotalIndexing] = useState(0);
   const pendingRef = useRef<Set<string>>(new Set());
-  // Authoritative per-package progress from the host loop (same source as the
-  // notification toast). It is the ONLY signal that clears a package from the
-  // pending/skeleton set — full componentList snapshots never do, so a reindex
-  // over already-populated packages keeps its progress bar and skeletons until
-  // each package actually reports done.
   const [progress, setProgress] = useState<{ done: number; total: number; pkg: string } | null>(
     null,
   );
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const searchBarRef = useRef<SearchBarHandle>(null);
 
-  // Publish the sticky toolbar's height as a CSS var so package headers can
-  // stick right below it (they use `top: var(--snapds-toolbar-h)`). Re-measures
-  // on resize; guarded for jsdom where ResizeObserver is absent.
   useEffect(() => {
     const toolbar = toolbarRef.current;
     const root = rootRef.current;
@@ -43,10 +50,9 @@ export default function App() {
     const onMessage = (e: MessageEvent<ToGallery>) => {
       const msg = e.data;
       if (msg.type === 'componentList') {
-        // Snapshot updates component data only. It must NOT clear pending: during
-        // a reindex the first snapshot still carries every package's OLD
-        // components, which would wrongly mark them all done at once.
         setComponents(msg.components);
+      } else if (msg.type === 'snippetList') {
+        setSnippets(msg.snippets);
       } else if (msg.type === 'indexing') {
         pendingRef.current = new Set(msg.packages);
         setProgress(null);
@@ -54,14 +60,17 @@ export default function App() {
         if (msg.packages.length > 0) setTotalIndexing(msg.packages.length);
       } else if (msg.type === 'indexingProgress') {
         setProgress({ done: msg.done, total: msg.total, pkg: msg.pkg });
-        // Drop the just-finished package from the skeleton set even when it
-        // yielded zero components (no componentList arrives to clear it).
         if (pendingRef.current.has(msg.pkg)) {
           const next = new Set(pendingRef.current);
           next.delete(msg.pkg);
           pendingRef.current = next;
           setPendingPackages(next);
         }
+      } else if (msg.type === 'switchTab') {
+        setActiveTab(msg.tab);
+      } else if (msg.type === 'focusSearch') {
+        // Small delay so VS Code can finish bringing the view into focus first.
+        setTimeout(() => searchBarRef.current?.focus(), 80);
       }
     };
     window.addEventListener('message', onMessage);
@@ -74,11 +83,14 @@ export default function App() {
     return () => clearTimeout(t);
   }, [query]);
 
-  const filtered = useMemo(
-    () => components.filter((c) => c.name.toLowerCase().includes(query.toLowerCase())),
-    [components, query],
-  );
+  const hasQuery = query.trim().length > 0;
+  const q = query.toLowerCase();
 
+  // ── Components (tab 1) ──
+  const filtered = useMemo(
+    () => components.filter((c) => c.name.toLowerCase().includes(q)),
+    [components, q],
+  );
   const groupedComponents = useMemo(() => {
     const groups: Record<string, ComponentMeta[]> = {};
     for (const c of filtered) {
@@ -88,47 +100,121 @@ export default function App() {
     }
     return groups;
   }, [filtered]);
-
-  const handleSelect = (id: string) => {
-    setSelectedId(id);
-    vscode.postMessage({ type: 'componentSelected', componentId: id });
-  };
-
-  const toggleGroup = (pkg: string) => setCollapsed((prev) => ({ ...prev, [pkg]: !prev[pkg] }));
-
   const allPackages = useMemo(() => {
     const set = new Set<string>();
     for (const c of components) set.add(c.id.split('#')[0]);
     return [...set];
   }, [components]);
 
-  const expandAll = () => setCollapsed({});
-  const collapseAll = () =>
-    setCollapsed(Object.fromEntries([...allPackages, ...pendingPackages].map((p) => [p, true])));
+  // ── Snippets (tab 2) ──
+  const filteredSnippets = useMemo(
+    () =>
+      snippets.filter(
+        (s) => s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q),
+      ),
+    [snippets, q],
+  );
+  const groupedSnippets = useMemo(() => {
+    const groups: Record<string, CustomSnippet[]> = {};
+    for (const s of filteredSnippets) {
+      const cat = s.category?.trim() || UNCATEGORIZED;
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(s);
+    }
+    return groups;
+  }, [filteredSnippets]);
+  const allCategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of snippets) set.add(s.category?.trim() || UNCATEGORIZED);
+    return [...set];
+  }, [snippets]);
 
-  const hasQuery = query.trim().length > 0;
+  const handleSelect = (id: string) => {
+    setSelectedId(id);
+    vscode.postMessage({ type: 'componentSelected', componentId: id });
+  };
+  const handleSnippetSelect = (id: string) => {
+    setSelectedId(id);
+    vscode.postMessage({ type: 'snippetSelected', snippetId: id });
+  };
+
+  const toggleGroup = (key: string) => {
+    if (activeTab === 'components') setCollapsed((p) => ({ ...p, [key]: !p[key] }));
+    else setSnippetCollapsed((p) => ({ ...p, [key]: !p[key] }));
+  };
+
+  const expandAll = () => (activeTab === 'components' ? setCollapsed({}) : setSnippetCollapsed({}));
+  const collapseAll = () => {
+    if (activeTab === 'components') {
+      setCollapsed(Object.fromEntries([...allPackages, ...pendingPackages].map((p) => [p, true])));
+    } else {
+      setSnippetCollapsed(Object.fromEntries(allCategories.map((c) => [c, true])));
+    }
+  };
 
   const handleDragStart = (id: string, e: DragEvent<HTMLDivElement>) => {
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ componentId: id }));
     e.dataTransfer.setData('text/plain', id);
   };
+  const handleSnippetDragStart = (snip: CustomSnippet, e: DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ snippetId: snip.id }));
+    e.dataTransfer.setData('text/plain', snip.code);
+  };
 
   const isIndexing = pendingPackages.size > 0;
-  // Bar counter/name: prefer the host's authoritative progress; fall back to the
-  // componentList diff only until the first progress event lands.
   const indexingDone = progress ? progress.done : totalIndexing - pendingPackages.size;
   const indexingTotal = progress ? progress.total : totalIndexing;
   const indexingName = progress?.pkg || [...pendingPackages][0];
-  // Packages still loading that haven't appeared in the component list yet.
   const pendingList = [...pendingPackages].filter((p) => !groupedComponents[p]);
-  const showTree = filtered.length > 0 || pendingList.length > 0;
+
+  const showComponents = activeTab === 'components';
+  const activeCount = showComponents ? filtered.length : filteredSnippets.length;
+  const showComponentTree = filtered.length > 0 || pendingList.length > 0;
+  const showSnippetTree = filteredSnippets.length > 0;
+  const hasNoSnippetsAtAll = snippets.length === 0;
+  const hasSnippetsButNoMatch = snippets.length > 0 && filteredSnippets.length === 0;
 
   return (
     <div className="root" ref={rootRef}>
+      <div className="tabs" role="tablist" aria-label="Gallery sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={showComponents}
+          className={`tab${showComponents ? ' active' : ''}`}
+          title={`Open Components (${kb('⌃⌥⌘C', 'Ctrl+Shift+Alt+C')})`}
+          onClick={() => setActiveTab('components')}
+        >
+          Components
+          {components.length > 0 && <span className="tab-count">{components.length}</span>}
+          <kbd className="tab-shortcut">{kb('⌃⌥⌘C', '⌃⇧⎇C')}</kbd>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!showComponents}
+          className={`tab${!showComponents ? ' active' : ''}`}
+          title={`Open Custom Snippets (${kb('⌃⌥⌘S', 'Ctrl+Shift+Alt+S')})`}
+          onClick={() => setActiveTab('snippets')}
+        >
+          Custom Snippets
+          {snippets.length > 0 && <span className="tab-count">{snippets.length}</span>}
+          <kbd className="tab-shortcut">{kb('⌃⌥⌘S', '⌃⇧⎇S')}</kbd>
+        </button>
+      </div>
+
       <div className="toolbar-row" ref={toolbarRef}>
-        <SearchBar value={query} onChange={setQuery} />
-        {components.length > 0 && (
+        <SearchBar
+          ref={searchBarRef}
+          value={query}
+          onChange={setQuery}
+          shortcutHint={kb('⌃⌥⌘F', '⌃⇧⎇F')}
+          ariaLabel={showComponents ? 'Search components' : 'Search snippets'}
+          placeholder={showComponents ? 'Search components…' : 'Search snippets…'}
+        />
+        {activeCount > 0 && (
           <>
             <button
               type="button"
@@ -150,16 +236,14 @@ export default function App() {
             >
               <CollapseAllIcon />
             </button>
-            <span
-              className="toolbar-total"
-              title={`${filtered.length} component${filtered.length !== 1 ? 's' : ''} total`}
-            >
-              {filtered.length}
+            <span className="toolbar-total" title={`${activeCount} total`}>
+              {activeCount}
             </span>
           </>
         )}
       </div>
-      {isIndexing && (
+
+      {showComponents && isIndexing && (
         <div className="indexing-bar" role="status" aria-live="polite">
           <div className="indexing-row">
             <span className="indexing-spinner" aria-hidden="true" />
@@ -173,47 +257,151 @@ export default function App() {
           </p>
         </div>
       )}
-      {showTree ? (
+
+      {showComponents ? (
+        showComponentTree ? (
+          <div className="tree" role="tree">
+            {Object.entries(groupedComponents).map(([pkgName, pkgComponents]) => {
+              const isOpen = hasQuery || !collapsed[pkgName];
+              return (
+                <div key={pkgName} className="tree-group">
+                  <div
+                    className="tree-row tree-group-header"
+                    role="treeitem"
+                    aria-level={1}
+                    aria-expanded={isOpen}
+                    tabIndex={0}
+                    onClick={() => toggleGroup(pkgName)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleGroup(pkgName);
+                      } else if (e.key === 'ArrowRight' && !isOpen) {
+                        e.preventDefault();
+                        toggleGroup(pkgName);
+                      } else if (e.key === 'ArrowLeft' && isOpen) {
+                        e.preventDefault();
+                        toggleGroup(pkgName);
+                      }
+                    }}
+                  >
+                    <span className={`twisty${isOpen ? ' open' : ''}`} aria-hidden="true" />
+                    <FolderIcon />
+                    <span className="tree-label">{pkgName}</span>
+                    <span className="tree-badge">{pkgComponents.length}</span>
+                  </div>
+                  {isOpen && (
+                    // biome-ignore lint/a11y/useSemanticElements: role="group" is the correct ARIA tree subgroup.
+                    <div role="group">
+                      {pkgComponents.map((c) => (
+                        <ComponentRow
+                          key={c.id}
+                          meta={c}
+                          selected={c.id === selectedId}
+                          onClick={() => handleSelect(c.id)}
+                          onDragStart={(e) => handleDragStart(c.id, e)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {pendingList.map((pkg) => {
+              const isOpen = hasQuery || !collapsed[pkg];
+              return (
+                <div key={`loading-${pkg}`} className="tree-group">
+                  <div
+                    className="tree-row tree-group-header tree-group-loading"
+                    role="treeitem"
+                    aria-level={1}
+                    aria-busy="true"
+                    aria-expanded={isOpen}
+                    aria-label={`Loading ${pkg}`}
+                    tabIndex={0}
+                    onClick={() => toggleGroup(pkg)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleGroup(pkg);
+                      }
+                    }}
+                  >
+                    <span className={`twisty${isOpen ? ' open' : ''}`} aria-hidden="true" />
+                    <FolderIcon />
+                    <span className="tree-label">{pkg}</span>
+                    <span className="tree-loading-spinner" aria-hidden="true" />
+                  </div>
+                  {isOpen && (
+                    // biome-ignore lint/a11y/useSemanticElements: role="group" is the correct ARIA tree subgroup.
+                    <div role="group" aria-label={`Loading components for ${pkg}`}>
+                      <div className="skeleton-row">
+                        <div className="skeleton-bar" style={{ width: '55%' }} />
+                      </div>
+                      <div className="skeleton-row">
+                        <div
+                          className="skeleton-bar"
+                          style={{ width: '72%', animationDelay: '0.2s' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty">
+            {components.length === 0
+              ? 'Import a Snapds package to see components.'
+              : 'No components match your search.'}
+          </div>
+        )
+      ) : showSnippetTree ? (
         <div className="tree" role="tree">
-          {Object.entries(groupedComponents).map(([pkgName, pkgComponents]) => {
-            const isOpen = hasQuery || !collapsed[pkgName];
+          {Object.entries(groupedSnippets).map(([category, catSnippets]) => {
+            const isOpen = hasQuery || !snippetCollapsed[category];
             return (
-              <div key={pkgName} className="tree-group">
+              <div key={category} className="tree-group">
                 <div
                   className="tree-row tree-group-header"
                   role="treeitem"
                   aria-level={1}
                   aria-expanded={isOpen}
                   tabIndex={0}
-                  onClick={() => toggleGroup(pkgName)}
+                  onClick={() => toggleGroup(category)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      toggleGroup(pkgName);
+                      toggleGroup(category);
                     } else if (e.key === 'ArrowRight' && !isOpen) {
                       e.preventDefault();
-                      toggleGroup(pkgName);
+                      toggleGroup(category);
                     } else if (e.key === 'ArrowLeft' && isOpen) {
                       e.preventDefault();
-                      toggleGroup(pkgName);
+                      toggleGroup(category);
                     }
                   }}
                 >
                   <span className={`twisty${isOpen ? ' open' : ''}`} aria-hidden="true" />
-                  <FolderIcon />
-                  <span className="tree-label">{pkgName}</span>
-                  <span className="tree-badge">{pkgComponents.length}</span>
+                  <TagIcon />
+                  <span className="tree-label">{category}</span>
+                  <span className="tree-badge">{catSnippets.length}</span>
                 </div>
                 {isOpen && (
-                  // biome-ignore lint/a11y/useSemanticElements: role="group" is the correct ARIA tree subgroup; no HTML element maps to it here.
+                  // biome-ignore lint/a11y/useSemanticElements: role="group" is the correct ARIA tree subgroup.
                   <div role="group">
-                    {pkgComponents.map((c) => (
-                      <ComponentRow
-                        key={c.id}
-                        meta={c}
-                        selected={c.id === selectedId}
-                        onClick={() => handleSelect(c.id)}
-                        onDragStart={(e) => handleDragStart(c.id, e)}
+                    {catSnippets.map((s) => (
+                      <SnippetRow
+                        key={s.id}
+                        snippet={s}
+                        selected={s.id === selectedId}
+                        onClick={() => handleSnippetSelect(s.id)}
+                        onDragStart={(e) => handleSnippetDragStart(s, e)}
+                        onEdit={() => vscode.postMessage({ type: 'editSnippet', snippetId: s.id })}
+                        onDelete={() =>
+                          vscode.postMessage({ type: 'deleteSnippet', snippetId: s.id })
+                        }
                       />
                     ))}
                   </div>
@@ -221,68 +409,23 @@ export default function App() {
               </div>
             );
           })}
-          {pendingList.map((pkg) => {
-            const isOpen = hasQuery || !collapsed[pkg];
-            return (
-              <div key={`loading-${pkg}`} className="tree-group">
-                <div
-                  className="tree-row tree-group-header tree-group-loading"
-                  role="treeitem"
-                  aria-level={1}
-                  aria-busy="true"
-                  aria-expanded={isOpen}
-                  aria-label={`Loading ${pkg}`}
-                  tabIndex={0}
-                  onClick={() => toggleGroup(pkg)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      toggleGroup(pkg);
-                    } else if (e.key === 'ArrowRight' && !isOpen) {
-                      e.preventDefault();
-                      toggleGroup(pkg);
-                    } else if (e.key === 'ArrowLeft' && isOpen) {
-                      e.preventDefault();
-                      toggleGroup(pkg);
-                    }
-                  }}
-                >
-                  <span className={`twisty${isOpen ? ' open' : ''}`} aria-hidden="true" />
-                  <FolderIcon />
-                  <span className="tree-label">{pkg}</span>
-                  <span className="tree-loading-spinner" aria-hidden="true" />
-                </div>
-                {isOpen && (
-                  // biome-ignore lint/a11y/useSemanticElements: role="group" is the correct ARIA tree subgroup; no HTML element maps to it here.
-                  <div role="group" aria-label={`Loading components for ${pkg}`}>
-                    <div className="skeleton-row">
-                      <div className="skeleton-bar" style={{ width: '55%' }} />
-                    </div>
-                    <div className="skeleton-row">
-                      <div
-                        className="skeleton-bar"
-                        style={{ width: '72%', animationDelay: '0.2s' }}
-                      />
-                    </div>
-                    <div className="skeleton-row">
-                      <div
-                        className="skeleton-bar"
-                        style={{ width: '42%', animationDelay: '0.4s' }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
-      ) : (
-        <div className="empty">
-          {components.length === 0
-            ? 'Import a Snapds package to see components.'
-            : 'No components match your search.'}
+      ) : hasNoSnippetsAtAll ? (
+        <div className="empty snippet-onboarding">
+          <p className="snippet-onboarding-title">No custom snippets yet</p>
+          <p className="snippet-onboarding-body">
+            Select code in any React file and press <kbd>⌃⌥⌘S</kbd> (macOS) /{' '}
+            <kbd>Ctrl+Shift+Alt+S</kbd> (Win/Linux), or right-click →{' '}
+            <strong>Save Selection as Snippet</strong>.
+          </p>
+          <p className="snippet-onboarding-body">
+            Snippets are injected with their imports — drag them into a file or use <kbd>⌃⌥⌘I</kbd>{' '}
+            to search and insert.
+          </p>
         </div>
-      )}
+      ) : hasSnippetsButNoMatch ? (
+        <div className="empty">No snippets match your search.</div>
+      ) : null}
     </div>
   );
 }

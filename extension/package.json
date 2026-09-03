@@ -2,7 +2,7 @@
   "name": "snapds",
   "displayName": "Snapds",
   "description": "Browse, configure, and drop Snapds components into your React code.",
-  "version": "1.7.2",
+  "version": "1.8.0",
   "publisher": "Octojose",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -49,7 +49,7 @@
       "snapdsSidebar": [
         {
           "id": "snapds.gallery",
-          "name": "Components",
+          "name": "Gallery",
           "type": "webview",
           "contextualTitle": "Snapds"
         }
@@ -92,16 +92,57 @@
       },
       {
         "command": "snapds.quickSearch",
-        "title": "Snapds: Quick Component Search",
+        "title": "Snapds: Insert Component or Snippet",
+        "category": "Snapds"
+      },
+      {
+        "command": "snapds.saveSelectionAsSnippet",
+        "title": "Snapds: Save Selection as Snippet",
+        "category": "Snapds"
+      },
+      {
+        "command": "snapds.openGalleryComponents",
+        "title": "Snapds: Open Gallery — Components",
+        "category": "Snapds"
+      },
+      {
+        "command": "snapds.openGallerySnippets",
+        "title": "Snapds: Open Gallery — Custom Snippets",
+        "category": "Snapds"
+      },
+      {
+        "command": "snapds.focusGallerySearch",
+        "title": "Snapds: Focus Gallery Search",
         "category": "Snapds"
       }
     ],
     "keybindings": [
       {
+        "command": "snapds.openGalleryComponents",
+        "key": "ctrl+shift+alt+c",
+        "mac": "ctrl+alt+cmd+c"
+      },
+      {
+        "command": "snapds.openGallerySnippets",
+        "key": "ctrl+shift+alt+s",
+        "mac": "ctrl+alt+cmd+s",
+        "when": "!(editorTextFocus && editorHasSelection && (editorLangId == javascriptreact || editorLangId == typescriptreact))"
+      },
+      {
+        "command": "snapds.saveSelectionAsSnippet",
+        "key": "ctrl+shift+alt+s",
+        "mac": "ctrl+alt+cmd+s",
+        "when": "editorTextFocus && editorHasSelection && (editorLangId == javascriptreact || editorLangId == typescriptreact)"
+      },
+      {
+        "command": "snapds.focusGallerySearch",
+        "key": "ctrl+shift+alt+f",
+        "mac": "ctrl+alt+cmd+f"
+      },
+      {
         "command": "snapds.quickSearch",
-        "key": "ctrl+shift+alt+k",
-        "mac": "ctrl+alt+cmd+k",
-        "when": "editorTextFocus"
+        "key": "ctrl+shift+alt+i",
+        "mac": "ctrl+alt+cmd+i"
       }
     ],
     "menus": {
@@ -110,6 +151,13 @@
           "command": "snapds.openSettings",
           "when": "view == snapds.gallery",
           "group": "navigation@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "snapds.saveSelectionAsSnippet",
+          "when": "editorHasSelection && (editorLangId == javascriptreact || editorLangId == typescriptreact)",
+          "group": "0_snapds@1"
         }
       ]
     },
@@ -211,6 +259,13 @@
               "type": "boolean",
               "description": "Auto-generate skills when components are added"
             },
+            "skillSnippetIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Ids of custom snippets (local and shared) to append to generated skill files"
+            },
             "instructions": {
               "type": "object",
               "description": "Free-text guidance per component id (pkg#Name)",
@@ -225,9 +280,9 @@
   },
   "scripts": {
     "dev": "node esbuild.config.mjs --watch",
-    "dev:webviews": "vite build -c webviews/gallery/vite.config.ts --watch & vite build -c webviews/props/vite.config.ts --watch & vite build -c webviews/settings/vite.config.ts --watch & wait",
+    "dev:webviews": "vite build -c webviews/gallery/vite.config.ts --watch & vite build -c webviews/props/vite.config.ts --watch & vite build -c webviews/settings/vite.config.ts --watch & vite build -c webviews/snippet/vite.config.ts --watch & wait",
     "build": "pnpm run build:webviews && node esbuild.config.mjs --production",
-    "build:webviews": "vite build -c webviews/gallery/vite.config.ts && vite build -c webviews/props/vite.config.ts && vite build -c webviews/settings/vite.config.ts",
+    "build:webviews": "vite build -c webviews/gallery/vite.config.ts && vite build -c webviews/props/vite.config.ts && vite build -c webviews/settings/vite.config.ts && vite build -c webviews/snippet/vite.config.ts && node ../scripts/copy-webviews.mjs",
     "test": "pnpm run test:webviews && node esbuild.test.mjs && node --test \"dist-test/**/*.test.cjs\"",
     "test:webviews": "vitest run --config webviews/gallery/vite.config.ts && vitest run --config webviews/props/vite.config.ts && vitest run --config webviews/settings/vite.config.ts",
     "icon:png": "node scripts/render-icon.cjs",
@@ -244,9 +299,9 @@
     "@types/vscode": "^1.85.0",
     "@vitejs/plugin-react": "4.7.0",
     "@vscode/vsce": "^3.9.2",
-    "ovsx": "^0.9.0",
     "esbuild": "^0.28.1",
     "jsdom": "29.1.1",
+    "ovsx": "^0.9.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "typescript": "^5.4.0",
@@ -254,6 +309,12 @@
     "vitest": "3.2.6"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.0",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.2",
+    "@codemirror/view": "^6.43.10",
+    "@lezer/highlight": "^1.2.3",
     "react-docgen-typescript": "^2.2.2"
   }
 }

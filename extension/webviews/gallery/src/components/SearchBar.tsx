@@ -1,13 +1,28 @@
-import { useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { ClearIcon } from './icons';
 
 interface Props {
   value: string;
   onChange: (v: string) => void;
+  /** Optional keyboard shortcut hint shown when the search field is empty. */
+  shortcutHint?: string;
+  /** Accessible label for the input; defaults to 'Search'. */
+  ariaLabel?: string;
+  /** Visible placeholder text; defaults to 'Search…'. */
+  placeholder?: string;
 }
 
-export function SearchBar({ value, onChange }: Props) {
+export interface SearchBarHandle {
+  focus(): void;
+}
+
+export const SearchBar = forwardRef<SearchBarHandle, Props>(function SearchBar(
+  { value, onChange, shortcutHint, ariaLabel = 'Search', placeholder = 'Search…' },
+  ref,
+) {
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }));
 
   const clear = () => {
     onChange('');
@@ -19,8 +34,8 @@ export function SearchBar({ value, onChange }: Props) {
       <input
         ref={inputRef}
         type="text"
-        aria-label="Search components"
-        placeholder="Search components…"
+        aria-label={ariaLabel}
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -33,7 +48,7 @@ export function SearchBar({ value, onChange }: Props) {
           }
         }}
       />
-      {value && (
+      {value ? (
         <button
           type="button"
           className="search-clear"
@@ -43,7 +58,9 @@ export function SearchBar({ value, onChange }: Props) {
         >
           <ClearIcon />
         </button>
+      ) : (
+        shortcutHint && <kbd className="search-shortcut">{shortcutHint}</kbd>
       )}
     </div>
   );
-}
+});

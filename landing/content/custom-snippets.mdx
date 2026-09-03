@@ -1,0 +1,80 @@
+---
+title: Custom snippets
+description: Capture your own React code as reusable, injectable snippets — imports and all — right beside the design-system gallery.
+---
+
+# Custom snippets
+
+The gallery shows the components Snapds discovers in your packages. **Custom
+snippets** let you save your _own_ code the same way — a configured pair of
+buttons wrapped in a `Label`, a form layout, any pattern you reach for again and
+again — and then drag or inject it back later, imports included.
+
+## Capturing a snippet
+
+1. Select the code in a React file (`.tsx` / `.jsx`).
+2. Trigger the capture:
+   - press `⌃⌥⌘S` (macOS) or `Ctrl+Shift+Alt+S` (Windows / Linux) with text selected, **or**
+   - right-click the selection → **Save Selection as Snippet**.
+3. In the modal, give it a **name**, an optional **description**, and a
+   **category** — pick an existing one or type a new one. Leaving it blank files
+   the snippet under _Uncategorized_.
+4. Review the **imports**. Snapds parses the file and pre-fills every import your
+   selection actually references; untick any you don't want, edit them, or add
+   your own.
+5. Choose where it lives (see [Storage](#storage)) and save.
+
+<Callout type="info">
+Snapds captures from and injects into React files in this release
+(`javascriptreact` / `typescriptreact`). The capture shortcut and menu item only
+appear when text is selected in one.
+</Callout>
+
+## Using a snippet
+
+Saved snippets appear under a second **Custom Snippets** tab in the gallery — it
+becomes available as soon as you have one — grouped by category.
+
+- **Drag** a snippet into a React file, or
+- open **Insert** (`⌃⌥⌘I`) and pick it from the **Custom Snippets** section.
+
+Either way the snippet's code is inserted at the cursor and its imports are added
+to the top of the file — merged into existing import lines where possible, exactly
+like a component. Captured code is inserted verbatim (safely escaped), so template
+literals, `${expressions}`, and braces survive intact.
+
+## Managing snippets
+
+Each snippet row in the gallery has inline **edit** (reopens the modal) and
+**delete** actions. For bulk work, the **Snippets** tab in **Snapds Settings**
+lists every snippet and lets you:
+
+- toggle a snippet between **private** and **shared**,
+- **rename** a category (renaming to an existing name **merges** the two), and
+- **clear** a category (moving its snippets to _Uncategorized_).
+
+## Storage
+
+A snippet lives in one of two places:
+
+| Scope       | Where                                   | Committed? |
+| ----------- | --------------------------------------- | ---------- |
+| **Private** | Your VS Code workspace state            | No — per-repo, per-machine |
+| **Shared**  | `snapds.config.json` (`customSnippets`) | Yes — committed and shared like the rest of your config |
+
+New snippets default to **private**. Flip **Share with team** — in the save modal
+or the Settings tab — to promote one to shared.
+
+<Callout type="warning">
+Sharing writes the snippet's source into `snapds.config.json`, which is committed
+to version control. It is always an explicit choice, never the default — keep
+anything sensitive private.
+</Callout>
+
+## Snippets in generated skills
+
+Custom snippets can flow into your [agent skills](/docs/skills) too. In the AI
+tab, pick which snippets to include (a **Select all** control, or check individual
+snippets) and Snapds appends a **Custom Snippets** section to the generated
+catalog so coding agents know your team's patterns. See the
+[Skills](/docs/skills#include-custom-snippets) page for the confidentiality note.

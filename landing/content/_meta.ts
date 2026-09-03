@@ -7,6 +7,7 @@ export default {
   '--guides': { type: 'separator', title: 'Guides' },
   demos: 'Demos',
   examples: 'Examples & use cases',
+  'custom-snippets': 'Custom snippets',
   skills: 'Skills for agents',
 
   '--reference': { type: 'separator', title: 'Reference' },

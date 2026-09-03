@@ -4,6 +4,7 @@ import type {
   ConfigExportMode,
   ConfigImportPreviewPayload,
   ConfigStatusPayload,
+  CustomSnippet,
   FromSettings,
   PackageMeta,
   SkillFileEntry,
@@ -48,6 +49,13 @@ export interface SettingsHandlers {
   onEnableLocalSource?: (name: string) => void | Promise<void>;
   onSetHiddenPackages?: (names: string[]) => void | Promise<void>;
   onRemoveLocalSource?: (name: string) => void | Promise<void>;
+  onRequestSnippets?: () => void | Promise<void>;
+  onEditSnippet?: (snippetId: string) => void | Promise<void>;
+  onDeleteSnippet?: (snippetId: string) => void | Promise<void>;
+  onSetSnippetScope?: (snippetId: string, scope: 'local' | 'shared') => void | Promise<void>;
+  onRecategorizeSnippet?: (snippetId: string, category: string) => void | Promise<void>;
+  onRenameSnippetCategory?: (from: string, to: string) => void | Promise<void>;
+  onDeleteSnippetCategory?: (category: string) => void | Promise<void>;
 }
 
 export class SettingsPanelProvider {
@@ -159,6 +167,27 @@ export class SettingsPanelProvider {
         case 'removeLocalSource':
           void this.handlers.onRemoveLocalSource?.(msg.name);
           break;
+        case 'requestSnippets':
+          void this.handlers.onRequestSnippets?.();
+          break;
+        case 'editSnippet':
+          void this.handlers.onEditSnippet?.(msg.snippetId);
+          break;
+        case 'deleteSnippet':
+          void this.handlers.onDeleteSnippet?.(msg.snippetId);
+          break;
+        case 'setSnippetScope':
+          void this.handlers.onSetSnippetScope?.(msg.snippetId, msg.scope);
+          break;
+        case 'recategorizeSnippet':
+          void this.handlers.onRecategorizeSnippet?.(msg.snippetId, msg.category);
+          break;
+        case 'renameSnippetCategory':
+          void this.handlers.onRenameSnippetCategory?.(msg.from, msg.to);
+          break;
+        case 'deleteSnippetCategory':
+          void this.handlers.onDeleteSnippetCategory?.(msg.category);
+          break;
       }
     });
 
@@ -267,6 +296,12 @@ export class SettingsPanelProvider {
         type: 'configExported',
         outputPath,
       } satisfies ToSettings);
+    }
+  }
+
+  postSnippetList(snippets: CustomSnippet[]): void {
+    if (this.panel) {
+      void this.panel.webview.postMessage({ type: 'snippetList', snippets } satisfies ToSettings);
     }
   }
 }

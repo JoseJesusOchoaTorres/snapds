@@ -8,6 +8,7 @@ import { ImportPreviewModal } from './components/ImportPreviewModal';
 import { LocalSourceBanner } from './components/LocalSourceBanner';
 import { OverrideEditorModal } from './components/OverrideEditorModal';
 import { PackageDetailModal } from './components/PackageDetailModal';
+import { SnippetsTab } from './components/SnippetsTab';
 import { Tabs } from './components/Tabs';
 import { useSettingsController } from './hooks/useSettingsController';
 
@@ -69,6 +70,13 @@ export default function App() {
     exportConfig,
     dismissConfigBanner,
     clearImportPreview,
+    snippets,
+    editSnippet,
+    deleteSnippet,
+    setSnippetScope,
+    recategorizeSnippet,
+    renameSnippetCategory,
+    deleteSnippetCategory,
   } = useSettingsController();
 
   const renderPackageModal = () => {
@@ -228,6 +236,22 @@ export default function App() {
             ),
           },
           {
+            id: 'snippets',
+            label: 'Snippets',
+            icon: 'file' as const,
+            panel: (
+              <SnippetsTab
+                snippets={snippets}
+                onEdit={editSnippet}
+                onDelete={deleteSnippet}
+                onSetScope={setSnippetScope}
+                onRecategorize={recategorizeSnippet}
+                onRenameCategory={renameSnippetCategory}
+                onDeleteCategory={deleteSnippetCategory}
+              />
+            ),
+          },
+          {
             id: 'ai',
             label: 'AI',
             icon: 'sparkle' as const,
@@ -240,6 +264,7 @@ export default function App() {
                 updateSkills={updateSkills}
                 toggleFormat={toggleFormat}
                 activePackages={packages.filter((p) => p.enabled).map((p) => p.name)}
+                snippets={snippets.map((s) => ({ id: s.id, name: s.name }))}
               />
             ),
             actions: (

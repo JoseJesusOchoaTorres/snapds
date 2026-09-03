@@ -70,14 +70,23 @@ export function Toolbar() {
 }
 ```
 
-**Prefer the keyboard?** Press `⌃⌥⌘K` (macOS) or `Ctrl+Shift+Alt+K` (Windows /
-Linux) — or run **Snapds: Quick Component Search** from the Command Palette — to
-open a spotlight-style picker. Type a component name, press `Enter`, and Snapds
-injects the same JSX and import at your cursor, no mouse required. The shortcut
-fires only in React files; see [Commands & shortcuts](/docs/commands) to
-reassign it.
+**Prefer the keyboard?** Press `⌃⌥⌘I` (macOS) or `Ctrl+Shift+Alt+I` (Windows /
+Linux) — or run **Snapds: Insert Component or Snippet** from the Command Palette — to
+open a spotlight-style picker. Type a component or snippet name, press `Enter`, and Snapds
+injects the JSX/snippet and its import(s) at your cursor, no mouse required.
+See [Commands & shortcuts](/docs/commands) for the full shortcut reference.
 
-## 5. (Optional) Generate skills
+## 5. (Optional) Save your own snippets
+
+Beyond the packaged components, you can capture **your own** React code as
+reusable [custom snippets](/docs/custom-snippets). Select some code, press
+`⌃⌥⌘S` (macOS) / `Ctrl+Shift+Alt+S` (Windows / Linux) — or right-click →
+**Save Selection as Snippet** — then name it, pick a category, and confirm the
+imports Snapds detected. It joins a second **Custom Snippets** tab in the gallery
+and drags/injects exactly like a component. Keep it private to your workspace or
+**share it with the team** via `snapds.config.json`.
+
+## 6. (Optional) Generate skills
 
 Export [agent-ready skills](/docs/skills) so your coding assistant knows your
 design system on demand. Run **Snapds: Generate Skills** from the Command

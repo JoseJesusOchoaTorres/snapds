@@ -1,9 +1,12 @@
+import * as fs from 'node:fs';
 import * as vscode from 'vscode';
 import type { DsPackage, DsRegistry } from '../ds/dsRegistry';
 import { getSkillsConfig, setSkillsConfig } from '../ds/skillWriter';
 import type { UserOverridesStore } from '../state/userOverrides';
 import { normalizePackage, resolveConfig } from './configResolver';
 import type { ImportChangeSummary, SnapdsConfig } from './configSchema';
+import { writeConfigFile } from './configSerializer';
+import { diffSharedSnippets, readSharedSnippets } from './sharedSnippets';
 
 const SCOPE_FILTERS_KEY = 'snapds.scopeFilters';
 
@@ -55,6 +58,16 @@ export function previewImport(
     incoming.scopeFilters !== undefined &&
     JSON.stringify(incoming.scopeFilters) !== JSON.stringify(currentFilters);
 
+  // Shared snippets: compare the incoming file against what's already on disk.
+  // For the startup conflict check the incoming IS the resolved config, so this
+  // is 0; it only counts when importing a config from a different file.
+  const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const currentConfig = folder ? resolveConfig(folder)?.config : undefined;
+  const customSnippetsChanged =
+    incoming.customSnippets !== undefined
+      ? diffSharedSnippets(readSharedSnippets(currentConfig), readSharedSnippets(incoming))
+      : 0;
+
   return {
     packagesAdded,
     packagesRemoved,
@@ -62,6 +75,7 @@ export function previewImport(
     overridesCount,
     skillsChanged,
     scopeFiltersChanged,
+    customSnippetsChanged,
   };
 }
 
@@ -120,6 +134,35 @@ export async function applyConfig(
       }
     }
   }
+
+  // Persist shared snippets to the owning config file so the import transaction
+  // is complete. We write only when customSnippets is explicitly set (including
+  // an empty array — that means "remove all shared snippets").
+  if (incoming.customSnippets !== undefined) {
+    const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const owningPath = folder ? resolveConfig(folder)?.owningPath : undefined;
+    if (owningPath) {
+      let rawConfig: SnapdsConfig = {};
+      // Separate I/O from parse so only ENOENT falls through to an empty-config
+      // base. A JSON parse error or unexpected I/O failure propagates and aborts
+      // the write, preventing customSnippets from silently replacing the file.
+      let rawText: string | undefined;
+      try {
+        rawText = fs.readFileSync(owningPath, 'utf8');
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+        // File does not exist yet — start from an empty config.
+      }
+      if (rawText !== undefined) {
+        rawConfig = JSON.parse(rawText) as SnapdsConfig;
+      }
+      await writeConfigFile(
+        { ...rawConfig, customSnippets: incoming.customSnippets },
+        owningPath,
+        'replace',
+      );
+    }
+  }
 }
 
 /**
@@ -143,7 +186,8 @@ export function detectConfigConflict(
     summary.packagesRemoved.length > 0 ||
     summary.packagesUpdated.length > 0 ||
     summary.skillsChanged ||
-    summary.scopeFiltersChanged;
+    summary.scopeFiltersChanged ||
+    summary.customSnippetsChanged > 0;
 
   return { detected: true, hasConflicts, configPath: resolved.owningPath };
 }

@@ -32,7 +32,14 @@ function makeFakeView() {
 
 // biome-ignore lint/suspicious/noExplicitAny: minimal stubs for a unit test.
 const ctx = { extensionUri: { fsPath: '/snapds-nonexistent-test-dir' }, subscriptions: [] } as any;
-const handlers = { onReady: () => {}, onSearch: () => {}, onSelect: () => {} };
+const handlers = {
+  onReady: () => {},
+  onSearch: () => {},
+  onSelect: () => {},
+  onSnippetSelect: () => {},
+  onEditSnippet: () => {},
+  onDeleteSnippet: () => {},
+};
 
 test('replays the active indexing state AND the last progress to a view opening mid-index', () => {
   const provider = new GalleryViewProvider(ctx, handlers);

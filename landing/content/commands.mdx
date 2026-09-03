@@ -10,60 +10,123 @@ All Snapds commands are available from the **Command Palette**
 
 ## Commands
 
-| Command                          | Command ID               | Where |
-| -------------------------------- | ------------------------ | ----- |
-| Snapds: Quick Component Search   | `snapds.quickSearch`     | Command Palette · `⌃⌥⌘K` (macOS) · `Ctrl+Shift+Alt+K` (Win/Linux) |
-| Snapds: Open Settings            | `snapds.openSettings`    | Command Palette · ⚙️ gear in the **Components** view title |
-| Snapds: Open Props Panel         | `snapds.openPropsPanel`  | Command Palette · opens automatically when you select a component |
-| Snapds: Generate Skills          | `snapds.generateSkills`  | Command Palette · prompts for agent(s) + destination |
-| Snapds: Regenerate All Skills    | `snapds.regenerateSkills`| Command Palette · uses your saved skills config |
-| Snapds: Reindex Packages         | `snapds.reindex`         | Command Palette · re-runs background indexing without clearing the cache |
-| Snapds: Clear Introspection Cache| `snapds.clearCache`      | Command Palette · clears all cached results and forces a full re-parse |
+| Command                              | Command ID                        | Where |
+| ------------------------------------ | --------------------------------- | ----- |
+| Snapds: Insert Component or Snippet  | `snapds.quickSearch`              | Command Palette · `⌃⌥⌘I` (macOS) · `Ctrl+Shift+Alt+I` (Win/Linux) |
+| Snapds: Save Selection as Snippet    | `snapds.saveSelectionAsSnippet`   | Editor right-click · `⌃⌥⌘S` (macOS) · `Ctrl+Shift+Alt+S` (Win/Linux) — active when text selected in React file |
+| Snapds: Open Gallery — Components    | `snapds.openGalleryComponents`    | Command Palette · `⌃⌥⌘C` (macOS) · `Ctrl+Shift+Alt+C` (Win/Linux) — opens gallery on Components tab, focuses search |
+| Snapds: Open Gallery — Custom Snippets | `snapds.openGallerySnippets`    | Command Palette · `⌃⌥⌘S` (macOS) · `Ctrl+Shift+Alt+S` (Win/Linux) — opens gallery on Snippets tab; the same key saves a snippet when in React + selection |
+| Snapds: Focus Gallery Search         | `snapds.focusGallerySearch`       | Command Palette · `⌃⌥⌘F` (macOS) · `Ctrl+Shift+Alt+F` (Win/Linux) — opens gallery if needed and focuses search |
+| Snapds: Open Settings                | `snapds.openSettings`             | Command Palette · ⚙️ gear in the **Components** view title |
+| Snapds: Open Props Panel             | `snapds.openPropsPanel`           | Command Palette · opens automatically when you select a component |
+| Snapds: Generate Skills              | `snapds.generateSkills`           | Command Palette · prompts for agent(s) + destination |
+| Snapds: Regenerate All Skills        | `snapds.regenerateSkills`         | Command Palette · uses your saved skills config |
+| Snapds: Reindex Packages             | `snapds.reindex`                  | Command Palette · re-runs background indexing without clearing the cache |
+| Snapds: Clear Introspection Cache    | `snapds.clearCache`               | Command Palette · clears all cached results and forces a full re-parse |
 
 <Callout type="info">
-`snapds.quickSearch` is the only command with a default keybinding: **`⌃⌥⌘K`**
-on macOS and **`Ctrl+Shift+Alt+K`** on Windows / Linux. All other Snapds commands
-ship without a default binding so they never clash with your existing
-shortcuts. Reassign any command via **Preferences: Open Keyboard Shortcuts**.
+Five commands ship with default keybindings. All others ship without defaults so
+they never clash with your existing shortcuts. Reassign any command via
+**Preferences: Open Keyboard Shortcuts**.
+
+| Shortcut (macOS) | Shortcut (Win/Linux)        | Command                        |
+| ---------------- | --------------------------- | ------------------------------ |
+| `⌃⌥⌘C`          | `Ctrl+Shift+Alt+C`          | Open Gallery — Components tab  |
+| `⌃⌥⌘S`          | `Ctrl+Shift+Alt+S`          | Open Gallery — Snippets tab (or Save Selection as Snippet when in React + selection) |
+| `⌃⌥⌘F`          | `Ctrl+Shift+Alt+F`          | Focus Gallery Search           |
+| `⌃⌥⌘I`          | `Ctrl+Shift+Alt+I`          | Insert Component or Snippet    |
 </Callout>
 
-## Quick Component Search
+## Insert Component or Snippet
 
-`snapds.quickSearch` opens a native VS Code Quick Pick populated with every
-component Snapds has indexed. Start typing a component name — results filter
-instantly — then press `Enter` or click to inject the JSX snippet and its
-import at the cursor, exactly as if you had dragged it from the gallery.
+`snapds.quickSearch` opens a native VS Code Quick Pick with two labeled
+sections — every **component** Snapds has indexed and every **custom snippet**
+you've saved. Start typing a name — results filter instantly — then press
+`Enter` or click to inject the JSX/snippet and its import(s) at the cursor,
+exactly as if you had dragged it from the gallery.
 
-| Platform        | Default shortcut |
-| --------------- | ---------------- |
-| macOS           | `⌃⌥⌘K`               |
-| Windows / Linux | `Ctrl+Shift+Alt+K`   |
-
-The shortcut fires only in React files (`editorLangId == typescriptreact` or
-`javascriptreact`) so it won't interfere with other editors.
+| Platform        | Default shortcut     |
+| --------------- | -------------------- |
+| macOS           | `⌃⌥⌘I`              |
+| Windows / Linux | `Ctrl+Shift+Alt+I`   |
 
 To reassign it, open **Preferences: Open Keyboard Shortcuts (JSON)** and add:
 
 ```jsonc
 [
   {
-    "key": "ctrl+alt+cmd+k",         // macOS — your preferred combo
-    "win": "ctrl+shift+alt+k",      // Windows / Linux — your preferred combo
-    "command": "snapds.quickSearch",
-    "when": "editorTextFocus && (editorLangId == typescriptreact || editorLangId == javascriptreact)"
+    "key": "ctrl+alt+cmd+i",         // macOS — your preferred combo
+    "win": "ctrl+shift+alt+i",       // Windows / Linux — your preferred combo
+    "command": "snapds.quickSearch"
   }
 ]
 ```
 
+## Save Selection as Snippet
+
+`snapds.saveSelectionAsSnippet` captures the current editor selection as a
+reusable [custom snippet](/docs/custom-snippets). Select code in a React file, then
+run it from the editor right-click menu or the keyboard:
+
+| Platform        | Default shortcut     |
+| --------------- | -------------------- |
+| macOS           | `⌃⌥⌘S`              |
+| Windows / Linux | `Ctrl+Shift+Alt+S`   |
+
+The command and its shortcut only appear when text is **selected in a React
+file** (`editorLangId == typescriptreact` or `javascriptreact`). The same key
+without a selection opens the **Snippets** gallery tab. It opens a modal to
+name the snippet, set a category, and confirm the imports Snapds detected in the
+selection.
+
+## Open Gallery — Components
+
+`snapds.openGalleryComponents` reveals the gallery, switches to the **Components**
+tab, and focuses the search bar — handy when you're deep in the Explorer or
+Search view and want to find a component fast.
+
+| Platform        | Default shortcut     |
+| --------------- | -------------------- |
+| macOS           | `⌃⌥⌘C`              |
+| Windows / Linux | `Ctrl+Shift+Alt+C`   |
+
+Has **no `when` clause** — fires from any focus.
+
+## Open Gallery — Custom Snippets
+
+`snapds.openGallerySnippets` reveals the gallery, switches to the **Custom
+Snippets** tab, and focuses the search bar.
+
+| Platform        | Default shortcut     |
+| --------------- | -------------------- |
+| macOS           | `⌃⌥⌘S`              |
+| Windows / Linux | `Ctrl+Shift+Alt+S`   |
+
+This command fires globally (no `when` clause). When text **is** selected in a
+React file the same key runs `snapds.saveSelectionAsSnippet` instead — VS Code
+picks the more specific binding automatically.
+
+## Focus Gallery Search
+
+`snapds.focusGallerySearch` opens the gallery if it isn't already visible, then
+moves keyboard focus to the search bar.
+
+| Platform        | Default shortcut     |
+| --------------- | -------------------- |
+| macOS           | `⌃⌥⌘F`              |
+| Windows / Linux | `Ctrl+Shift+Alt+F`   |
+
+Has **no `when` clause** — fires from any focus.
+
 ## Assigning any other keybinding
 
-To bind a command — for example, opening Settings with `Cmd/Ctrl+Alt+S`:
+To bind a command — for example, opening Settings with `Cmd/Ctrl+Alt+O`:
 
 ```jsonc
 // keybindings.json
 [
   {
-    "key": "cmd+alt+s",
+    "key": "cmd+alt+o",
     "command": "snapds.openSettings"
   }
 ]

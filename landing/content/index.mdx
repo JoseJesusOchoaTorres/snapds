@@ -1,14 +1,15 @@
 ---
 title: Introduction
-description: Snapds turns any React component package into a visual gallery inside VS Code — browse components, drop ready-to-use JSX, and export agent-ready skills.
+description: Snapds turns any React component package into a visual gallery inside VS Code — browse components, drop ready-to-use JSX, capture your own reusable snippets, and export agent-ready skills.
 ---
 
 # Snapds
 
 **Your design system, inside VS Code.** Snapds turns any React + TypeScript
 component package into a visual gallery in your editor. Browse components, drop
-them into a file as ready-to-use JSX with imports handled for you, and export
-agent-ready skills — without leaving VS Code.
+them into a file as ready-to-use JSX with imports handled for you, capture your
+own reusable code snippets, and export agent-ready skills — without leaving VS
+Code.
 
 ## The problem
 
@@ -33,6 +34,9 @@ your TypeScript types so it can never drift:
   dedicated sidebar, searchable and grouped by package.
 - **Drag & drop JSX** — drop a component into a React file and Snapds writes
   correct JSX with sensible tab-stops.
+- **Custom snippets** — capture your own code (`⌃⌥⌘S` with a selection, or right-click → _Save
+  Selection as Snippet_) into the Custom Snippets gallery tab, then drag or inject it back
+  with all its imports. Keep them private or share them with the team.
 - **Smart imports** — new imports are merged into the right statement without
   duplicates, including multi-line, Prettier-formatted imports.
 - **Monorepo-native version awareness** — when different apps in a monorepo use different versions of the same package, Snapds auto-detects the right version from the file you're editing and shows the correct props. A version dropdown and an "Add to this app" shortcut make version management frictionless.
