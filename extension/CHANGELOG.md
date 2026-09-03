@@ -5,6 +5,20 @@ All notable changes to the **Snapds** extension are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.7.2...snapds-v1.8.0) (2026-09-03)
+
+
+### Features
+
+* **snippets+skills+gallery:** per-snippet skill files, two routers, and gallery shortcut hints ([a278c52](https://github.com/JoseJesusOchoaTorres/snapds/commit/a278c52b6ea2fbfbe43b65bcef894c68c1733911))
+* **snippets:** add custom snippets — capture, gallery tab, inject, UX polish, syntax highlighting ([983e5e2](https://github.com/JoseJesusOchoaTorres/snapds/commit/983e5e28475ee583b26f4c2239bc05ba40423f9a))
+
+
+### Bug Fixes
+
+* **snippets:** harden config error handling, type imports, and editor undo history ([cf3f009](https://github.com/JoseJesusOchoaTorres/snapds/commit/cf3f009c56f3861346cca1ad6e05f2ca6d5a5567))
+* **snippets:** harden config safety, type imports, skill files, and gallery UX ([98396f6](https://github.com/JoseJesusOchoaTorres/snapds/commit/98396f6d6158fdc6cdc6b4bb613eeded2f59149a))
+
 ## [1.7.2](https://github.com/JoseJesusOchoaTorres/snapds/compare/snapds-v1.7.1...snapds-v1.7.2) (2026-08-13)
 
 
