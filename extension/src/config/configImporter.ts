@@ -143,10 +143,18 @@ export async function applyConfig(
     const owningPath = folder ? resolveConfig(folder)?.owningPath : undefined;
     if (owningPath) {
       let rawConfig: SnapdsConfig = {};
+      // Separate I/O from parse so only ENOENT falls through to an empty-config
+      // base. A JSON parse error or unexpected I/O failure propagates and aborts
+      // the write, preventing customSnippets from silently replacing the file.
+      let rawText: string | undefined;
       try {
-        rawConfig = JSON.parse(fs.readFileSync(owningPath, 'utf8')) as SnapdsConfig;
-      } catch {
-        // File missing or unreadable → write from scratch.
+        rawText = fs.readFileSync(owningPath, 'utf8');
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+        // File does not exist yet — start from an empty config.
+      }
+      if (rawText !== undefined) {
+        rawConfig = JSON.parse(rawText) as SnapdsConfig;
       }
       await writeConfigFile(
         { ...rawConfig, customSnippets: incoming.customSnippets },

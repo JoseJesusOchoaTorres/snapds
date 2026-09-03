@@ -98,9 +98,13 @@ export function emitImport(spec: ImportSpec): string {
       }
       return `import { ${spec.names.join(', ')} } from '${spec.specifier}';`;
     case 'default':
-      return `import ${spec.local} from '${spec.specifier}';`;
+      return spec.typeOnly
+        ? `import type ${spec.local} from '${spec.specifier}';`
+        : `import ${spec.local} from '${spec.specifier}';`;
     case 'namespace':
-      return `import * as ${spec.local} from '${spec.specifier}';`;
+      return spec.typeOnly
+        ? `import type * as ${spec.local} from '${spec.specifier}';`
+        : `import * as ${spec.local} from '${spec.specifier}';`;
   }
 }
 
@@ -136,10 +140,10 @@ function mergeNamed(
   return { newLine: `import { ${names.join(', ')} } from '${specifier}';` };
 }
 
-/** True when a default import from `specifier` already exists. */
+/** True when a default import (including `import type Foo`) from `specifier` already exists. */
 function hasDefaultImport(text: string, specifier: string): boolean {
   return new RegExp(
-    `import\\s+[A-Za-z_$][\\w$]*\\s*(?:,\\s*(?:\\{[^}]*\\}|\\*\\s+as\\s+[A-Za-z_$][\\w$]*))?\\s+from\\s+['"]${escapeRegex(specifier)}['"]`,
+    `import\\s+(?:type\\s+)?[A-Za-z_$][\\w$]*\\s*(?:,\\s*(?:\\{[^}]*\\}|\\*\\s+as\\s+[A-Za-z_$][\\w$]*))?\\s+from\\s+['"]${escapeRegex(specifier)}['"]`,
   ).test(text);
 }
 

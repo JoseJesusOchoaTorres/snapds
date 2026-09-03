@@ -53,8 +53,20 @@ export type ImportSpec =
        */
       typeOnly?: boolean;
     }
-  | { kind: 'default'; specifier: string; local: string }
-  | { kind: 'namespace'; specifier: string; local: string };
+  | {
+      kind: 'default';
+      specifier: string;
+      local: string;
+      /** True for `import type Foo from '…'` (declaration-level type modifier). */
+      typeOnly?: boolean;
+    }
+  | {
+      kind: 'namespace';
+      specifier: string;
+      local: string;
+      /** True for `import type * as Foo from '…'` (declaration-level type modifier). */
+      typeOnly?: boolean;
+    };
 
 /**
  * A user-captured code snippet. Flows through the SAME gallery render, drag,

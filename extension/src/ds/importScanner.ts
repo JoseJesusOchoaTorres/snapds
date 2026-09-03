@@ -50,8 +50,20 @@ export function parseImportsToSpecs(text: string): ImportSpec[] {
         typeOnly: p.typeOnly,
       });
     }
-    if (p.default) specs.push({ kind: 'default', specifier: p.specifier, local: p.default });
-    if (p.namespace) specs.push({ kind: 'namespace', specifier: p.specifier, local: p.namespace });
+    if (p.default)
+      specs.push({
+        kind: 'default',
+        specifier: p.specifier,
+        local: p.default,
+        typeOnly: p.typeOnly,
+      });
+    if (p.namespace)
+      specs.push({
+        kind: 'namespace',
+        specifier: p.specifier,
+        local: p.namespace,
+        typeOnly: p.typeOnly,
+      });
   }
   return specs;
 }

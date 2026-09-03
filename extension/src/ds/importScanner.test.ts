@@ -109,8 +109,8 @@ test('parseImportsToSpecs converts confirmed import lines back into specs', () =
   assert.deepEqual(parseImportsToSpecs(text), [
     { kind: 'named', specifier: '@acme/ui', names: ['Button', 'Label'], typeOnly: false },
     { kind: 'named', specifier: 'react', names: ['useState'], typeOnly: false },
-    { kind: 'default', specifier: 'react', local: 'React' },
-    { kind: 'namespace', specifier: './x.css', local: 'styles' },
+    { kind: 'default', specifier: 'react', local: 'React', typeOnly: false },
+    { kind: 'namespace', specifier: './x.css', local: 'styles', typeOnly: false },
   ]);
 });
 

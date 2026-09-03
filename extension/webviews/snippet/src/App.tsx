@@ -228,7 +228,10 @@ export default function App() {
             *
           </span>
         </span>
-        <CodeEditor value={code} onChange={setCode} />
+        {/* key={draft.id} ensures CodeMirror's undo history is cleared when a
+            different snippet opens in the same panel, so Ctrl+Z cannot restore
+            content from a prior draft. */}
+        <CodeEditor key={draft.id} value={code} onChange={setCode} />
       </div>
 
       <fieldset className="field imports">
